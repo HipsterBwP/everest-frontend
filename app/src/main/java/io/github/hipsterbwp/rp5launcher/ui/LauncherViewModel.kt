@@ -473,6 +473,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun fanart(game: Game): File? = scraper.file(art[game.id]?.fanart)
 
+    fun titleArt(game: Game): File? = scraper.file(art[game.id]?.titleShot)
+
     /** Hero art for a console: fanart of the last played game, else of any game that has some. */
     fun systemHero(system: SystemEntry): File? {
         val withFanart = system.games.filter { art[it.id]?.fanart != null }
@@ -548,7 +550,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 for (system in targets) {
                     scrape = ScrapeProgress(done, total, system.info.displayName)
                     withContext(Dispatchers.IO) {
-                        scraper.scrapeSystem(system.name, system.games, art.toMap(), force, ss) { game, result ->
+                        scraper.scrapeSystem(system.name, system.games, art.toMap(), force, ss, system.info.displayName) { game, result ->
                             viewModelScope.launch {
                                 art[game.id] = result
                                 done++

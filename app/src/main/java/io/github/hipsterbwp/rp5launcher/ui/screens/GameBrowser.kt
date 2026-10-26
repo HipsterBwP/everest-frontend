@@ -2,6 +2,14 @@ package io.github.hipsterbwp.rp5launcher.ui.screens
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -149,19 +157,14 @@ private fun InfoColumn(vm: LauncherViewModel, system: SystemEntry, game: Game) {
                 .clip(rounded(Radius.CARD))
                 .background(Palette.card),
         ) {
-            Crossfade(
-                targetState = vm.snapArt(game) ?: vm.fanart(game),
-                animationSpec = Motion.colorFade(),
-                label = "media",
-            ) { file ->
-                if (file != null) {
-                    ArtImage(file, Modifier.fillMaxSize(), ContentScale.Crop)
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        val logo = vm.logos[system.name]
-                        if (logo != null) ArtImage(logo, Modifier.fillMaxWidth(0.5f).height(Size.RAIL_LOGO_SELECTED_H.u), tint = Palette.inkSecondary)
-                        else Txt(system.info.shortName, Type.section, Palette.inkSecondary)
-                    }
+            val frames = listOfNotNull(vm.snapArt(game), vm.titleArt(game), vm.fanart(game))
+            if (frames.isNotEmpty()) {
+                Slideshow(game.id, frames)
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val logo = vm.logos[system.name]
+                    if (logo != null) ArtImage(logo, Modifier.fillMaxWidth(0.5f).height(Size.RAIL_LOGO_SELECTED_H.u), tint = Palette.inkSecondary)
+                    else Txt(system.info.shortName, Type.section, Palette.inkSecondary)
                 }
             }
             GameVideo(info?.video, vm.config.videoSound, Modifier.fillMaxSize())
@@ -194,6 +197,32 @@ private fun InfoColumn(vm: LauncherViewModel, system: SystemEntry, game: Game) {
                 maxLines = 3,
             )
         }
+    }
+}
+
+/**
+ * Gameplay stills (screenshot, title screen, fanart) cross-fading with a slow Ken Burns zoom,
+ * standing in for video when there is none (or until it starts).
+ */
+@Composable
+private fun Slideshow(key: String, frames: List<java.io.File>) {
+    var frame by remember(key) { mutableIntStateOf(0) }
+    LaunchedEffect(key, frames.size) {
+        while (frames.size > 1) {
+            delay(Motion.SLIDE_MS.toLong())
+            frame = (frame + 1) % frames.size
+        }
+    }
+    Crossfade(targetState = frames[frame % frames.size], animationSpec = Motion.colorFade(), label = "slide") { file ->
+        val zoom = remember(file) { Animatable(1f) }
+        LaunchedEffect(file) {
+            zoom.animateTo(Focus.KEN_BURNS_SCALE, tween(Motion.KEN_BURNS_MS, easing = LinearEasing))
+        }
+        ArtImage(
+            file,
+            Modifier.fillMaxSize().graphicsLayer { scaleX = zoom.value; scaleY = zoom.value },
+            ContentScale.Crop,
+        )
     }
 }
 

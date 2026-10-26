@@ -396,6 +396,8 @@ object Focus {
     const val CARD_SCALE = 1.05f
     /** tvOS-style lift for a focused cover. */
     const val COVER_SCALE = 1.08f
+    /** Slow zoom on slideshow stills. */
+    const val KEN_BURNS_SCALE = 1.12f
     /** Unfocused rail logos fade back. */
     const val RAIL_DIM = 0.45f
 }
@@ -433,6 +435,9 @@ object Alpha {
 object Motion {
     const val COLOR_FADE_MS = 250
     const val SCREEN_FADE_MS = 180
+    /** Gameplay stills slideshow: time per still, and its zoom duration. */
+    const val SLIDE_MS = 4500
+    const val KEN_BURNS_MS = 6000
 
     fun <T> colorFade() = tween<T>(COLOR_FADE_MS)
     fun <T> screenFade() = tween<T>(SCREEN_FADE_MS)

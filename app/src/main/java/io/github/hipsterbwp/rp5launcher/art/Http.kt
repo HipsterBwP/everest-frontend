@@ -37,7 +37,7 @@ internal object Http {
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS
             instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "rp5-launcher/${BuildConfig.VERSION_NAME}")
+            setRequestProperty("User-Agent", "rp5-launcher/${BuildConfig.VERSION_NAME} (https://github.com/HipsterBwP/rp5-launcher)")
             accept?.let { setRequestProperty("Accept", it) }
         }
         try {

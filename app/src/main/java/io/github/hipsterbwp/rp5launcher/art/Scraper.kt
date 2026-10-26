@@ -40,6 +40,10 @@ data class GameArt(
     val rating: Float? = null,
     val players: String? = null,
     val ssCheckedAt: Long = 0,
+    /** Title-screen image (libretro Named_Titles). */
+    val titleShot: String? = null,
+    /** When Wikipedia was asked for a description (0 = not yet). */
+    val wikiCheckedAt: Long = 0,
 )
 
 /** One scraping run's ScreenScraper state: one request at a time, and a stop reason if refused. */
@@ -84,7 +88,8 @@ class Scraper(context: Context) {
 
     /** A game is worth (re)scraping until it has box art, and until ScreenScraper has been asked. */
     fun needsArt(art: GameArt?, screenScraper: Boolean = false): Boolean =
-        art == null || art.scrapedAt == 0L || art.box == null || (screenScraper && art.ssCheckedAt == 0L)
+        art == null || art.scrapedAt == 0L || art.box == null || art.wikiCheckedAt == 0L ||
+            (screenScraper && art.ssCheckedAt == 0L)
 
     /**
      * Scrapes [games] of one system, calling [onGame] as each finishes. Skips games already
@@ -96,6 +101,7 @@ class Scraper(context: Context) {
         existing: Map<String, GameArt>,
         force: Boolean,
         ss: ScreenScraperSession?,
+        platform: String,
         onGame: (Game, GameArt) -> Unit,
     ) {
         val todo = games.filter { force || needsArt(existing[it.id], ss != null) }
@@ -105,6 +111,7 @@ class Scraper(context: Context) {
         val repo = name?.replace(' ', '_')
         val boxes = Matcher(if (repo != null) index(repo, BOXARTS) else emptyList())
         val snaps = Matcher(if (repo != null) index(repo, SNAPS) else emptyList())
+        val titles = Matcher(if (repo != null) index(repo, TITLES) else emptyList())
         val previous = existing
         val meta = if (name != null) MetaFields.entries.associateWith { metadata(it, name) } else emptyMap()
         val ssSystem = ScreenScraper.SYSTEM_IDS[system]
@@ -115,7 +122,7 @@ class Scraper(context: Context) {
                 async {
                     semaphore.withPermit {
                         ensureActive()
-                        val libretro = scrapeGame(game, repo, boxes, snaps, meta, previous[game.id])
+                        val libretro = scrapeGame(game, repo, boxes, snaps, titles, meta, previous[game.id], force, platform)
                         val full = if (ss != null && ssSystem != null && (force || libretro.ssCheckedAt == 0L)) {
                             screenScrape(game, ssSystem, libretro, ss)
                         } else {
@@ -133,17 +140,23 @@ class Scraper(context: Context) {
         repo: String?,
         boxes: Matcher,
         snaps: Matcher,
+        titles: Matcher,
         meta: Map<MetaFields, Map<String, String>>,
         previous: GameArt?,
+        force: Boolean,
+        platform: String,
     ): GameArt {
         val base = game.fileName.substringBeforeLast('.')
         val boxName = boxes.best(base, game.tag)
         val snapName = snaps.best(base, game.tag) ?: boxName
+        val titleName = titles.best(base, game.tag)
         val id = sha1(game.id)
         // A network hiccup (not a missing image) leaves the game marked unscraped so it's retried.
         var transient = false
         fun fetch(folder: String, name: String?, target: String, maxHeight: Int): String? =
             if (name == null || repo == null) null
+            // Keep images already on disk unless re-downloading everything.
+            else if (!force && File(dir, target).exists()) target
             else try {
                 download("$RAW/$repo/master/$folder/${Http.segment(name)}.png", target, maxHeight)
             } catch (e: java.io.IOException) {
@@ -152,6 +165,18 @@ class Scraper(context: Context) {
             }
         val box = fetch(BOXARTS, boxName, "box/$id.webp", BOX_MAX_H) ?: previous?.box
         val snap = fetch(SNAPS, snapName, "snap/$id.webp", SNAP_MAX_H) ?: previous?.snap
+        val titleShot = fetch(TITLES, titleName, "title/$id.webp", SNAP_MAX_H) ?: previous?.titleShot
+        // Description from Wikipedia unless one is known (ScreenScraper's wins when signed in).
+        var description = previous?.description
+        var wikiCheckedAt = previous?.wikiCheckedAt ?: 0L
+        if (description == null && (force || wikiCheckedAt == 0L)) {
+            try {
+                description = Wikipedia.describe(game.title, platform)
+                wikiCheckedAt = System.currentTimeMillis()
+            } catch (e: java.io.IOException) {
+                transient = true
+            }
+        }
         val metaName = boxName ?: snapName ?: base
         fun lookup(field: MetaFields) = meta[field]?.let { m -> m[metaName] ?: m[key(metaName)] ?: m[key(base)] }
         return GameArt(
@@ -166,7 +191,9 @@ class Scraper(context: Context) {
             // Keep what ScreenScraper found last time; it's refreshed separately.
             fanart = previous?.fanart,
             video = previous?.video,
-            description = previous?.description,
+            description = description,
+            titleShot = titleShot,
+            wikiCheckedAt = wikiCheckedAt,
             rating = previous?.rating,
             players = previous?.players,
             ssCheckedAt = previous?.ssCheckedAt ?: 0,
@@ -324,6 +351,7 @@ class Scraper(context: Context) {
         private const val METADAT = "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat"
         private const val BOXARTS = "Named_Boxarts"
         private const val SNAPS = "Named_Snaps"
+        private const val TITLES = "Named_Titles"
         private const val PARALLEL = 4
         private const val BOX_MAX_H = 640
         private const val SNAP_MAX_H = 420

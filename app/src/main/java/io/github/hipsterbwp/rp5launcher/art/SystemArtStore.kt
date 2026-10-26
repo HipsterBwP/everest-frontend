@@ -3,19 +3,28 @@ package io.github.hipsterbwp.rp5launcher.art
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Matrix
 import com.caverock.androidsvg.SVG
 import java.io.File
 
 /**
  * Console illustrations and fact sheets from ES-DE's "Slate" theme
  * (https://gitlab.com/es-de/themes/slate-es-de, CC BY-NC-SA), fetched on demand:
- * - images/consolegame.svg (console with a game), falling back to images/controller.svg
+ * - images/controller.svg (drawn sideways for Slate's vertical layout, so rotated upright here),
+ *   falling back to images/consolegame.svg (console with a game) when a controller won't render
  * - systeminfo.xml ("Manufacturer: Sony Electronics", "Units sold: 155 million", …)
  */
 class SystemArtStore(context: Context) {
-    private val dir = File(context.filesDir, "art/system").apply { mkdirs() }
+    private val dir = File(context.filesDir, "art/system").apply {
+        mkdirs()
+        // Drop images from older art versions.
+        listFiles { f -> f.name.endsWith(".png") && !f.name.endsWith("-$ART_VERSION.png") }?.forEach { it.delete() }
+    }
 
-    fun image(system: String): File? = File(dir, "$system.png").takeIf { it.exists() }
+    fun image(system: String): File? = png(system).takeIf { it.exists() }
+
+    /** Versioned name, so art rendered by older builds (sideways controllers) is redrawn. */
+    private fun png(system: String) = File(dir, "$system-$ART_VERSION.png")
 
     /** Label/value pairs, e.g. ("Units sold", "155 million"). */
     fun facts(system: String): List<Pair<String, String>> {
@@ -30,7 +39,7 @@ class SystemArtStore(context: Context) {
 
     /** Downloads what's missing; returns systems that gained an image or facts. */
     fun fetchMissing(systems: List<String>, force: Boolean = false): List<String> = systems.filter { system ->
-        val png = File(dir, "$system.png")
+        val png = png(system)
         val facts = File(dir, "$system.facts")
         val miss = File(dir, "$system.none")
         val recentMiss = miss.exists() && System.currentTimeMillis() - miss.lastModified() < RETRY_MS
@@ -47,13 +56,14 @@ class SystemArtStore(context: Context) {
             }
         }
         if (force || !png.exists()) {
-            gained = listOf("consolegame.svg", "controller.svg").any { name -> render("$SLATE/$system/images/$name", png) } || gained
+            gained = (render("$SLATE/$system/images/controller.svg", png, rotate = true) ||
+                render("$SLATE/$system/images/consolegame.svg", png, rotate = false)) || gained
         }
         if (!gained && !png.exists()) miss.writeText("") else miss.delete()
         gained
     }
 
-    private fun render(url: String, out: File): Boolean = runCatching {
+    private fun render(url: String, out: File, rotate: Boolean): Boolean = runCatching {
         val text = Http.get(url)?.toString(Charsets.UTF_8) ?: return false
         val svg = SVG.getFromString(LogoStore.inlineEntities(text))
         val box = svg.documentViewBox
@@ -64,14 +74,21 @@ class SystemArtStore(context: Context) {
         svg.setDocumentHeight(height.toFloat())
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         svg.renderToCanvas(Canvas(bitmap))
+        val upright = if (rotate) {
+            // Slate draws controllers turned 90° clockwise; turn them back.
+            Bitmap.createBitmap(bitmap, 0, 0, width, height, Matrix().apply { postRotate(-90f) }, true)
+        } else {
+            bitmap
+        }
         val tmp = File(out.parentFile, out.name + ".tmp")
-        tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        tmp.outputStream().use { upright.compress(Bitmap.CompressFormat.PNG, 100, it) }
         tmp.renameTo(out)
     }.getOrDefault(false)
 
     companion object {
         private const val SLATE = "https://gitlab.com/es-de/themes/slate-es-de/-/raw/master"
         private const val HEIGHT = 480
+        private const val ART_VERSION = 2
         private const val RETRY_MS = 7L * 24 * 60 * 60 * 1000
     }
 }

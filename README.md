@@ -79,6 +79,8 @@ step or **Settings › Scraper**:
 
 - Box art and screenshots from [libretro-thumbnails](https://github.com/libretro-thumbnails)
 - Year, publisher, developer and genre from [libretro-database](https://github.com/libretro/libretro-database)
+- Descriptions from English Wikipedia (only when the article is clearly about that game)
+- Title screens from libretro-thumbnails, shown with the screenshot as a slow slideshow
 - Console logos for the system tiles from the RetroPie Carbon theme, with ES-DE's Slate theme for
   newer systems (Switch, 3DS, Vita, …)
 

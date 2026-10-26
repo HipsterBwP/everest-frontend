@@ -37,6 +37,7 @@ Licensed under the SIL Open Font License 1.1; the full text is in `app/src/main/
   Logos are trademarks of their respective owners.
 - **Console illustrations and fact sheets**: ES-DE Slate theme (`images/consolegame.svg`,
   `images/controller.svg`, `systeminfo.xml`), CC BY-NC-SA.
+- **Game descriptions**: English [Wikipedia](https://en.wikipedia.org) article intros, CC BY-SA 4.0.
 - **Fanart, gameplay videos, descriptions, ratings** (optional, with the user's own account):
   [ScreenScraper.fr](https://www.screenscraper.fr).
 
