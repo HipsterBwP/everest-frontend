@@ -30,6 +30,8 @@ import io.github.hipsterbwp.rp5launcher.launch.GameLauncher
 import io.github.hipsterbwp.rp5launcher.launch.LaunchProblem
 import io.github.hipsterbwp.rp5launcher.launch.LaunchResult
 import io.github.hipsterbwp.rp5launcher.ui.theme.SystemColors
+import io.github.hipsterbwp.rp5launcher.update.UpdateInfo
+import io.github.hipsterbwp.rp5launcher.update.Updater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -47,6 +49,18 @@ sealed interface Dialog {
     data class EmulatorPicker(val system: String) : Dialog
     data class LaunchError(val system: String, val game: Game?, val problem: LaunchProblem) : Dialog
     data class Message(val title: String, val body: String) : Dialog
+    data object Update : Dialog
+}
+
+sealed interface UpdateState {
+    data object Idle : UpdateState
+    data object Checking : UpdateState
+    data object UpToDate : UpdateState
+    data class Available(val info: UpdateInfo) : UpdateState
+    data class NeedsPermission(val info: UpdateInfo) : UpdateState
+    data class Downloading(val info: UpdateInfo, val progress: Float) : UpdateState
+    data class Installing(val info: UpdateInfo) : UpdateState
+    data class Failed(val message: String, val info: UpdateInfo?) : UpdateState
 }
 
 data class SystemEntry(
@@ -65,6 +79,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val configStore = ConfigStore(app)
     private val libraryStore = LibraryStore(app)
     private val launcher = GameLauncher(app)
+    private val updater = Updater(app)
     private var catalog: EsdeCatalog? = null
 
     var ready by mutableStateOf(false)
@@ -96,6 +111,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val gridFilter = mutableStateMapOf<String, Int>()
     var setupIndex by mutableIntStateOf(0)
 
+    var update by mutableStateOf<UpdateState>(UpdateState.Idle)
+        private set
+    val currentVersion: Int get() = updater.currentVersion
+
     val configPath: String get() = configStore.file.absolutePath
 
     private var scanJob: Job? = null
@@ -122,7 +141,63 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             }
             ready = true
             loaded.configProblem?.let { dialog = Dialog.Message("Config file has an error", it) }
+            checkForUpdate(userInitiated = false)
         }
+        viewModelScope.launch {
+            Updater.installError.collect { error ->
+                if (error != null) {
+                    update = UpdateState.Failed(error, (update as? UpdateState.Installing)?.info)
+                    Updater.installError.value = null
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Self-update
+    // -----------------------------------------------------------------------------------------
+
+    /** Startup checks stay silent unless there's an update; a check from Settings always reports. */
+    fun checkForUpdate(userInitiated: Boolean) {
+        if (update is UpdateState.Checking || update is UpdateState.Downloading || update is UpdateState.Installing) return
+        update = UpdateState.Checking
+        viewModelScope.launch {
+            update = try {
+                updater.check()?.let { UpdateState.Available(it) } ?: UpdateState.UpToDate
+            } catch (e: Exception) {
+                UpdateState.Failed(e.message ?: "Couldn't reach GitHub. Check Wi-Fi and try again.", null)
+            }
+            val found = update is UpdateState.Available
+            if ((found && dialog == null && screen !is Screen.Setup) || userInitiated) dialog = Dialog.Update
+        }
+    }
+
+    fun installUpdate() {
+        val info = when (val state = update) {
+            is UpdateState.Available -> state.info
+            is UpdateState.NeedsPermission -> state.info
+            is UpdateState.Failed -> state.info ?: return checkForUpdate(userInitiated = true)
+            else -> return
+        }
+        if (!updater.canInstall()) {
+            update = UpdateState.NeedsPermission(info)
+            runCatching { updater.openInstallPermissionSettings() }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                update = UpdateState.Downloading(info, 0f)
+                val file = updater.download(info) { p -> viewModelScope.launch { update = UpdateState.Downloading(info, p) } }
+                update = UpdateState.Installing(info)
+                updater.install(file)
+            } catch (e: Exception) {
+                update = UpdateState.Failed(e.message ?: e.javaClass.simpleName, info)
+            }
+        }
+    }
+
+    fun dismissUpdate() {
+        if (update !is UpdateState.Downloading && update !is UpdateState.Installing) dialog = null
     }
 
     private data class Loaded(
@@ -411,6 +486,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
         session = null
         redetectEmulators()
+        // Back from granting "Install unknown apps": carry on with the update.
+        (update as? UpdateState.NeedsPermission)?.let { if (updater.canInstall()) installUpdate() }
     }
 
     companion object {

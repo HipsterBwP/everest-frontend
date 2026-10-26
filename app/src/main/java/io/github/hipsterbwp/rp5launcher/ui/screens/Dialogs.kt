@@ -1,5 +1,6 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,8 +33,10 @@ import io.github.hipsterbwp.rp5launcher.ui.ListRow
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadInput
 import io.github.hipsterbwp.rp5launcher.ui.Txt
+import io.github.hipsterbwp.rp5launcher.ui.UpdateState
 import io.github.hipsterbwp.rp5launcher.ui.bringIntoView
 import io.github.hipsterbwp.rp5launcher.ui.tap
+import io.github.hipsterbwp.rp5launcher.ui.theme.Motion
 import io.github.hipsterbwp.rp5launcher.ui.theme.Palette
 import io.github.hipsterbwp.rp5launcher.ui.theme.Radius
 import io.github.hipsterbwp.rp5launcher.ui.theme.Size
@@ -49,6 +52,7 @@ fun DialogHost(vm: LauncherViewModel) {
         is Dialog.EmulatorPicker -> EmulatorPicker(vm, d)
         is Dialog.LaunchError -> LaunchErrorDialog(vm, d)
         is Dialog.Message -> MessageDialog(vm, d)
+        Dialog.Update -> UpdateDialog(vm)
         null -> Unit
     }
 }
@@ -204,5 +208,95 @@ private fun MessageDialog(vm: LauncherViewModel, d: Dialog.Message) {
         Txt(d.title, Type.screenTitleSmall, Palette.ink, maxLines = 2)
         Spacer(Modifier.height(Space.MD.u))
         Txt(d.body, Type.bodySmall, Palette.inkBody, maxLines = 10)
+    }
+}
+
+@Composable
+private fun UpdateDialog(vm: LauncherViewModel) {
+    val state = vm.update
+    val accent = vm.systems.getOrNull(vm.homeSystemIndex)?.color ?: SystemColors.neutral
+    val busy = state is UpdateState.Checking || state is UpdateState.Downloading || state is UpdateState.Installing
+    val canInstall = state is UpdateState.Available || state is UpdateState.NeedsPermission ||
+        (state is UpdateState.Failed && state.info != null)
+
+    PadInput { button, _ ->
+        when (button) {
+            Pad.A -> if (canInstall) vm.installUpdate() else vm.dismissUpdate()
+            Pad.B -> vm.dismissUpdate()
+            else -> Unit
+        }
+        true
+    }
+
+    val hints = buildList {
+        when {
+            canInstall -> {
+                val label = when (state) {
+                    is UpdateState.NeedsPermission -> "Allow installs"
+                    is UpdateState.Failed -> "Try again"
+                    else -> "Install"
+                }
+                add(Hint(Pad.A, label, onClick = vm::installUpdate))
+                add(Hint(Pad.B, "Later", onClick = vm::dismissUpdate))
+            }
+            !busy -> add(Hint(Pad.A, "OK", onClick = vm::dismissUpdate))
+        }
+    }
+    DialogFrame(hints) {
+        val title = when (state) {
+            UpdateState.Checking -> "Checking for updates…"
+            UpdateState.UpToDate, UpdateState.Idle -> "You're up to date"
+            is UpdateState.Failed -> "Update didn't work"
+            else -> "Update available"
+        }
+        Txt(title, Type.screenTitleSmall, Palette.ink, maxLines = 2)
+        Spacer(Modifier.height(Space.MD.u))
+        val body = when (state) {
+            UpdateState.Checking -> "Asking GitHub for the newest build."
+            UpdateState.UpToDate, UpdateState.Idle -> "Build ${vm.currentVersion} is the newest one."
+            is UpdateState.Available -> "Build ${state.info.versionCode} is ready. You have build ${vm.currentVersion}."
+            is UpdateState.NeedsPermission ->
+                "Android needs your OK first: turn on \"Allow from this source\" for RP5 Launcher, then come back."
+            is UpdateState.Downloading -> "Downloading build ${state.info.versionCode}…"
+            is UpdateState.Installing -> "Installing. Confirm on Android's screen if it asks; the launcher closes when it's done."
+            is UpdateState.Failed -> state.message
+        }
+        Txt(body, Type.bodySmall, Palette.inkBody, maxLines = 4)
+        val notes = (state as? UpdateState.Available)?.info?.notes.orEmpty()
+        if (notes.isNotEmpty()) {
+            Spacer(Modifier.height(Space.ROW_GAP.u))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(rounded(Radius.CARD_SMALL))
+                    .background(Palette.surface)
+                    .padding(vertical = Space.ROW_V.u, horizontal = Space.ROW_H.u),
+            ) {
+                Column {
+                    Txt("WHAT'S NEW", Type.caps, Palette.inkSecondary)
+                    Spacer(Modifier.height(Space.TINY.u))
+                    Txt(notes, Type.bodySmall, Palette.ink, maxLines = 5)
+                }
+            }
+        }
+        if (state is UpdateState.Downloading) {
+            Spacer(Modifier.height(Space.ROW_GAP.u))
+            val progress by animateFloatAsState(state.progress, Motion.focus(), label = "update-progress")
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(Size.PROGRESS_H.u)
+                    .clip(rounded(Radius.PILL))
+                    .background(Palette.surface),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(progress)
+                        .height(Size.PROGRESS_H.u)
+                        .clip(rounded(Radius.PILL))
+                        .background(accent),
+                )
+            }
+        }
     }
 }

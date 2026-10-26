@@ -6,8 +6,12 @@ token lives in [`ui/theme/Theme.kt`](app/src/main/java/io/github/hipsterbwp/rp5l
 
 ## Getting the APK
 
-Every push runs the **Build debug APK** GitHub Actions workflow. Open the run, download the
-`rp5-launcher-debug-<sha>` artifact, unzip it and install `app-debug.apk` on the device.
+Every push to `main` publishes a GitHub release (`build-<n>`) with `rp5-launcher.apk` attached. Install
+it once by hand; after that the launcher checks for a newer release every time it starts (and from
+**Settings › About › Check for updates**), downloads it and hands it to Android to install. The repo
+must be public for the launcher to see releases.
+
+Pushes to other branches still build and upload the APK as a workflow artifact.
 
 To build locally (needs JDK 17 and the Android SDK): `./gradlew assembleDebug`.
 

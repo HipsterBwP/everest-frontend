@@ -13,8 +13,10 @@ android {
         applicationId = "io.github.hipsterbwp.rp5launcher"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI numbers builds by run so every release is newer than the last; local builds are 1.
+        val build = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = build
+        versionName = "0.1.$build"
     }
 
     signingConfigs {

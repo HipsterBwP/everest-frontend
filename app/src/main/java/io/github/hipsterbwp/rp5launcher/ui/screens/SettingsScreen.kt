@@ -261,10 +261,13 @@ private fun emulatorItems(vm: LauncherViewModel, accent: Color, version: Int): L
 @Composable
 private fun aboutItems(vm: LauncherViewModel, accent: Color): List<Item> {
     return listOf(
-        Item("version") { _ ->
-            ListRow(false, accent) {
-                Txt("RP5 Launcher", Type.rowTitle, Palette.ink, Modifier.weight(1f))
-                Txt("Version ${BuildConfig.VERSION_NAME}", Type.label, Palette.inkSecondary)
+        Item("version", onA = { vm.checkForUpdate(userInitiated = true) }, aLabel = "Check for updates") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Check for updates", Type.rowTitle, Palette.ink)
+                    Txt("Also checks automatically every time the launcher starts", Type.label, Palette.inkSecondary)
+                }
+                Txt("Build ${vm.currentVersion}", Type.label, Palette.inkSecondary)
             }
         },
         Item("config", onA = { vm.reloadConfig() }, aLabel = "Reload") { focused ->

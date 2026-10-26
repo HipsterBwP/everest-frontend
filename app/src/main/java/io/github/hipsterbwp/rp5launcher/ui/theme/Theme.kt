@@ -338,6 +338,7 @@ object Size {
     const val DESCRIPTION_MAX_W = 440
     const val STAT_MAX_W = 200
     const val BORDER = 2
+    const val PROGRESS_H = 8
 
     const val FOCUS_RING = 4
     const val FOCUS_RING_CARD = 3
