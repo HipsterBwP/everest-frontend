@@ -89,6 +89,8 @@ data class SystemEntry(
 
 data class ScanProgress(val done: Int, val total: Int)
 
+data class LoadingStep(val progress: Float, val message: String)
+
 data class ScrapeProgress(val done: Int, val total: Int, val system: String)
 
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
@@ -103,6 +105,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private var catalog: EsdeCatalog? = null
 
     var ready by mutableStateOf(false)
+        private set
+    /** Progress shown on the ARCROW loading screen. */
+    var loading by mutableStateOf(LoadingStep(0f, "Loading frontend…"))
         private set
     var config by mutableStateOf(LauncherConfig.defaults)
         private set
@@ -174,13 +179,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            val loaded = withContext(Dispatchers.IO) {
-                val catalog = EsdeCatalog.load(getApplication<Application>().assets)
-                val (config, configProblem) = loadConfig()
-                Loaded(
-                    catalog, config, configProblem, libraryStore.loadLibrary(), libraryStore.loadStats(), scraper.load(),
-                )
-            }
+            // Real steps behind the loading screen's progress bar.
+            loading = LoadingStep(0.1f, "Loading emulators…")
+            val catalog = withContext(Dispatchers.IO) { EsdeCatalog.load(getApplication<Application>().assets) }
+            loading = LoadingStep(0.45f, "Loading settings…")
+            val (config, configProblem) = withContext(Dispatchers.IO) { loadConfig() }
+            loading = LoadingStep(0.6f, "Loading systems…")
+            val libraryCache = withContext(Dispatchers.IO) { libraryStore.loadLibrary() }
+            val statsFile = withContext(Dispatchers.IO) { libraryStore.loadStats() }
+            loading = LoadingStep(0.8f, "Loading artwork…")
+            val artIndex = withContext(Dispatchers.IO) { scraper.load() }
+            loading = LoadingStep(1f, "Ready")
+            val loaded = Loaded(catalog, config, configProblem, libraryCache, statsFile, artIndex)
             art.putAll(loaded.art.games)
             screenScraper = withContext(Dispatchers.IO) { ssAccount.load() }
             catalog = loaded.catalog

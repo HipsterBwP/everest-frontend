@@ -89,6 +89,15 @@ object Palette {
     val problem = Color(0xFFFF6961)
     /** Rating stars. */
     val star = Color(0xFFFFD60A)
+
+    /** ARCROW brand: navy ground, electric blue glow (from the logo). */
+    val brandNavy = Color(0xFF050B18)
+    val brandBlue = Color(0xFF1E6BFF)
+    val brandBlueLight = Color(0xFF4FA8FF)
+    val brandGlow = Color(0x801E6BFF)
+    val brandTrack = Color(0x332F7BFF)
+    val brandEdge = Color(0xB32F7BFF)
+    val brandText = Color(0xFFC9D6EE)
 }
 
 /** Default system colors (DESIGN.md table). Keys are ES-DE system names. Overridable in config. */
@@ -383,6 +392,14 @@ object Size {
     const val COVER_COLUMNS = 3
     const val COVER_H = 196
     const val LOGO_SMALL_H = 30
+
+    // Loading screen (proportions from the ARCROW mockup)
+    const val SPLASH_LOGO = 300
+    const val SPLASH_GLOW = 520
+    const val SPLASH_WORDMARK_W = 420
+    const val SPLASH_BAR_W = 360
+    const val SPLASH_BAR_H = 12
+    const val SPLASH_BAR_EDGE = 1
     const val STATUS_H = 26
 
     const val FOCUS_RING = 4
@@ -435,6 +452,10 @@ object Alpha {
 object Motion {
     const val COLOR_FADE_MS = 250
     const val SCREEN_FADE_MS = 180
+    /** Loading screen: shortest time on screen (so it never flashes), and its fade out. */
+    const val SPLASH_MIN_MS = 1400L
+    const val SPLASH_FADE_MS = 450
+    const val SPLASH_BAR_MS = 350
     /** Gameplay stills slideshow: time per still, and its zoom duration. */
     const val SLIDE_MS = 4500
     const val KEN_BURNS_MS = 6000

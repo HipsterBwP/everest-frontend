@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Window background shown before Compose draws; matches DESIGN.md ink. -->
-    <color name="window">#1C1A24</color>
-    <color name="icon_background">#2E2370</color>
+    <!-- ARCROW navy: window background before Compose draws, and the icon/splash background. -->
+    <color name="window">#050B18</color>
+    <color name="icon_background">#050B18</color>
 </resources>

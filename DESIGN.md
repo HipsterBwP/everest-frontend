@@ -1,4 +1,4 @@
-# DESIGN.md — RP5 Launcher
+# DESIGN.md — ARCROW
 
 Design source of truth for the launcher. Every screen and feature must follow this file.
 Visual reference: the original Cartridge mockups (https://claude.ai/artifact/TZq3HWB8GAsEpvCGSR4asb, **B** row) for proportions;
@@ -85,4 +85,6 @@ The original Cartridge mockups still define layout proportions where a screen is
 
 - Kotlin + Jetpack Compose. Design tokens (colors, type, radii, spacing, elevation, blur) live in one theme file mirroring this document; no hard-coded values in screens.
 - Emulator launch intents: reference ES-DE's Android `es_systems.xml` / `es_find_rules.xml` (MIT; keep attribution).
-- Placeholders in mockups (box art, system artwork, launcher name) are to be filled by the scraper and a final brand pass.
+- Brand: the frontend is **ARCROW**. App icon and loading screen use the crow logo (`res/drawable-nodpi/brand_logo.webp`)
+  and wordmark (`brand_wordmark.png`) on navy `#050B18` with electric-blue glow `#1E6BFF`. The loading screen shows real
+  start-up progress (emulators → settings → systems → artwork) and stays at least 1.4 s, then fades into Home.

@@ -272,7 +272,7 @@ private fun UpdateDialog(vm: LauncherViewModel) {
             UpdateState.UpToDate, UpdateState.Idle -> "Build ${vm.currentVersion} is the newest one."
             is UpdateState.Available -> "Build ${state.info.versionCode} is ready. You have build ${vm.currentVersion}."
             is UpdateState.NeedsPermission ->
-                "Android needs your OK first: turn on \"Allow from this source\" for RP5 Launcher, then come back."
+                "Android needs your OK first: turn on \"Allow from this source\" for ARCROW, then come back."
             is UpdateState.Downloading -> "Downloading build ${state.info.versionCode}…"
             is UpdateState.Installing -> "Installing. Confirm on Android's screen if it asks; the launcher closes when it's done."
             is UpdateState.Failed -> state.message

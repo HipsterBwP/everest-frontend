@@ -1,6 +1,6 @@
-# RP5 Launcher
+# ARCROW
 
-A controller-first Android game launcher for the Retroid Pocket 5 (Android 13, 1920×1080), built with
+ARCROW is a controller-first Android game launcher for the Retroid Pocket 5 (Android 13, 1920×1080), built with
 Kotlin and Jetpack Compose. The UI follows [DESIGN.md](DESIGN.md) (an Apple-TV-inspired dark style); every design
 token lives in [`ui/theme/Theme.kt`](app/src/main/java/io/github/hipsterbwp/rp5launcher/ui/theme/Theme.kt).
 
