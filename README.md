@@ -79,15 +79,16 @@ step or **Settings › Scraper**:
 
 - Box art and screenshots from [libretro-thumbnails](https://github.com/libretro-thumbnails)
 - Year, publisher, developer and genre from [libretro-database](https://github.com/libretro/libretro-database)
-- Console logos for the system tiles from the RetroPie Carbon theme
+- Console logos for the system tiles from the RetroPie Carbon theme, with ES-DE's Slate theme for
+  newer systems (Switch, 3DS, Vita, …)
 
 Games are matched by file name, so No-Intro / Redump names (e.g. `Chrono Trigger (USA).sfc`) match best.
 Art is stored in the app's private storage, downsized for the screen.
 
 ## Not built yet
 
-Game descriptions, search, collections, Resume save, the Appearance/Controls settings pages and
-navigation sounds.
+Game descriptions and gameplay videos (need a ScreenScraper account), search, collections, Resume
+save and the Appearance/Controls settings pages.
 
 ## Credits
 

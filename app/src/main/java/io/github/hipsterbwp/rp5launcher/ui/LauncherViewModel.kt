@@ -132,6 +132,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private set
     val currentVersion: Int get() = updater.currentVersion
 
+    /** Set by the activity: plays a navigation sound if sounds are on. */
+    var soundPlayer: ((UiSound) -> Unit)? = null
+
+    fun sound(sound: UiSound) {
+        if (config.navigationSounds) soundPlayer?.invoke(sound)
+    }
+
+    fun setNavigationSounds(enabled: Boolean) = updateConfig { it.copy(navigationSounds = enabled) }
+
+    fun cycleSoundVolume() = updateConfig { it.copy(soundVolume = it.soundVolume % 3 + 1) }
+
     val configPath: String get() = configStore.file.absolutePath
 
     private var scanJob: Job? = null
@@ -430,7 +441,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Games the scraper would fetch for: supported systems, not yet scraped (unless forced). */
     fun scrapeTodo(force: Boolean): Int = systems.filter { scraper.supports(it.name) }
-        .sumOf { s -> if (force) s.games.size else s.games.count { (art[it.id]?.scrapedAt ?: 0L) == 0L } }
+        .sumOf { s -> if (force) s.games.size else s.games.count { scraper.needsArt(art[it.id]) } }
 
     fun setAutoScrape(enabled: Boolean) = updateConfig { it.copy(autoScrape = enabled) }
 
@@ -547,11 +558,15 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
         when (result) {
             LaunchResult.Started -> {
+                sound(UiSound.Launch)
                 val now = System.currentTimeMillis()
                 session = game.id to now
                 updateStats(game) { it.copy(lastPlayed = now, playCount = it.playCount + 1) }
             }
-            is LaunchResult.Failed -> dialog = Dialog.LaunchError(system, game, result.problem)
+            is LaunchResult.Failed -> {
+                sound(UiSound.Error)
+                dialog = Dialog.LaunchError(system, game, result.problem)
+            }
         }
     }
 

@@ -12,8 +12,26 @@ internal object Http {
 
     class Status(val code: Int) : IOException("HTTP $code")
 
-    /** Returns the body, or null on 404. Throws [Status] for other errors. */
+    private val RETRY_DELAYS_MS = longArrayOf(1_000, 3_000)
+
+    /**
+     * Returns the body, or null on 404. Retries rate limits (429), server errors and dropped
+     * connections twice, then throws ([Status] or the IOException).
+     */
     fun get(url: String, accept: String? = null): ByteArray? {
+        var attempt = 0
+        while (true) {
+            try {
+                return getOnce(url, accept)
+            } catch (e: IOException) {
+                val retryable = e !is Status || e.code == 429 || e.code >= 500
+                if (!retryable || attempt >= RETRY_DELAYS_MS.size) throw e
+                Thread.sleep(RETRY_DELAYS_MS[attempt++])
+            }
+        }
+    }
+
+    private fun getOnce(url: String, accept: String?): ByteArray? {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS

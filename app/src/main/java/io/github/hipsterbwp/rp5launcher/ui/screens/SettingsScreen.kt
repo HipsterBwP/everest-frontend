@@ -53,7 +53,7 @@ import java.text.DateFormat
 import java.util.Date
 
 private enum class Page(val title: String) {
-    Library("Library"), Emulators("Emulators"), Scraper("Scraper"), About("About")
+    Library("Library"), Emulators("Emulators"), Scraper("Scraper"), Sound("Sound"), About("About")
 }
 
 /** One actionable row on a settings page. */
@@ -79,6 +79,7 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
         Page.Library -> libraryItems(vm, accent, pickFolder)
         Page.Emulators -> emulatorItems(vm, accent, version)
         Page.Scraper -> scraperItems(vm, accent)
+        Page.Sound -> soundItems(vm, accent)
         Page.About -> aboutItems(vm, accent)
     }
     val rowIndex = row.coerceIn(0, (items.size - 1).coerceAtLeast(0))
@@ -197,6 +198,7 @@ private fun pageSubtitle(page: Page) = when (page) {
     Page.Library -> "Where your games live and when they were last scanned."
     Page.Emulators -> "Which app opens each system. Changes are saved to launcher-config.json."
     Page.Scraper -> "Box art, screenshots, game info and console logos, downloaded from free sources."
+    Page.Sound -> "Clicks and chimes as you move around and launch games."
     Page.About -> "Version, config file and credits."
 }
 
@@ -278,7 +280,7 @@ private fun scraperItems(vm: LauncherViewModel, accent: Color): List<Item> {
                     Txt(
                         when {
                             progress != null -> "${progress.system} · ${progress.done} of ${progress.total}"
-                            missing > 0 -> "$missing games without art"
+                            missing > 0 -> "$missing games without box art"
                             else -> "Every supported game has been scraped"
                         },
                         Type.label, Palette.inkSecondary,
@@ -307,8 +309,35 @@ private fun scraperItems(vm: LauncherViewModel, accent: Color): List<Item> {
             ListRow(false, accent, background = Palette.surface) {
                 Txt(
                     "Box art and screenshots: libretro-thumbnails. Game info: libretro-database. " +
-                        "Console logos: RetroPie Carbon theme. Matched by file name, so No-Intro/Redump names work best.",
+                        "Console logos: RetroPie Carbon and ES-DE Slate themes. Matched by file name, " +
+                        "so No-Intro/Redump names work best.",
                     Type.label, Palette.inkBody, maxLines = 3,
+                )
+            }
+        },
+    )
+}
+
+@Composable
+private fun soundItems(vm: LauncherViewModel, accent: Color): List<Item> {
+    val on = vm.config.navigationSounds
+    return listOf(
+        Item("sounds", onA = { vm.setNavigationSounds(!on) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Txt("Navigation sounds", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt(if (on) "On" else "Off", Type.labelStrong, if (on) Palette.ok else Palette.inkSecondary)
+            }
+        },
+        Item("volume", onA = { vm.cycleSoundVolume() }, aLabel = "Change") { focused ->
+            ListRow(focused, accent) {
+                Txt("Volume", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt(
+                    when (vm.config.soundVolume) {
+                        1 -> "Low"
+                        3 -> "High"
+                        else -> "Medium"
+                    },
+                    Type.labelStrong, Palette.inkSecondary,
                 )
             }
         },

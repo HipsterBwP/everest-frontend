@@ -30,6 +30,9 @@ data class LauncherConfig(
     val emulators: Map<String, List<String>> = emptyMap(),
     /** Download box art and info for new games after each library scan. */
     val autoScrape: Boolean = false,
+    /** Navigation sounds on/off and volume level 1 (low) to 3 (high). */
+    val navigationSounds: Boolean = true,
+    val soundVolume: Int = 2,
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 

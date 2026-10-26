@@ -325,8 +325,8 @@ object Size {
     const val GRID_COLUMNS = 6
     const val ARTWORK_W = 320
     const val ARTWORK_H = 210
-    const val BOX_ART_W = 250
-    const val BOX_ART_H = 320
+    const val BOX_ART_W = 300
+    const val BOX_ART_H = 340
     const val DETAILS_PANEL = 380
     const val SETUP_PANEL = 340
     const val SETTINGS_SIDEBAR = 260
@@ -358,6 +358,10 @@ object Alpha {
     const val SECONDARY_ON_SYSTEM = 0.85f
     const val NAV_ON_SYSTEM = 0.9f
     const val CARD_META = 0.8f
+    /** System color over a gameplay screenshot behind the game grid (keeps white text at 4.5:1). */
+    const val BACKDROP_SCRIM = 0.84f
+    /** Lighter layer on the details panel, where only box art sits on top. */
+    const val PANEL_BACKDROP_SCRIM = 0.55f
 }
 
 // ---------------------------------------------------------------------------------------------

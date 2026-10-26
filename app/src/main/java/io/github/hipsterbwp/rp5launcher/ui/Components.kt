@@ -1,5 +1,6 @@
 package io.github.hipsterbwp.rp5launcher.ui
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -99,6 +101,20 @@ fun ArtImage(
         contentScale = contentScale,
         colorFilter = tint?.let { ColorFilter.tint(it) },
     )
+}
+
+/**
+ * Full-size screenshot behind a screen or panel, cross-fading as the selection changes, under a
+ * flat translucent layer of [scrim] so text on top keeps its contrast.
+ */
+@Composable
+fun GameplayBackdrop(snap: File?, scrim: Color, scrimAlpha: Float) {
+    Crossfade(targetState = snap, animationSpec = Motion.colorFade(), label = "backdrop") { file ->
+        Box(Modifier.fillMaxSize()) {
+            ArtImage(file, Modifier.fillMaxSize(), ContentScale.Crop)
+        }
+    }
+    Box(Modifier.fillMaxSize().background(scrim.copy(alpha = scrimAlpha)))
 }
 
 // ---------------------------------------------------------------------------------------------

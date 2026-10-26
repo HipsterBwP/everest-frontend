@@ -64,6 +64,9 @@ class Scraper(context: Context) {
 
     fun supports(system: String): Boolean = LIBRETRO_NAMES.containsKey(system)
 
+    /** A game is worth (re)scraping until it has box art. */
+    fun needsArt(art: GameArt?): Boolean = art == null || art.scrapedAt == 0L || art.box == null
+
     /**
      * Scrapes [games] of one system, calling [onGame] as each finishes. Skips games already
      * scraped unless [force]. Call from Dispatchers.IO.
@@ -76,12 +79,13 @@ class Scraper(context: Context) {
         onGame: (Game, GameArt) -> Unit,
     ) {
         val name = LIBRETRO_NAMES[system] ?: return
-        val todo = games.filter { force || (existing[it.id]?.scrapedAt ?: 0L) == 0L }
+        val todo = games.filter { force || needsArt(existing[it.id]) }
         if (todo.isEmpty()) return
 
         val repo = name.replace(' ', '_')
         val boxes = Matcher(index(repo, BOXARTS))
         val snaps = Matcher(index(repo, SNAPS))
+        val previous = existing
         val meta = MetaFields.entries.associateWith { metadata(it, name) }
 
         val semaphore = Semaphore(PARALLEL)
@@ -90,7 +94,7 @@ class Scraper(context: Context) {
                 async {
                     semaphore.withPermit {
                         ensureActive()
-                        onGame(game, scrapeGame(game, repo, boxes, snaps, meta))
+                        onGame(game, scrapeGame(game, repo, boxes, snaps, meta, previous[game.id]))
                     }
                 }
             }.awaitAll()
@@ -103,13 +107,24 @@ class Scraper(context: Context) {
         boxes: Matcher,
         snaps: Matcher,
         meta: Map<MetaFields, Map<String, String>>,
+        previous: GameArt?,
     ): GameArt {
         val base = game.fileName.substringBeforeLast('.')
         val boxName = boxes.best(base, game.tag)
         val snapName = snaps.best(base, game.tag) ?: boxName
         val id = sha1(game.id)
-        val box = boxName?.let { download(repo, BOXARTS, it, "box/$id.webp", BOX_MAX_H) }
-        val snap = snapName?.let { download(repo, SNAPS, it, "snap/$id.webp", SNAP_MAX_H) }
+        // A network hiccup (not a missing image) leaves the game marked unscraped so it's retried.
+        var transient = false
+        fun fetch(folder: String, name: String?, target: String, maxHeight: Int): String? =
+            if (name == null) null
+            else try {
+                download(repo, folder, name, target, maxHeight)
+            } catch (e: java.io.IOException) {
+                transient = true
+                null
+            }
+        val box = fetch(BOXARTS, boxName, "box/$id.webp", BOX_MAX_H) ?: previous?.box
+        val snap = fetch(SNAPS, snapName, "snap/$id.webp", SNAP_MAX_H) ?: previous?.snap
         val metaName = boxName ?: snapName ?: base
         fun lookup(field: MetaFields) = meta[field]?.let { m -> m[metaName] ?: m[key(metaName)] ?: m[key(base)] }
         return GameArt(
@@ -120,14 +135,14 @@ class Scraper(context: Context) {
             developer = lookup(MetaFields.Developer),
             genre = lookup(MetaFields.Genre),
             matched = boxName ?: snapName,
-            scrapedAt = System.currentTimeMillis(),
+            scrapedAt = if (transient) 0 else System.currentTimeMillis(),
         )
     }
 
     /** Downloads, downsizes and stores one image. Returns its path relative to [dir], or null. */
     private fun download(repo: String, folder: String, name: String, target: String, maxHeight: Int): String? {
         val url = "$RAW/$repo/master/$folder/${Http.segment(name)}.png"
-        val bytes = runCatching { Http.get(url) }.getOrNull() ?: return null
+        val bytes = Http.get(url) ?: return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         if (bounds.outHeight <= 0) return null
@@ -150,8 +165,8 @@ class Scraper(context: Context) {
         return target
     }
 
-    /** Thumbnail names in one libretro-thumbnails folder, cached for a week. */
-    private fun index(repo: String, folder: String): List<String> {
+    /** Thumbnail names in one libretro-thumbnails folder, cached for a week; null if unavailable. */
+    private fun index(repo: String, folder: String): List<String>? {
         val cache = File(cacheDir, "$repo-$folder.txt")
         if (cache.exists() && System.currentTimeMillis() - cache.lastModified() < INDEX_TTL_MS) {
             return cache.readLines()
@@ -164,7 +179,7 @@ class Scraper(context: Context) {
                 .filter { it.endsWith(".png") }
                 .map { it.removeSuffix(".png") }
         }.getOrNull()
-        if (names == null) return if (cache.exists()) cache.readLines() else emptyList()
+        if (names == null) return if (cache.exists()) cache.readLines() else null
         cache.writeText(names.joinToString("\n"))
         return names
     }
@@ -198,13 +213,15 @@ class Scraper(context: Context) {
     }
 
     /** Picks the best thumbnail for a ROM: exact name first, then same title preferring its region. */
-    private class Matcher(names: List<String>) {
-        private val exact = names.toHashSet()
-        private val byKey = names.groupBy(::key)
+    private class Matcher(names: List<String>?) {
+        /** Without an index (e.g. GitHub's hourly API limit), guess the exact No-Intro file name. */
+        private val guess = names == null
+        private val exact = names.orEmpty().toHashSet()
+        private val byKey = names.orEmpty().groupBy(::key)
 
         fun best(base: String, tag: String?): String? {
             val sanitized = sanitize(base)
-            if (sanitized in exact) return sanitized
+            if (guess || sanitized in exact) return sanitized
             val candidates = byKey[key(base)] ?: return null
             val region = tag?.lowercase()
             return candidates.minByOrNull { c ->

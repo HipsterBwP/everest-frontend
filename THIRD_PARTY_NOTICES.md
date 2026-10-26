@@ -33,8 +33,13 @@ Licensed under the SIL Open Font License 1.1; the full text is in
   Artwork is copyright of the respective publishers.
 - **Year, publisher, developer, genre**: [libretro-database](https://github.com/libretro/libretro-database)
   `metadat` files.
-- **Console logos**: [RetroPie es-theme-carbon](https://github.com/RetroPie/es-theme-carbon). Logos are
-  trademarks of their respective owners.
+- **Console logos**: [RetroPie es-theme-carbon](https://github.com/RetroPie/es-theme-carbon), with
+  [ES-DE Slate](https://gitlab.com/es-de/themes/slate-es-de) (CC BY-NC-SA) for systems Carbon lacks.
+  Logos are trademarks of their respective owners.
+
+## Sounds
+
+`app/src/main/res/raw/ui_*.wav` were synthesized for this project and carry no third-party rights.
 
 ## Libraries
 

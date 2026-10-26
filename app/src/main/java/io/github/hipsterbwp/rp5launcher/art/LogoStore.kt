@@ -9,9 +9,10 @@ import java.io.File
 import kotlin.math.abs
 
 /**
- * Console logos for the system tiles, downloaded on demand from the RetroPie "Carbon"
- * EmulationStation theme (https://github.com/RetroPie/es-theme-carbon). Logos are trademarks of
- * their owners; they're fetched to the device, never bundled in the APK.
+ * Console logos for the system tiles, downloaded on demand from the RetroPie "Carbon" theme
+ * (https://github.com/RetroPie/es-theme-carbon), falling back to ES-DE's "Slate" theme
+ * (https://gitlab.com/es-de/themes/slate-es-de, CC BY-NC-SA) for newer systems such as Switch and
+ * 3DS. Logos are trademarks of their owners; they're fetched to the device, never bundled.
  *
  * Each logo is stored as a white-on-transparent PNG mask so the UI can tint it: white on a
  * system-color tile, system color on the focused (white) tile.
@@ -27,16 +28,19 @@ class LogoStore(context: Context) {
         systems.filter { system ->
             val png = File(dir, "$system.png")
             val miss = File(dir, "$system.none")
-            val fresh = miss.exists() && System.currentTimeMillis() - miss.lastModified() < RETRY_MS
+            // A "not found" marker only counts if it was written with the current list of sources.
+            val fresh = miss.exists() && miss.readText() == SOURCES_VERSION &&
+                System.currentTimeMillis() - miss.lastModified() < RETRY_MS
             if (!force && (png.exists() || fresh)) return@filter false
             val ok = runCatching { download(system, png) }.getOrDefault(false)
-            if (ok) miss.delete() else miss.writeText("")
+            if (ok) miss.delete() else miss.writeText(SOURCES_VERSION)
             ok
         }
 
     private fun download(system: String, out: File): Boolean {
-        val svgText = carbonNames(system).firstNotNullOfOrNull { name ->
-            Http.get("$CARBON/$name/art/system.svg")?.toString(Charsets.UTF_8)
+        val urls = carbonNames(system).map { "$CARBON/$it/art/system.svg" } + "$SLATE/$system/images/logo.svg"
+        val svgText = urls.firstNotNullOfOrNull { url ->
+            runCatching { Http.get(url) }.getOrNull()?.toString(Charsets.UTF_8)
         } ?: return false
         val svg = SVG.getFromString(inlineEntities(svgText))
         val box = svg.documentViewBox
@@ -59,13 +63,14 @@ class LogoStore(context: Context) {
 
     companion object {
         private const val CARBON = "https://raw.githubusercontent.com/RetroPie/es-theme-carbon/master"
+        private const val SLATE = "https://gitlab.com/es-de/themes/slate-es-de/-/raw/master"
+        private const val SOURCES_VERSION = "carbon+slate"
         private const val SIZE = 512
         private const val RETRY_MS = 7L * 24 * 60 * 60 * 1000
 
         /** ES-DE system name -> Carbon folder names to try. */
         private fun carbonNames(system: String): List<String> = listOfNotNull(
             when (system) {
-                "n3ds" -> "3ds"
                 "tg16" -> "tg16"
                 "genesis" -> "genesis"
                 else -> null

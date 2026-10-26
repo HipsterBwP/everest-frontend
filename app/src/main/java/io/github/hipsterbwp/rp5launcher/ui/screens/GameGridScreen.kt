@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
 import io.github.hipsterbwp.rp5launcher.ui.ArtImage
+import io.github.hipsterbwp.rp5launcher.ui.GameplayBackdrop
 import java.io.File
 import io.github.hipsterbwp.rp5launcher.data.Game
 import io.github.hipsterbwp.rp5launcher.data.GameStats
@@ -131,6 +132,8 @@ fun GameGridScreen(vm: LauncherViewModel, systemName: String) {
     }
 
     Box(Modifier.fillMaxSize().background(bg)) {
+        // Gameplay backdrop: the focused game's screenshot under a translucent layer of system color.
+        GameplayBackdrop(focusedGame?.let(vm::snapArt), bg, Alpha.BACKDROP_SCRIM)
         Column(Modifier.fillMaxSize().padding(top = Space.SCREEN_TOP.u)) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = Space.SCREEN_H.u),

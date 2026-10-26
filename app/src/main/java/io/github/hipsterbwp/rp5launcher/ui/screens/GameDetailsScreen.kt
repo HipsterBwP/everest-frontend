@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import io.github.hipsterbwp.rp5launcher.ui.ArtImage
 import io.github.hipsterbwp.rp5launcher.ui.Dialog
+import io.github.hipsterbwp.rp5launcher.ui.GameplayBackdrop
 import io.github.hipsterbwp.rp5launcher.ui.Hint
 import io.github.hipsterbwp.rp5launcher.ui.HintBar
 import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
@@ -33,6 +34,7 @@ import io.github.hipsterbwp.rp5launcher.ui.Pill
 import io.github.hipsterbwp.rp5launcher.ui.PlayIcon
 import io.github.hipsterbwp.rp5launcher.ui.PrimaryButton
 import io.github.hipsterbwp.rp5launcher.ui.Txt
+import io.github.hipsterbwp.rp5launcher.ui.theme.Alpha
 import io.github.hipsterbwp.rp5launcher.ui.theme.Motion
 import io.github.hipsterbwp.rp5launcher.ui.theme.Palette
 import io.github.hipsterbwp.rp5launcher.ui.theme.Radius
@@ -78,16 +80,23 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
                 Modifier
                     .width(Size.DETAILS_PANEL.u)
                     .fillMaxHeight()
-                    .background(accent)
-                    .padding(bottom = Size.HINT_BAR.u),
+                    .background(accent),
                 contentAlignment = Alignment.Center,
             ) {
+                GameplayBackdrop(vm.snapArt(game), accent, Alpha.PANEL_BACKDROP_SCRIM)
                 val box = vm.boxArt(game)
                 if (box != null) {
-                    ArtImage(box, Modifier.size(Size.BOX_ART_W.u, Size.BOX_ART_H.u).clip(rounded(Radius.CARD)))
+                    ArtImage(
+                        box,
+                        Modifier
+                            .padding(bottom = Size.HINT_BAR.u)
+                            .size(Size.BOX_ART_W.u, Size.BOX_ART_H.u)
+                            .clip(rounded(Radius.CARD)),
+                    )
                 } else {
                     Box(
                         Modifier
+                            .padding(bottom = Size.HINT_BAR.u)
                             .size(Size.BOX_ART_W.u, Size.BOX_ART_H.u)
                             .clip(rounded(Radius.PANEL))
                             .background(Palette.onSystemSurfaceStrong)

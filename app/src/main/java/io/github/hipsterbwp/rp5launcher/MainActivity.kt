@@ -16,11 +16,13 @@ import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
 import io.github.hipsterbwp.rp5launcher.ui.LocalPad
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadDispatcher
+import io.github.hipsterbwp.rp5launcher.ui.UiSounds
 import io.github.hipsterbwp.rp5launcher.ui.theme.LauncherTheme
 
 class MainActivity : ComponentActivity() {
     private val vm: LauncherViewModel by viewModels()
     private val pad = PadDispatcher()
+    private lateinit var sounds: UiSounds
 
     /** Analog triggers: once the device sends L2/R2 key events, ignore the trigger axes. */
     private var triggerKeysSeen = false
@@ -29,6 +31,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        sounds = UiSounds(this)
+        vm.soundPlayer = { sounds.play(it, UiSounds.volume(vm.config.soundVolume)) }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideSystemBars()
         setContent {
@@ -61,7 +65,7 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val button = Pad.fromKeyCode(event.keyCode) ?: return super.dispatchKeyEvent(event)
         if (button == Pad.L2 || button == Pad.R2) triggerKeysSeen = true
-        if (event.action == KeyEvent.ACTION_DOWN) pad.dispatch(button, event.repeatCount)
+        if (event.action == KeyEvent.ACTION_DOWN) press(button, event.repeatCount)
         return true
     }
 
@@ -71,12 +75,24 @@ class MainActivity : ComponentActivity() {
         ) {
             val l2 = maxOf(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE)) > TRIGGER_THRESHOLD
             val r2 = maxOf(event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS)) > TRIGGER_THRESHOLD
-            if (l2 && !l2Down) pad.dispatch(Pad.L2, 0)
-            if (r2 && !r2Down) pad.dispatch(Pad.R2, 0)
+            if (l2 && !l2Down) press(Pad.L2, 0)
+            if (r2 && !r2Down) press(Pad.R2, 0)
             l2Down = l2
             r2Down = r2
         }
         return super.dispatchGenericMotionEvent(event)
+    }
+
+    private fun press(button: Pad, repeat: Int) {
+        // Click first, so a launch or error sound triggered by this press can replace it.
+        UiSounds.forButton(button)?.let(vm::sound)
+        pad.dispatch(button, repeat)
+    }
+
+    override fun onDestroy() {
+        vm.soundPlayer = null
+        sounds.release()
+        super.onDestroy()
     }
 
     private companion object {
