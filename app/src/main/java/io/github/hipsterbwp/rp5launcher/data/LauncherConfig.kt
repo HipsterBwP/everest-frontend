@@ -28,6 +28,8 @@ data class LauncherConfig(
     @SerialName("romsRoot") val romsRoot: String? = null,
     val systems: Map<String, SystemConfig> = emptyMap(),
     val emulators: Map<String, List<String>> = emptyMap(),
+    /** Download box art and info for new games after each library scan. */
+    val autoScrape: Boolean = false,
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 

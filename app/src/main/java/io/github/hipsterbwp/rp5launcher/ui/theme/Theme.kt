@@ -294,6 +294,9 @@ object Space {
     const val LG = 16
     const val XL = 40
 
+    /** Inset of a console logo inside its tile. */
+    const val TILE_LOGO_PAD = 12
+
     const val PILL_V = 7
     const val PILL_H = 16
     const val PILL_H_SMALL = 14

@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import io.github.hipsterbwp.rp5launcher.ui.ArtImage
 import io.github.hipsterbwp.rp5launcher.ui.Dialog
 import io.github.hipsterbwp.rp5launcher.ui.Hint
 import io.github.hipsterbwp.rp5launcher.ui.HintBar
@@ -72,7 +73,7 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
 
     Box(Modifier.fillMaxSize().background(Palette.page)) {
         Row(Modifier.fillMaxSize()) {
-            // Left: system-color panel with box art placeholder.
+            // Left: system-color panel with the box art (or a placeholder until it's scraped).
             Box(
                 Modifier
                     .width(Size.DETAILS_PANEL.u)
@@ -81,14 +82,22 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
                     .padding(bottom = Size.HINT_BAR.u),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    Modifier
-                        .size(Size.BOX_ART_W.u, Size.BOX_ART_H.u)
-                        .clip(rounded(Radius.PANEL))
-                        .background(Palette.onSystemSurfaceStrong),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Txt(system.info.shortName, Type.pageTitle, Palette.white)
+                val box = vm.boxArt(game)
+                if (box != null) {
+                    ArtImage(box, Modifier.size(Size.BOX_ART_W.u, Size.BOX_ART_H.u).clip(rounded(Radius.CARD)))
+                } else {
+                    Box(
+                        Modifier
+                            .size(Size.BOX_ART_W.u, Size.BOX_ART_H.u)
+                            .clip(rounded(Radius.PANEL))
+                            .background(Palette.onSystemSurfaceStrong)
+                            .padding(Space.SECTION_LARGE.u),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val logo = vm.logos[system.name]
+                        if (logo != null) ArtImage(logo, Modifier.fillMaxSize(), tint = Palette.white)
+                        else Txt(system.info.shortName, Type.pageTitle, Palette.white)
+                    }
                 }
             }
 
@@ -98,20 +107,24 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
                     .fillMaxHeight()
                     .padding(top = Space.SCREEN_TOP_LIGHT.u, start = Space.DETAILS_H.u, end = Space.DETAILS_H.u),
             ) {
+                val info = vm.artFor(game)
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.GAP.u)) {
                     Pill(system.info.shortName, accent, Palette.white)
+                    info?.genre?.let { Pill(it, Palette.surface, Palette.ink) }
                     game.tag?.let { Pill(it, Palette.surface, Palette.ink) }
-                    Pill(game.extension.uppercase(), Palette.surface, Palette.ink)
                     if (stats.favorite) Pill("Favorite", Palette.surface, Palette.ink)
                 }
                 Spacer(Modifier.height(Space.LG.u))
                 Txt(game.title, Type.pageTitle, Palette.ink, maxLines = 2)
                 Spacer(Modifier.height(Space.MD.u))
-                val sub = listOf(system.info.displayName, formatSize(game.sizeBytes)).filter { it.isNotEmpty() }
+                // "Square · 1995" once scraped; system and file size until then.
+                val credits = listOfNotNull(info?.publisher ?: info?.developer, info?.year)
+                val sub = credits.ifEmpty { listOf(system.info.displayName, formatSize(game.sizeBytes)).filter { it.isNotEmpty() } }
                 Txt(sub.joinToString(" · "), Type.bodySmall, Palette.inkSecondary)
                 Spacer(Modifier.height(Space.LG.u))
+                val developer = info?.developer?.takeIf { it != info?.publisher }
                 Txt(
-                    game.fileName,
+                    developer?.let { "Developed by $it" } ?: game.fileName,
                     Type.body,
                     Palette.inkBody,
                     Modifier.widthIn(max = Size.DESCRIPTION_MAX_W.u),

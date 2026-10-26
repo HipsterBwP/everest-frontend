@@ -26,3 +26,17 @@ Copyright 2022 The Bricolage Grotesque Project Authors (https://github.com/ateli
 
 Licensed under the SIL Open Font License 1.1; the full text is in
 `app/src/main/assets/OFL-BricolageGrotesque.txt`.
+
+## Downloaded at runtime (not included in the APK)
+
+- **Box art and screenshots**: [libretro-thumbnails](https://github.com/libretro-thumbnails).
+  Artwork is copyright of the respective publishers.
+- **Year, publisher, developer, genre**: [libretro-database](https://github.com/libretro/libretro-database)
+  `metadat` files.
+- **Console logos**: [RetroPie es-theme-carbon](https://github.com/RetroPie/es-theme-carbon). Logos are
+  trademarks of their respective owners.
+
+## Libraries
+
+- [Coil](https://github.com/coil-kt/coil), Apache License 2.0
+- [AndroidSVG](https://github.com/BigBadaboom/androidsvg), Apache License 2.0

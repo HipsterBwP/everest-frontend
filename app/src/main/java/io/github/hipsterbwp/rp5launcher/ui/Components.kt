@@ -31,6 +31,12 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size as GeoSize
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import java.io.File
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -66,6 +72,32 @@ fun Txt(
         style = style.copy(color = color),
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
+    )
+}
+
+// ---------------------------------------------------------------------------------------------
+// Images
+// ---------------------------------------------------------------------------------------------
+
+/** Scraped art or a logo from local storage; fades in, draws nothing while loading. */
+@Composable
+fun ArtImage(
+    file: File?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit,
+    tint: Color? = null,
+) {
+    if (file == null) return
+    val context = LocalContext.current
+    val request = remember(file) {
+        ImageRequest.Builder(context).data(file).crossfade(Motion.SCREEN_FADE_MS).build()
+    }
+    AsyncImage(
+        model = request,
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = contentScale,
+        colorFilter = tint?.let { ColorFilter.tint(it) },
     )
 }
 

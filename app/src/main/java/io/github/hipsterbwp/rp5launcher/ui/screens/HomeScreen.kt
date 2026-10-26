@@ -26,6 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import io.github.hipsterbwp.rp5launcher.ui.ArtImage
+import java.io.File
 import io.github.hipsterbwp.rp5launcher.data.Game
 import io.github.hipsterbwp.rp5launcher.ui.Hint
 import io.github.hipsterbwp.rp5launcher.ui.HintBar
@@ -108,7 +111,12 @@ fun HomeScreen(vm: LauncherViewModel, appName: String) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Txt(appName, Type.brand, Palette.white)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.ROW_GAP.u)) {
+                    Txt(appName, Type.brand, Palette.white)
+                    vm.scrape?.let { p ->
+                        Txt("Getting art ${p.done}/${p.total}", Type.label, Palette.white.copy(alpha = Alpha.SECONDARY_ON_SYSTEM))
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.GAP.u)) {
                     TABS.forEachIndexed { i, name ->
                         val selected = i == tab
@@ -190,20 +198,23 @@ private fun SystemsTab(
                     }
                 }
             }
-            // Placeholder for system artwork until the scraper/brand pass provides it.
+            // System artwork: the console logo, or its short name until the logo has downloaded.
             Box(
                 Modifier
                     .size(Size.ARTWORK_W.u, Size.ARTWORK_H.u)
                     .clip(rounded(Radius.PANEL_LARGE))
-                    .background(Palette.onSystemSurface),
+                    .background(Palette.onSystemSurface)
+                    .padding(Space.SECTION_LARGE.u),
                 contentAlignment = Alignment.Center,
             ) {
-                Txt(selected.info.shortName, Type.hero, Palette.white)
+                val logo = vm.logos[selected.name]
+                if (logo != null) ArtImage(logo, Modifier.fillMaxSize(), tint = Palette.white)
+                else Txt(selected.info.shortName, Type.hero, Palette.white)
             }
         }
         Spacer(Modifier.weight(1f))
         Carousel(systems.size, index, select, open) { i, focused ->
-            SystemTile(systems[i], focused, bg)
+            SystemTile(systems[i], vm.logos[systems[i].name], focused, bg)
         }
     }
 }
@@ -219,24 +230,44 @@ private fun GamesTab(
 ) {
     val (system, game) = games[index]
     val stats = vm.stats(game)
+    val info = vm.artFor(game)
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = Space.SCREEN_H.u).padding(top = Space.SECTION_LARGE.u)) {
-            Txt(system.info.displayName, Type.tab, Palette.white.copy(alpha = Alpha.SECONDARY_ON_SYSTEM))
-            Spacer(Modifier.height(Space.GAP.u))
-            Txt(game.title, Type.pageTitle, Palette.white, maxLines = 2)
-            Spacer(Modifier.height(Space.SECTION_SMALL.u))
-            Row(horizontalArrangement = Arrangement.spacedBy(Space.GAP.u)) {
-                if (stats.playtimeMs > 0) {
-                    Pill("${formatPlaytime(stats.playtimeMs)} played", Palette.onSystemDarkChip, Palette.white, Type.label, Space.CHIP_V)
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = Space.SCREEN_H.u).padding(top = Space.SECTION_LARGE.u),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.SECTION_LARGE.u),
+        ) {
+            Column(Modifier.weight(1f)) {
+                val line = listOfNotNull(system.info.displayName, info?.year).joinToString(" · ")
+                Txt(line, Type.tab, Palette.white.copy(alpha = Alpha.SECONDARY_ON_SYSTEM))
+                Spacer(Modifier.height(Space.GAP.u))
+                Txt(game.title, Type.pageTitle, Palette.white, maxLines = 2)
+                Spacer(Modifier.height(Space.SECTION_SMALL.u))
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.GAP.u)) {
+                    if (stats.playtimeMs > 0) {
+                        Pill("${formatPlaytime(stats.playtimeMs)} played", Palette.onSystemDarkChip, Palette.white, Type.label, Space.CHIP_V)
+                    }
+                    if (stats.playCount > 0) {
+                        Pill(timesPlayed(stats.playCount), Palette.onSystemDarkChip, Palette.white, Type.label, Space.CHIP_V)
+                    }
                 }
-                if (stats.playCount > 0) {
-                    Pill(timesPlayed(stats.playCount), Palette.onSystemDarkChip, Palette.white, Type.label, Space.CHIP_V)
-                }
+            }
+            // Screenshot of the selected game, or its box art when there's no screenshot.
+            Box(
+                Modifier
+                    .size(Size.ARTWORK_W.u, Size.ARTWORK_H.u)
+                    .clip(rounded(Radius.PANEL_LARGE))
+                    .background(Palette.onSystemSurface),
+                contentAlignment = Alignment.Center,
+            ) {
+                val snap = vm.snapArt(game)
+                if (snap != null) ArtImage(snap, Modifier.fillMaxSize(), ContentScale.Crop)
+                else ArtImage(vm.boxArt(game), Modifier.fillMaxSize().padding(Space.CARD_PAD.u))
             }
         }
         Spacer(Modifier.weight(1f))
         Carousel(games.size, index, select, open) { i, focused ->
-            GameTile(games[i].second.title, games[i].first.color, focused, bg)
+            GameTile(games[i].second.title, vm.boxArt(games[i].second), games[i].first.color, focused, bg)
         }
     }
 }
@@ -269,7 +300,7 @@ private fun Carousel(
 }
 
 @Composable
-private fun SystemTile(system: SystemEntry, focused: Boolean, bg: Color) {
+private fun SystemTile(system: SystemEntry, logo: File?, focused: Boolean, bg: Color) {
     val size by animateDpAsState(
         if (focused) Size.SYSTEM_TILE_SELECTED.u else Size.SYSTEM_TILE.u, Motion.focus(), label = "tile-size",
     )
@@ -285,16 +316,17 @@ private fun SystemTile(system: SystemEntry, focused: Boolean, bg: Color) {
             .background(if (focused) Palette.white else system.color),
         contentAlignment = Alignment.Center,
     ) {
-        Txt(
-            system.info.shortName,
-            if (focused) Type.tileSelected else Type.tile,
-            if (focused) bg else Palette.white,
-        )
+        val ink = if (focused) bg else Palette.white
+        if (logo != null) {
+            ArtImage(logo, Modifier.fillMaxSize().padding(Space.TILE_LOGO_PAD.u), tint = ink)
+        } else {
+            Txt(system.info.shortName, if (focused) Type.tileSelected else Type.tile, ink)
+        }
     }
 }
 
 @Composable
-private fun GameTile(title: String, systemColor: Color, focused: Boolean, bg: Color) {
+private fun GameTile(title: String, box: File?, systemColor: Color, focused: Boolean, bg: Color) {
     val height by animateDpAsState(
         if (focused) Size.GAME_TILE_SELECTED_H.u else Size.GAME_TILE_H.u, Motion.focus(), label = "game-tile",
     )
@@ -309,7 +341,8 @@ private fun GameTile(title: String, systemColor: Color, focused: Boolean, bg: Co
             .padding(Space.CARD_PAD.u),
         contentAlignment = Alignment.BottomStart,
     ) {
-        Txt(title, Type.cardTitle, if (focused) bg else Palette.white, maxLines = 3)
+        if (box != null) ArtImage(box, Modifier.fillMaxSize())
+        else Txt(title, Type.cardTitle, if (focused) bg else Palette.white, maxLines = 3)
     }
 }
 

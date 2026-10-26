@@ -13,6 +13,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.hipsterbwp.rp5launcher.art.GameArt
+import io.github.hipsterbwp.rp5launcher.art.ArtIndex
+import io.github.hipsterbwp.rp5launcher.art.LogoStore
+import io.github.hipsterbwp.rp5launcher.art.Scraper
 import io.github.hipsterbwp.rp5launcher.data.CommandDef
 import io.github.hipsterbwp.rp5launcher.data.ConfigStore
 import io.github.hipsterbwp.rp5launcher.data.EsdeCatalog
@@ -36,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 sealed interface Screen {
     data class Setup(val step: Int) : Screen
@@ -75,11 +80,15 @@ data class SystemEntry(
 
 data class ScanProgress(val done: Int, val total: Int)
 
+data class ScrapeProgress(val done: Int, val total: Int, val system: String)
+
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val configStore = ConfigStore(app)
     private val libraryStore = LibraryStore(app)
     private val launcher = GameLauncher(app)
     private val updater = Updater(app)
+    private val logoStore = LogoStore(app)
+    private val scraper = Scraper(app)
     private var catalog: EsdeCatalog? = null
 
     var ready by mutableStateOf(false)
@@ -111,6 +120,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val gridFilter = mutableStateMapOf<String, Int>()
     var setupIndex by mutableIntStateOf(0)
 
+    /** Scraped art and info per game id. */
+    val art = mutableStateMapOf<String, GameArt>()
+    /** Downloaded console logo masks per system. */
+    val logos = mutableStateMapOf<String, File>()
+    var scrape by mutableStateOf<ScrapeProgress?>(null)
+        private set
+    private var scrapeJob: Job? = null
+
     var update by mutableStateOf<UpdateState>(UpdateState.Idle)
         private set
     val currentVersion: Int get() = updater.currentVersion
@@ -125,13 +142,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             val loaded = withContext(Dispatchers.IO) {
                 val catalog = EsdeCatalog.load(getApplication<Application>().assets)
                 val (config, configProblem) = loadConfig()
-                Loaded(catalog, config, configProblem, libraryStore.loadLibrary(), libraryStore.loadStats())
+                Loaded(
+                    catalog, config, configProblem, libraryStore.loadLibrary(), libraryStore.loadStats(), scraper.load(),
+                )
             }
+            art.putAll(loaded.art.games)
             catalog = loaded.catalog
             applyConfig(loaded.config)
             stats = loaded.stats
             library = loaded.library?.takeIf { it.rootUri == loaded.config.romsRoot }
             rebuildSystems()
+            refreshLogos()
             val root = rootUri()
             if (root == null || !hasAccess(root)) {
                 backStack += Screen.Setup(1)
@@ -206,6 +227,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val configProblem: String?,
         val library: LibraryCache?,
         val stats: StatsFile,
+        val art: ArtIndex,
     )
 
     private fun loadConfig(): Pair<LauncherConfig, String?> = try {
@@ -350,6 +372,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 library = it
                 rebuildSystems()
                 homeSystemIndex = homeSystemIndex.coerceIn(0, (systems.size - 1).coerceAtLeast(0))
+                refreshLogos()
+                if (config.autoScrape) scrapeArt(force = false)
             }.onFailure {
                 dialog = Dialog.Message(
                     "Couldn't read your ROMs folder",
@@ -383,6 +407,66 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun toggleFavorite(game: Game) = updateStats(game) { it.copy(favorite = !it.favorite) }
+
+    // -----------------------------------------------------------------------------------------
+    // Art
+    // -----------------------------------------------------------------------------------------
+
+    fun boxArt(game: Game): File? = scraper.file(art[game.id]?.box)
+
+    fun snapArt(game: Game): File? = scraper.file(art[game.id]?.snap)
+
+    fun artFor(game: Game): GameArt? = art[game.id]
+
+    /** Downloads logos for the library's systems that don't have one yet. */
+    private fun refreshLogos(force: Boolean = false) {
+        val names = systems.map { it.name }
+        names.forEach { name -> logoStore.file(name)?.let { logos[name] = it } }
+        viewModelScope.launch {
+            val added = withContext(Dispatchers.IO) { logoStore.fetchMissing(names, force) }
+            added.forEach { name -> logoStore.file(name)?.let { logos[name] = it } }
+        }
+    }
+
+    /** Games the scraper would fetch for: supported systems, not yet scraped (unless forced). */
+    fun scrapeTodo(force: Boolean): Int = systems.filter { scraper.supports(it.name) }
+        .sumOf { s -> if (force) s.games.size else s.games.count { (art[it.id]?.scrapedAt ?: 0L) == 0L } }
+
+    fun setAutoScrape(enabled: Boolean) = updateConfig { it.copy(autoScrape = enabled) }
+
+    fun scrapeArt(force: Boolean) {
+        if (scrapeJob?.isActive == true) return
+        val targets = systems.filter { scraper.supports(it.name) }
+        val total = scrapeTodo(force)
+        if (force) refreshLogos(force = true)
+        if (total == 0) return
+        scrape = ScrapeProgress(0, total, targets.first().info.displayName)
+        scrapeJob = viewModelScope.launch {
+            var done = 0
+            try {
+                for (system in targets) {
+                    scrape = ScrapeProgress(done, total, system.info.displayName)
+                    withContext(Dispatchers.IO) {
+                        scraper.scrapeSystem(system.name, system.games, art.toMap(), force) { game, result ->
+                            viewModelScope.launch {
+                                art[game.id] = result
+                                done++
+                                scrape = ScrapeProgress(done, total, system.info.displayName)
+                            }
+                        }
+                        scraper.save(ArtIndex(art.toMap()))
+                    }
+                }
+            } finally {
+                withContext(Dispatchers.IO + kotlinx.coroutines.NonCancellable) { scraper.save(ArtIndex(art.toMap())) }
+                scrape = null
+            }
+        }
+    }
+
+    fun stopScrape() {
+        scrapeJob?.cancel()
+    }
 
     // -----------------------------------------------------------------------------------------
     // Emulators

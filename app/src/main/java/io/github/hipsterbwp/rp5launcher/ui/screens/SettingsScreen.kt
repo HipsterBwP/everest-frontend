@@ -52,7 +52,9 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.u
 import java.text.DateFormat
 import java.util.Date
 
-private enum class Page(val title: String) { Library("Library"), Emulators("Emulators"), About("About") }
+private enum class Page(val title: String) {
+    Library("Library"), Emulators("Emulators"), Scraper("Scraper"), About("About")
+}
 
 /** One actionable row on a settings page. */
 private data class Item(
@@ -76,6 +78,7 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
     val items: List<Item> = when (page) {
         Page.Library -> libraryItems(vm, accent, pickFolder)
         Page.Emulators -> emulatorItems(vm, accent, version)
+        Page.Scraper -> scraperItems(vm, accent)
         Page.About -> aboutItems(vm, accent)
     }
     val rowIndex = row.coerceIn(0, (items.size - 1).coerceAtLeast(0))
@@ -193,6 +196,7 @@ private fun LazyListScope.rows(items: List<Item>, focusedIndex: Int, onTap: (Int
 private fun pageSubtitle(page: Page) = when (page) {
     Page.Library -> "Where your games live and when they were last scanned."
     Page.Emulators -> "Which app opens each system. Changes are saved to launcher-config.json."
+    Page.Scraper -> "Box art, screenshots, game info and console logos, downloaded from free sources."
     Page.About -> "Version, config file and credits."
 }
 
@@ -257,6 +261,59 @@ private fun emulatorItems(vm: LauncherViewModel, accent: Color, version: Int): L
             Txt("Also runs when you return to the launcher", Type.label, Palette.inkSecondary)
         }
     }
+
+@Composable
+private fun scraperItems(vm: LauncherViewModel, accent: Color): List<Item> {
+    val progress = vm.scrape
+    val missing = vm.scrapeTodo(force = false)
+    return listOf(
+        Item(
+            "scrape",
+            onA = { if (progress != null) vm.stopScrape() else vm.scrapeArt(force = false) },
+            aLabel = if (progress != null) "Stop" else "Download",
+        ) { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Download missing art", Type.rowTitle, Palette.ink)
+                    Txt(
+                        when {
+                            progress != null -> "${progress.system} · ${progress.done} of ${progress.total}"
+                            missing > 0 -> "$missing games without art"
+                            else -> "Every supported game has been scraped"
+                        },
+                        Type.label, Palette.inkSecondary,
+                    )
+                }
+                ChevronIcon(Palette.ink)
+            }
+        },
+        Item("auto", onA = { vm.setAutoScrape(!vm.config.autoScrape) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Txt("Get art for new games automatically", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt(
+                    if (vm.config.autoScrape) "On" else "Off",
+                    Type.labelStrong,
+                    if (vm.config.autoScrape) Palette.ok else Palette.inkSecondary,
+                )
+            }
+        },
+        Item("redo", onA = { vm.scrapeArt(force = true) }, aLabel = "Re-download") { focused ->
+            ListRow(focused, accent, background = Palette.surface) {
+                Txt("Re-download all art and logos", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt("Picks up newly added art", Type.label, Palette.inkSecondary)
+            }
+        },
+        Item("sources") { _ ->
+            ListRow(false, accent, background = Palette.surface) {
+                Txt(
+                    "Box art and screenshots: libretro-thumbnails. Game info: libretro-database. " +
+                        "Console logos: RetroPie Carbon theme. Matched by file name, so No-Intro/Redump names work best.",
+                    Type.label, Palette.inkBody, maxLines = 3,
+                )
+            }
+        },
+    )
+}
 
 @Composable
 private fun aboutItems(vm: LauncherViewModel, accent: Color): List<Item> {

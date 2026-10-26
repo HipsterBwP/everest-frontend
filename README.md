@@ -72,10 +72,22 @@ PS2 → NetherSX2. Other systems use the first ES-DE option that's installed.
 RetroArch is started with a file path (`%ROM%`), so RetroArch itself needs storage access to your ROMs
 folder. Standalone emulators such as NetherSX2 get a content URI with a read grant.
 
-## Not in this first version
+## Art and game info
 
-Scraping (box art, descriptions, years), search, collections, Resume save, the Appearance/Controls/Scraper
-settings pages and navigation sounds. Placeholders in the UI mark where scraped art will go.
+The launcher has its own scraper (no other frontend or account needed). Run it from the last setup
+step or **Settings › Scraper**:
+
+- Box art and screenshots from [libretro-thumbnails](https://github.com/libretro-thumbnails)
+- Year, publisher, developer and genre from [libretro-database](https://github.com/libretro/libretro-database)
+- Console logos for the system tiles from the RetroPie Carbon theme
+
+Games are matched by file name, so No-Intro / Redump names (e.g. `Chrono Trigger (USA).sfc`) match best.
+Art is stored in the app's private storage, downsized for the screen.
+
+## Not built yet
+
+Game descriptions, search, collections, Resume save, the Appearance/Controls settings pages and
+navigation sounds.
 
 ## Credits
 

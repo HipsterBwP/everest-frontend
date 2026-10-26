@@ -27,6 +27,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
+import io.github.hipsterbwp.rp5launcher.ui.ArtImage
+import java.io.File
 import io.github.hipsterbwp.rp5launcher.data.Game
 import io.github.hipsterbwp.rp5launcher.data.GameStats
 import io.github.hipsterbwp.rp5launcher.ui.Hint
@@ -186,6 +188,8 @@ fun GameGridScreen(vm: LauncherViewModel, systemName: String) {
                         GameCard(
                             game = game,
                             stats = vm.stats(game),
+                            year = vm.artFor(game)?.year,
+                            box = vm.boxArt(game),
                             focused = i == index,
                             bg = bg,
                             modifier = Modifier.tap { if (i == index) openDetails() else select(i) },
@@ -209,14 +213,23 @@ fun GameGridScreen(vm: LauncherViewModel, systemName: String) {
 }
 
 @Composable
-private fun GameCard(game: Game, stats: GameStats, focused: Boolean, bg: Color, modifier: Modifier) {
+private fun GameCard(
+    game: Game,
+    stats: GameStats,
+    year: String?,
+    box: File?,
+    focused: Boolean,
+    bg: Color,
+    modifier: Modifier,
+) {
     val progress by animateFloatAsState(if (focused) 1f else 0f, Motion.focus(), label = "card-focus")
     val scale = 1f + (Focus.CARD_SCALE - 1f) * progress
     val meta = buildList {
-        add(game.tag ?: game.extension.uppercase())
+        add(year ?: game.tag ?: game.extension.uppercase())
         if (focused && stats.playtimeMs > 0) add("${formatPlaytime(stats.playtimeMs)} played")
         if (stats.favorite) add("★")
     }.joinToString(" · ")
+    val ink = if (focused) bg else Palette.white
     Column(
         modifier
             .zIndex(if (focused) 1f else 0f)
@@ -226,11 +239,17 @@ private fun GameCard(game: Game, stats: GameStats, focused: Boolean, bg: Color, 
             .fillMaxWidth()
             .clip(rounded(Radius.CARD))
             .background(if (focused) Palette.white else Palette.onSystemSurfaceWeak)
-            .padding(Space.CARD_PAD.u),
+            .padding(if (box != null) Space.GAP.u else Space.CARD_PAD.u),
         verticalArrangement = Arrangement.Bottom,
     ) {
-        val ink = if (focused) bg else Palette.white
-        Txt(game.title, Type.cardTitle, ink, maxLines = 4)
+        if (box != null) {
+            // Cover fills the card above a one-line title.
+            ArtImage(box, Modifier.weight(1f).fillMaxWidth())
+            Spacer(Modifier.height(Space.LIST_GAP.u))
+            Txt(game.title, Type.cardTitle, ink)
+        } else {
+            Txt(game.title, Type.cardTitle, ink, maxLines = 4)
+        }
         Spacer(Modifier.height(Space.XS.u))
         Txt(meta, Type.micro, if (focused) ink else Palette.white.copy(alpha = Alpha.CARD_META))
     }

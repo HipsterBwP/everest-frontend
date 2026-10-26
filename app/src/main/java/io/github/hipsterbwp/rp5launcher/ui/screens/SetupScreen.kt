@@ -51,7 +51,7 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.Type
 import io.github.hipsterbwp.rp5launcher.ui.theme.rounded
 import io.github.hipsterbwp.rp5launcher.ui.theme.u
 
-private const val STEPS = 2
+private const val STEPS = 3
 
 @Composable
 fun SetupScreen(vm: LauncherViewModel, step: Int, appName: String, pickFolder: () -> Unit) {
@@ -68,12 +68,20 @@ fun SetupScreen(vm: LauncherViewModel, step: Int, appName: String, pickFolder: (
         focusedSystem?.let { s -> vm.selectedCommand(s.name)?.takeIf { !vm.isInstalled(it) } }
     }
 
+    fun goTo(n: Int) {
+        vm.backStack[vm.backStack.lastIndex] = Screen.Setup(n)
+    }
     fun finish() = vm.finishSetup()
-    fun backToStep1() {
-        vm.backStack[vm.backStack.lastIndex] = Screen.Setup(1)
+    fun toArt() = goTo(3)
+    fun backToStep1() = goTo(1)
+    fun backToStep2() = goTo(2)
+    fun downloadArt() {
+        vm.setAutoScrape(true)
+        vm.scrapeArt(force = false)
+        finish()
     }
     fun activate() {
-        if (focusedSystem != null) vm.dialog = Dialog.EmulatorPicker(focusedSystem.name) else finish()
+        if (focusedSystem != null) vm.dialog = Dialog.EmulatorPicker(focusedSystem.name) else toArt()
     }
     fun getEmulator() {
         missing?.let { vm.suggestedPackage(it) }?.let(vm::openStore)
@@ -86,6 +94,13 @@ fun SetupScreen(vm: LauncherViewModel, step: Int, appName: String, pickFolder: (
                 Pad.B -> true // first run: nowhere to go back to
                 else -> false
             }
+        } else if (step == 3) {
+            when (button) {
+                Pad.A -> { downloadArt(); true }
+                Pad.Start -> { finish(); true }
+                Pad.B -> { backToStep2(); true }
+                else -> false
+            }
         } else {
             when (button) {
                 Pad.Up -> { vm.setupIndex = (index - 1).coerceAtLeast(0); true }
@@ -93,7 +108,7 @@ fun SetupScreen(vm: LauncherViewModel, step: Int, appName: String, pickFolder: (
                 Pad.A -> { activate(); true }
                 Pad.X -> { getEmulator(); true }
                 Pad.Y -> { pickFolder(); true }
-                Pad.Start -> { finish(); true }
+                Pad.Start -> { toArt(); true }
                 Pad.B -> { backToStep1(); true }
                 else -> false
             }
@@ -110,19 +125,28 @@ fun SetupScreen(vm: LauncherViewModel, step: Int, appName: String, pickFolder: (
                     .padding(top = Space.SETTINGS_TOP.u, start = Space.SCREEN_H.u, end = Space.SCREEN_H.u),
             ) {
                 FolderCard(vm.rootLabel() ?: "Not chosen yet", showChange = step == 2, onChange = pickFolder)
-                if (step == 1) PickStep(accent, pickFolder)
-                else FoundStep(vm, accent, index, version, onFinish = ::finish)
+                when (step) {
+                    1 -> PickStep(accent, pickFolder)
+                    2 -> FoundStep(vm, accent, index, version, onFinish = ::toArt)
+                    else -> ArtStep(vm, accent, onDownload = ::downloadArt)
+                }
             }
         }
         val hints = if (step == 1) {
             listOf(Hint(Pad.A, "Choose folder", onClick = pickFolder))
+        } else if (step == 3) {
+            listOf(
+                Hint(Pad.A, "Download art", onClick = ::downloadArt),
+                Hint(Pad.B, "Back", onClick = ::backToStep2),
+                Hint(Pad.Start, "Skip", trailing = true, onClick = ::finish),
+            )
         } else {
             buildList {
                 add(Hint(Pad.A, if (focusedSystem != null) "Pick emulator" else "Continue", onClick = ::activate))
                 if (missing != null) add(Hint(Pad.X, "Get emulator", onClick = ::getEmulator))
                 add(Hint(Pad.Y, "Change folder", onClick = pickFolder))
                 add(Hint(Pad.B, "Back", onClick = ::backToStep1))
-                add(Hint(Pad.Start, "Continue", trailing = true, onClick = ::finish))
+                add(Hint(Pad.Start, "Continue", trailing = true, onClick = ::toArt))
             }
         }
         HintBar(hints, onSystem = false, glyphInk = Palette.ink)
@@ -143,14 +167,22 @@ private fun SetupPanel(step: Int, accent: Color, appName: String) {
         Txt("Step $step of $STEPS", Type.label, Palette.white.copy(alpha = Alpha.SECONDARY_ON_SYSTEM))
         Spacer(Modifier.height(Space.GAP.u))
         Txt(
-            if (step == 1) "Pick your ROMs folder" else "We found your games",
+            when (step) {
+                1 -> "Pick your ROMs folder"
+                2 -> "We found your games"
+                else -> "Get box art"
+            },
             Type.setupTitle, Palette.white, maxLines = 3,
         )
         Spacer(Modifier.height(Space.LG.u))
         Txt(
-            if (step == 1) "Choose the folder that holds one subfolder per system, like snes, gba and ps2."
-            else "Scanned your ROMs folder and matched each system to an emulator on this device.",
-            Type.bodySmall, Palette.white.copy(alpha = Alpha.NAV_ON_SYSTEM), maxLines = 4,
+            when (step) {
+                1 -> "Choose the folder that holds one subfolder per system, like snes, gba and ps2."
+                2 -> "Scanned your ROMs folder and matched each system to an emulator on this device."
+                else -> "Covers, screenshots and game info from libretro's free database. " +
+                    "It downloads in the background, so you can start playing right away."
+            },
+            Type.bodySmall, Palette.white.copy(alpha = Alpha.NAV_ON_SYSTEM), maxLines = 5,
         )
         Spacer(Modifier.height(Space.SECTION_LARGE.u))
         Row(horizontalArrangement = Arrangement.spacedBy(Space.LIST_GAP.u)) {
@@ -286,5 +318,38 @@ fun SystemStatusRow(
         }
         Txt(status, Type.labelStrong, if (installed) Palette.ok else Palette.problem)
         trailing?.invoke()
+    }
+}
+
+@Composable
+private fun ArtStep(vm: LauncherViewModel, accent: Color, onDownload: () -> Unit) {
+    val todo = vm.scrapeTodo(force = false)
+    Column(Modifier.fillMaxWidth().padding(top = Space.SECTION_SMALL.u)) {
+        Txt(
+            if (todo > 0) "$todo games can get art" else "No supported games to scrape yet",
+            Type.labelStrong, Palette.inkSecondary,
+        )
+        Spacer(Modifier.height(Space.MD.u))
+        Column(verticalArrangement = Arrangement.spacedBy(Space.LIST_GAP.u)) {
+            listOf(
+                "Box art" to "Covers on every game card",
+                "Screenshots" to "On Favorites and Recent",
+                "Game info" to "Year, publisher and genre",
+                "Console logos" to "On the system tiles",
+            ).forEach { (what, where) ->
+                ListRow(focused = false, accent = accent, padV = Space.ROW_V) {
+                    Txt(what, Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                    Txt(where, Type.label, Palette.inkSecondary)
+                }
+            }
+        }
+        Spacer(Modifier.height(Space.SECTION.u))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            PrimaryButton(
+                "Download art", accent, focused = true,
+                height = Size.BUTTON_SMALL, padH = Space.BUTTON_H_SMALL, style = Type.buttonSmall,
+                onClick = onDownload,
+            )
+        }
     }
 }
