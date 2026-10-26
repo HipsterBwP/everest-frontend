@@ -181,16 +181,16 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             // Real steps behind the loading screen's progress bar.
             loading = LoadingStep(0.1f, "Loading emulators…")
-            val catalog = withContext(Dispatchers.IO) { EsdeCatalog.load(getApplication<Application>().assets) }
+            val esde = withContext(Dispatchers.IO) { EsdeCatalog.load(getApplication<Application>().assets) }
             loading = LoadingStep(0.45f, "Loading settings…")
-            val (config, configProblem) = withContext(Dispatchers.IO) { loadConfig() }
+            val (loadedConfig, configProblem) = withContext(Dispatchers.IO) { loadConfig() }
             loading = LoadingStep(0.6f, "Loading systems…")
             val libraryCache = withContext(Dispatchers.IO) { libraryStore.loadLibrary() }
             val statsFile = withContext(Dispatchers.IO) { libraryStore.loadStats() }
             loading = LoadingStep(0.8f, "Loading artwork…")
             val artIndex = withContext(Dispatchers.IO) { scraper.load() }
             loading = LoadingStep(1f, "Ready")
-            val loaded = Loaded(catalog, config, configProblem, libraryCache, statsFile, artIndex)
+            val loaded = Loaded(esde, loadedConfig, configProblem, libraryCache, statsFile, artIndex)
             art.putAll(loaded.art.games)
             screenScraper = withContext(Dispatchers.IO) { ssAccount.load() }
             catalog = loaded.catalog
