@@ -1,6 +1,15 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,13 +46,21 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.Type
 import io.github.hipsterbwp.rp5launcher.ui.theme.rounded
 import io.github.hipsterbwp.rp5launcher.ui.theme.u
 
+/** Sheen width as a fraction of the filled bar, each side of its center. */
+private const val SHEEN_WIDTH = 0.18f
+
 /**
  * ARCROW loading screen: the crow over a blue glow, the wordmark, a glowing progress bar that
  * follows real start-up steps, and what's loading right now.
  */
 @Composable
 fun LoadingScreen(step: LoadingStep) {
-    val progress by animateFloatAsState(step.progress, tween(Motion.SPLASH_BAR_MS), label = "loading")
+    // Start-up is often done before this screen's first frame, so the bar fills over a fixed time
+    // and never runs ahead of the real progress: it always visibly loads, and never lies.
+    val fill = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { fill.animateTo(1f, tween(Motion.SPLASH_FILL_MS, easing = FastOutSlowInEasing)) }
+    val real by animateFloatAsState(step.progress, tween(Motion.SPLASH_BAR_MS), label = "loading")
+    val progress = minOf(fill.value, real)
     Box(
         Modifier
             .fillMaxSize()
@@ -78,10 +95,16 @@ fun LoadingScreen(step: LoadingStep) {
     }
 }
 
-/** Pill track with a hairline blue edge and a glowing gradient fill. */
+/** Pill track with a hairline blue edge, a glowing gradient fill and a light sheen sweeping along it. */
 @Composable
 private fun ProgressBar(progress: Float) {
     val shape = rounded(Radius.PILL)
+    val sweep by rememberInfiniteTransition(label = "sheen").animateFloat(
+        initialValue = -0.3f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(tween(Motion.SPLASH_SHEEN_MS, easing = LinearEasing)),
+        label = "sheen-x",
+    )
     Box(
         Modifier
             .width(Size.SPLASH_BAR_W.u)
@@ -96,7 +119,19 @@ private fun ProgressBar(progress: Float) {
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                 .shadow(Space.GAP.u, shape, ambientColor = Palette.brandBlue, spotColor = Palette.brandBlue)
                 .clip(shape)
-                .background(Brush.horizontalGradient(listOf(Palette.brandBlue, Palette.brandBlueLight))),
+                .background(Brush.horizontalGradient(listOf(Palette.brandBlue, Palette.brandBlueLight)))
+                .drawWithContent {
+                    drawContent()
+                    val x = size.width * sweep
+                    val half = size.width * SHEEN_WIDTH
+                    drawRect(
+                        Brush.horizontalGradient(
+                            listOf(Palette.transparent, Palette.brandSheen, Palette.transparent),
+                            startX = x - half,
+                            endX = x + half,
+                        ),
+                    )
+                },
         )
     }
 }

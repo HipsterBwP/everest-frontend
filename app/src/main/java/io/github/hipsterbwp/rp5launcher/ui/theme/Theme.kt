@@ -98,6 +98,7 @@ object Palette {
     val brandTrack = Color(0x332F7BFF)
     val brandEdge = Color(0xB32F7BFF)
     val brandText = Color(0xFFC9D6EE)
+    val brandSheen = Color(0x8CFFFFFF)
 }
 
 /** Default system colors (DESIGN.md table). Keys are ES-DE system names. Overridable in config. */
@@ -456,6 +457,9 @@ object Motion {
     const val SPLASH_MIN_MS = 1400L
     const val SPLASH_FADE_MS = 450
     const val SPLASH_BAR_MS = 350
+    /** The bar's minimum fill time (kept under SPLASH_MIN_MS so it reaches the end on screen). */
+    const val SPLASH_FILL_MS = 1200
+    const val SPLASH_SHEEN_MS = 1100
     /** Gameplay stills slideshow: time per still, and its zoom duration. */
     const val SLIDE_MS = 4500
     const val KEN_BURNS_MS = 6000
