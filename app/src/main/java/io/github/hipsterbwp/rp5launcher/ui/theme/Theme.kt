@@ -93,6 +93,10 @@ object SystemColors {
         Color(0xFF37474F),
         Color(0xFFAD1457),
         Color(0xFF2E7D32),
+        Color(0xFF00838F),
+        Color(0xFF4527A0),
+        Color(0xFFC62828),
+        Color(0xFF558B2F),
     )
 
     /** Color shown before any system is known (setup, empty library). */
@@ -100,6 +104,19 @@ object SystemColors {
 
     fun forSystem(name: String): Color =
         defaults[name] ?: fallbacks[(name.hashCode() and 0x7fffffff) % fallbacks.size]
+
+    /**
+     * Colors for a whole library: DESIGN.md defaults first, then fallbacks handed out in order so
+     * neighbouring systems never share a color (a tile matching the background would vanish).
+     */
+    fun assign(names: List<String>): Map<String, Color> {
+        val used = names.mapNotNull { defaults[it] }.toMutableSet()
+        val pool = fallbacks.filter { it !in used }.ifEmpty { fallbacks }
+        var next = 0
+        return names.associateWith { name ->
+            defaults[name] ?: pool[next++ % pool.size]
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------------------------

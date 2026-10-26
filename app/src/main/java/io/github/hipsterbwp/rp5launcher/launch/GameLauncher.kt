@@ -54,7 +54,7 @@ class GameLauncher(private val context: Context) {
         }
 
     fun isInstalled(command: CommandDef): Boolean =
-        command.emulatorName?.let { findInstalled(it) } != null
+        command.isAndroidApp || command.emulatorName?.let { findInstalled(it) } != null
 
     /** First package listed for an emulator, used for "get it" store links. */
     fun suggestedPackage(command: CommandDef): String? =
@@ -74,6 +74,7 @@ class GameLauncher(private val context: Context) {
     }
 
     fun launch(game: Game, command: CommandDef, romsRoot: Uri): LaunchResult {
+        if (command.isAndroidApp) return launchAndroidApp(game, command)
         val emulatorName = command.emulatorName
             ?: return fail(
                 "This launch command isn't supported",
@@ -92,6 +93,8 @@ class GameLauncher(private val context: Context) {
         val vars = variables(game, emulator, romsRoot)
         val intent = Intent().setComponent(ComponentName(emulator.packageName, emulator.activity))
         intent.action = Intent.ACTION_MAIN
+        // The launcher starts games from its application context, which Android only allows with NEW_TASK.
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         var data: String? = null
         var mime: String? = null
         val grants = LinkedHashSet<Uri>()
@@ -106,8 +109,7 @@ class GameLauncher(private val context: Context) {
                 key == "%CATEGORY%" -> intent.addCategory(value)
                 key == "%DATA%" -> data = value
                 key == "%MIMETYPE%" -> mime = value
-                key == "%ACTIVITY_CLEAR_TASK%" ->
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+                key == "%ACTIVITY_CLEAR_TASK%" -> intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 key == "%ACTIVITY_CLEAR_TOP%" -> intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 key == "%ACTIVITY_NO_HISTORY%" -> intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
                 key.startsWith("%EXTRABOOL_") -> intent.putExtra(extraName(key, "%EXTRABOOL_"), value.toBoolean())
@@ -143,22 +145,59 @@ class GameLauncher(private val context: Context) {
             )
         }
 
-        return try {
-            context.startActivity(intent)
-            LaunchResult.Started
-        } catch (e: ActivityNotFoundException) {
-            fail(
-                "${command.shortName} couldn't be opened",
-                "Android couldn't find ${emulator.activity}. The app may have been updated or removed.",
-                "Re-detect emulators in Settings › Emulators, or reinstall the emulator.",
-            )
-        } catch (e: SecurityException) {
-            fail(
-                "${command.shortName} refused to start",
-                e.message ?: "The emulator doesn't allow other apps to open it this way.",
-                "Choose another emulator for this system.",
+        return start(intent, command.shortName, emulator.activity)
+    }
+
+    /** ES-DE's Android Apps/Games/Emulators systems: each .app file holds a package name to open. */
+    private fun launchAndroidApp(game: Game, command: CommandDef): LaunchResult {
+        val value = command.template.substringAfter('=', "").trim()
+        val target = if (value == "%FILEINJECT%") {
+            runCatching {
+                context.contentResolver.openInputStream(Uri.parse(game.id))?.bufferedReader()?.use { it.readText() }
+            }.getOrNull()?.trim()
+        } else {
+            value
+        }
+        if (target.isNullOrEmpty()) {
+            return fail(
+                "Couldn't read ${game.fileName}",
+                "This shortcut file should contain an Android package name, like com.retroarch.aarch64.",
+                "Put the app's package name in the file, then try again.",
             )
         }
+        val pkg = target.substringBefore('/').trim()
+        val pm = context.packageManager
+        val intent = (pm.getLaunchIntentForPackage(pkg) ?: pm.getLeanbackLaunchIntentForPackage(pkg))
+            ?: return fail(
+                "$pkg isn't installed",
+                "${game.fileName} points to an app that isn't on this device.",
+                "Install the app, or fix the package name inside the file.",
+                installPackage = pkg,
+            )
+        return start(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), game.title, pkg)
+    }
+
+    private fun start(intent: Intent, name: String, target: String): LaunchResult = try {
+        context.startActivity(intent)
+        LaunchResult.Started
+    } catch (e: ActivityNotFoundException) {
+        fail(
+            "$name couldn't be opened",
+            "Android couldn't find $target. The app may have been updated or removed.",
+            "Re-detect emulators in Settings › Emulators, or reinstall the app.",
+        )
+    } catch (e: SecurityException) {
+        fail(
+            "$name refused to start",
+            e.message ?: "The app doesn't allow other apps to open it this way.",
+            "Choose another emulator for this system.",
+        )
+    } catch (e: RuntimeException) {
+        fail(
+            "$name couldn't be started",
+            e.message ?: e.javaClass.simpleName,
+            "Try another emulator for this system, or reinstall this one.",
+        )
     }
 
     private fun variables(game: Game, emulator: InstalledEmulator, romsRoot: Uri): Map<String, String> {

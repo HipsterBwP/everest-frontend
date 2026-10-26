@@ -178,12 +178,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun rebuildSystems() {
         val catalog = catalog ?: return
+        val colors = SystemColors.assign(library?.systems.orEmpty().map { it.name })
         systems = library?.systems.orEmpty().mapNotNull { scanned ->
             val def = catalog.system(scanned.name) ?: return@mapNotNull null
             SystemEntry(
                 def = def,
                 info = SystemMeta.info(def),
-                color = parseColor(config.system(def.name).color) ?: SystemColors.forSystem(def.name),
+                color = parseColor(config.system(def.name).color) ?: colors.getValue(def.name),
                 folderName = scanned.folderName,
                 games = scanned.games,
             )
@@ -372,7 +373,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                     "Add one under \"systems\" › \"$system\" › \"commands\" in launcher-config.json.",
                 ),
             )
-            else -> launcher.launch(game, command, root)
+            // A failed launch must explain itself, never crash the launcher.
+            else -> try {
+                launcher.launch(game, command, root)
+            } catch (e: Exception) {
+                LaunchResult.Failed(
+                    LaunchProblem(
+                        "${command.shortName} couldn't be started",
+                        e.message ?: e.javaClass.simpleName,
+                        "Try another emulator for this system (X on the game page).",
+                    ),
+                )
+            }
         }
         when (result) {
             LaunchResult.Started -> {

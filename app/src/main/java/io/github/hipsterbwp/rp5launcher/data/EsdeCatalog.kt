@@ -137,6 +137,9 @@ data class CommandDef(val label: String, val template: String) {
     val emulatorName: String? =
         EMULATOR_TOKEN.find(template)?.groupValues?.get(1)
 
+    /** ES-DE's %ANDROIDAPP% commands open another Android app instead of an emulator. */
+    val isAndroidApp: Boolean = template.trimStart().startsWith("%ANDROIDAPP%")
+
     /** Human label: "RetroArch · Snes9x - Current" or "NetherSX2". */
     val displayName: String
         get() = when (emulatorName) {
@@ -148,7 +151,12 @@ data class CommandDef(val label: String, val template: String) {
     val shortName: String get() = label.removeSuffix(" (Standalone)")
 
     /** "via RetroArch" or "standalone". */
-    val hostName: String get() = if (emulatorName == "RETROARCH") "via RetroArch" else "standalone app"
+    val hostName: String
+        get() = when {
+            emulatorName == "RETROARCH" -> "via RetroArch"
+            isAndroidApp -> "Android app"
+            else -> "standalone app"
+        }
 
     companion object {
         private val EMULATOR_TOKEN = Regex("""^\s*%EMULATOR_([A-Za-z0-9_\-]+)%""")
