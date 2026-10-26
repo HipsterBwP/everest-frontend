@@ -36,6 +36,7 @@ import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
 import io.github.hipsterbwp.rp5launcher.ui.ListRow
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadInput
+import io.github.hipsterbwp.rp5launcher.ui.TextField
 import io.github.hipsterbwp.rp5launcher.ui.Txt
 import io.github.hipsterbwp.rp5launcher.ui.bringIntoView
 import io.github.hipsterbwp.rp5launcher.ui.tap
@@ -53,7 +54,8 @@ import java.text.DateFormat
 import java.util.Date
 
 private enum class Page(val title: String) {
-    Library("Library"), Emulators("Emulators"), Scraper("Scraper"), Sound("Sound"), About("About")
+    Library("Library"), Emulators("Emulators"), Scraper("Scraper"), ScreenScraper("ScreenScraper"),
+    Sound("Sound"), About("About")
 }
 
 /** One actionable row on a settings page. */
@@ -71,14 +73,15 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
     var page by rememberSaveable { mutableStateOf(Page.Emulators) }
     var inContent by rememberSaveable { mutableStateOf(false) }
     var row by rememberSaveable { mutableIntStateOf(0) }
-    val accentTarget = vm.systems.getOrNull(vm.homeSystemIndex)?.color ?: SystemColors.neutral
-    val accent by animateColorAsState(accentTarget, Motion.colorFade(), label = "settings-accent")
+    // Settings-style screens use Apple blue: system colors are too dark to read as focus on black.
+    val accent = Palette.accent
     val version = vm.emulatorsVersion
 
     val items: List<Item> = when (page) {
         Page.Library -> libraryItems(vm, accent, pickFolder)
         Page.Emulators -> emulatorItems(vm, accent, version)
         Page.Scraper -> scraperItems(vm, accent)
+        Page.ScreenScraper -> screenScraperItems(vm, accent)
         Page.Sound -> soundItems(vm, accent)
         Page.About -> aboutItems(vm, accent)
     }
@@ -118,7 +121,7 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
                 Modifier
                     .width(Size.SETTINGS_SIDEBAR.u)
                     .fillMaxHeight()
-                    .background(accent)
+                    .background(Palette.sidebar)
                     .padding(top = Space.SETTINGS_TOP.u, start = Space.SIDEBAR_H.u, end = Space.SIDEBAR_H.u),
                 verticalArrangement = Arrangement.spacedBy(Space.LIST_GAP.u),
             ) {
@@ -129,14 +132,14 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
                         Modifier
                             .fillMaxWidth()
                             .clip(rounded(Radius.CARD_SMALL))
-                            .background(if (selected) Palette.white else Palette.transparent)
+                            .background(if (selected) accent else Palette.transparent)
                             .tap { page = p; row = 0; inContent = false }
                             .padding(vertical = Space.ROW_V.u, horizontal = Space.ROW_H.u),
                     ) {
                         Txt(
                             p.title,
                             if (selected) Type.navItemSelected else Type.navItem,
-                            if (selected) accent else Palette.white.copy(alpha = Alpha.NAV_ON_SYSTEM),
+                            if (selected) Palette.white else Palette.inkSecondary,
                         )
                     }
                 }
@@ -180,7 +183,7 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
                 focusedItem?.xLabel?.let { add(Hint(Pad.X, it, onClick = focusedItem.onX)) }
             }
         }
-        HintBar(hints, onSystem = false, glyphInk = Palette.ink)
+        HintBar(hints, onSystem = false, glyphInk = Palette.inkOnLight)
     }
 }
 
@@ -198,7 +201,8 @@ private fun pageSubtitle(page: Page) = when (page) {
     Page.Library -> "Where your games live and when they were last scanned."
     Page.Emulators -> "Which app opens each system. Changes are saved to launcher-config.json."
     Page.Scraper -> "Box art, screenshots, game info and console logos, downloaded from free sources."
-    Page.Sound -> "Clicks and chimes as you move around and launch games."
+    Page.ScreenScraper -> "Sign in for gameplay videos, fanart, descriptions and ratings."
+    Page.Sound -> "Clicks and chimes as you move around, and gameplay video sound."
     Page.About -> "Version, config file and credits."
 }
 
@@ -319,6 +323,52 @@ private fun scraperItems(vm: LauncherViewModel, accent: Color): List<Item> {
 }
 
 @Composable
+private fun screenScraperItems(vm: LauncherViewModel, accent: Color): List<Item> {
+    val c = vm.screenScraper
+    fun field(key: String, label: String, value: String, secret: Boolean, field: TextField) =
+        Item(key, onA = { vm.editScreenScraper(field) }, aLabel = "Edit") { focused ->
+            ListRow(focused, accent) {
+                Txt(label, Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt(
+                    when {
+                        value.isEmpty() -> "Not set"
+                        secret -> "••••••••"
+                        else -> value
+                    },
+                    Type.label, Palette.inkSecondary,
+                )
+                ChevronIcon(Palette.inkSecondary)
+            }
+        }
+    return listOf(
+        field("user", "Username", c.user, secret = false, TextField.SsUser),
+        field("password", "Password", c.password, secret = true, TextField.SsPassword),
+        field("devid", "Developer ID", c.devId, secret = false, TextField.SsDevId),
+        field("devpassword", "Developer password", c.devPassword, secret = true, TextField.SsDevPassword),
+        Item("test", onA = { vm.testScreenScraper() }, aLabel = "Check") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Check sign-in", Type.rowTitle, Palette.ink)
+                    Txt(
+                        vm.screenScraperStatus ?: if (c.complete) "Ready. Run Scraper › Download missing art." else "Not signed in",
+                        Type.label, Palette.inkSecondary, maxLines = 2,
+                    )
+                }
+            }
+        },
+        Item("about") { _ ->
+            ListRow(false, accent, background = Palette.surface) {
+                Txt(
+                    "ScreenScraper needs your free account (screenscraper.fr) and a developer ID, which apps " +
+                        "must request on the ScreenScraper forum. Credentials stay on this device.",
+                    Type.label, Palette.inkBody, maxLines = 3,
+                )
+            }
+        },
+    )
+}
+
+@Composable
 private fun soundItems(vm: LauncherViewModel, accent: Color): List<Item> {
     val on = vm.config.navigationSounds
     return listOf(
@@ -326,6 +376,13 @@ private fun soundItems(vm: LauncherViewModel, accent: Color): List<Item> {
             ListRow(focused, accent) {
                 Txt("Navigation sounds", Type.rowTitle, Palette.ink, Modifier.weight(1f))
                 Txt(if (on) "On" else "Off", Type.labelStrong, if (on) Palette.ok else Palette.inkSecondary)
+            }
+        },
+        Item("videosound", onA = { vm.setVideoSound(!vm.config.videoSound) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Txt("Gameplay video sound", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                val video = vm.config.videoSound
+                Txt(if (video) "On" else "Off", Type.labelStrong, if (video) Palette.ok else Palette.inkSecondary)
             }
         },
         Item("volume", onA = { vm.cycleSoundVolume() }, aLabel = "Change") { focused ->
@@ -376,7 +433,7 @@ private fun aboutItems(vm: LauncherViewModel, accent: Color): List<Item> {
         Item("font") { _ ->
             ListRow(false, accent, background = Palette.surface) {
                 Txt(
-                    "Bricolage Grotesque by The Bricolage Grotesque Project Authors (SIL Open Font License 1.1).",
+                    "Inter by The Inter Project Authors (SIL Open Font License 1.1).",
                     Type.label, Palette.inkBody, maxLines = 2,
                 )
             }

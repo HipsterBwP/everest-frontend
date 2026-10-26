@@ -10,7 +10,8 @@ import java.net.URLEncoder
 internal object Http {
     private const val TIMEOUT_MS = 20_000
 
-    class Status(val code: Int) : IOException("HTTP $code")
+    /** Non-OK response; [body] is the server's error text, if any (ScreenScraper explains errors there). */
+    class Status(val code: Int, val body: String = "") : IOException("HTTP $code${if (body.isNotBlank()) ": $body" else ""}")
 
     private val RETRY_DELAYS_MS = longArrayOf(1_000, 3_000)
 
@@ -43,7 +44,7 @@ internal object Http {
             return when (val code = conn.responseCode) {
                 HttpURLConnection.HTTP_OK -> conn.inputStream.use { it.readBytes() }
                 HttpURLConnection.HTTP_NOT_FOUND -> null
-                else -> throw Status(code)
+                else -> throw Status(code, runCatching { conn.errorStream?.bufferedReader()?.use { it.readText() } }.getOrNull().orEmpty().trim().take(200))
             }
         } finally {
             conn.disconnect()

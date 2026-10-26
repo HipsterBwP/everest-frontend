@@ -4,6 +4,12 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
+import io.github.hipsterbwp.rp5launcher.ui.theme.Elevation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -118,6 +124,39 @@ fun GameplayBackdrop(snap: File?, scrim: Color, scrimAlpha: Float) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Glass and depth
+// ---------------------------------------------------------------------------------------------
+
+/** Frosted-glass surface: translucent dark fill with a hairline edge. Put blurred art behind it. */
+@Composable
+fun Modifier.glass(radius: Int, fill: Color = Palette.glass): Modifier {
+    val shape = rounded(radius)
+    return clip(shape).background(fill).border(Size.HAIRLINE.u, Palette.glassEdge, shape)
+}
+
+/** 1-unit light line along the top edge, like a glass toolbar. */
+@Composable
+fun Modifier.hairlineTop(): Modifier {
+    val width = Size.HAIRLINE.u
+    return drawBehind {
+        drawLine(Palette.glassEdge, Offset(0f, 0f), Offset(size.width, 0f), width.toPx())
+    }
+}
+
+/**
+ * tvOS-style focus lift: grows by [scale] at full [progress] and casts a soft shadow, drawn above
+ * neighbours. Apply before clipping so the shadow isn't cut off.
+ */
+@Composable
+fun Modifier.lift(progress: Float, scale: Float, radius: Int): Modifier {
+    val elevation = (Elevation.CARD + (Elevation.LIFTED - Elevation.CARD) * progress).u
+    val s = 1f + (scale - 1f) * progress
+    return zIndex(progress)
+        .graphicsLayer { scaleX = s; scaleY = s }
+        .shadow(elevation, rounded(radius), clip = false)
+}
+
+// ---------------------------------------------------------------------------------------------
 // Focus
 // ---------------------------------------------------------------------------------------------
 
@@ -175,6 +214,7 @@ fun BoxScope.HintBar(hints: List<Hint>, onSystem: Boolean, glyphInk: Color) {
             .fillMaxWidth()
             .height(Size.HINT_BAR.u)
             .background(if (onSystem) Palette.hintBarOnSystem else Palette.hintBarLight)
+            .hairlineTop()
             .padding(horizontal = Space.SCREEN_H.u),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.HINT_GAP.u),

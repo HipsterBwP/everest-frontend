@@ -33,6 +33,8 @@ data class LauncherConfig(
     /** Navigation sounds on/off and volume level 1 (low) to 3 (high). */
     val navigationSounds: Boolean = true,
     val soundVolume: Int = 2,
+    /** Play gameplay videos with sound (muted by default). */
+    val videoSound: Boolean = false,
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 

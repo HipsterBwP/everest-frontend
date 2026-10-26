@@ -1,7 +1,7 @@
 # RP5 Launcher
 
 A controller-first Android game launcher for the Retroid Pocket 5 (Android 13, 1920×1080), built with
-Kotlin and Jetpack Compose. The UI follows [DESIGN.md](DESIGN.md) ("Cartridge" style); every design
+Kotlin and Jetpack Compose. The UI follows [DESIGN.md](DESIGN.md) (an Apple-TV-inspired dark style); every design
 token lives in [`ui/theme/Theme.kt`](app/src/main/java/io/github/hipsterbwp/rp5launcher/ui/theme/Theme.kt).
 
 ## Getting the APK
@@ -26,9 +26,9 @@ To build locally (needs JDK 17 and the Android SDK): `./gradlew assembleDebug`.
 
 | Screen | Buttons |
 |---|---|
-| Home | ←/→ choose · **A** open · **L1/R1** tabs (Systems, Favorites, Recent, Collections) · **START** settings |
-| Game grid | D-pad move (hold to accelerate) · **A** details · **B** back · **Y** favorite · **L1/R1** filter · **L2/R2** jump by letter |
-| Game details | **A** play · **B** back · **X** change emulator · **Y** favorite |
+| Home | ↑/↓ choose a console · **A** open · **L1/R1** tabs (Systems, Favorites, Recent, Collections) · **START** settings |
+| Game list | D-pad move (hold to accelerate) · **A** play · **X** options · **B** back · **Y** favorite · **L1/R1** filter · **L2/R2** jump by letter |
+| Options | **A** play · **B** back · **X** change emulator · **Y** favorite |
 | Settings | ↑/↓ pages and rows · →/**A** enter · **A** change · **X** test-launch · **B** back |
 
 The hint bar at the bottom of every screen always shows what the buttons do right now.
@@ -82,13 +82,16 @@ step or **Settings › Scraper**:
 - Console logos for the system tiles from the RetroPie Carbon theme, with ES-DE's Slate theme for
   newer systems (Switch, 3DS, Vita, …)
 
+**ScreenScraper (optional):** sign in under **Settings › ScreenScraper** to add gameplay videos, fanart,
+descriptions and ratings. It needs your free screenscraper.fr account plus a developer ID (requested on
+the ScreenScraper forum). Credentials are kept in the app's private storage, not the config file.
+
 Games are matched by file name, so No-Intro / Redump names (e.g. `Chrono Trigger (USA).sfc`) match best.
 Art is stored in the app's private storage, downsized for the screen.
 
 ## Not built yet
 
-Game descriptions and gameplay videos (need a ScreenScraper account), search, collections, Resume
-save and the Appearance/Controls settings pages.
+Search, collections, Resume save and the Appearance/Controls settings pages.
 
 ## Credits
 

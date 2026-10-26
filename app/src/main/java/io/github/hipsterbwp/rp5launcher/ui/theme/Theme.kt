@@ -26,6 +26,9 @@ import io.github.hipsterbwp.rp5launcher.R
 /**
  * Every design token from DESIGN.md lives here. Screens never hard-code colors, sizes or type.
  *
+ * Direction: an Apple-TV-like dark UI. Near-black pages, grouped dark cards, frosted-glass panels
+ * over game art, system color as an accent, Inter type (the free cousin of San Francisco).
+ *
  * Sizes are in mockup px ("units"). The mockups are 960×540, so one unit is 1/960 of the
  * screen width: 2 device px on the RP5's 1920×1080 panel, whatever display density is set.
  */
@@ -39,18 +42,33 @@ object Palette {
     val black = Color(0xFF000000)
     val transparent = Color(0x00000000)
 
-    /** Light page: details, setup, settings. */
-    val page = Color(0xFFF4F1EA)
-    /** Light surface / chip. */
-    val surface = Color(0xFFE4DFD3)
-    val card = Color(0xFFFFFFFF)
+    /** Page background: details, setup, settings (Apple dark "system background"). */
+    val page = Color(0xFF000000)
+    /** Chips and secondary rows (Apple "tertiary grouped background"). */
+    val surface = Color(0xFF2C2C2E)
+    /** Grouped list cards and sidebars (Apple "secondary grouped background"). */
+    val card = Color(0xFF1C1C1E)
+    val sidebar = Color(0xFF111113)
 
-    val ink = Color(0xFF1C1A24)
-    val inkSecondary = Color(0xFF5A5666)
-    val inkBody = Color(0xFF3A3646)
+    /** Text on dark. Secondary keeps 4.5:1 on [card]. */
+    val ink = Color(0xFFFFFFFF)
+    val inkSecondary = Color(0xFFA1A1A8)
+    val inkBody = Color(0xFFD9D9DE)
+    /** Text on white (focused cards, button glyphs). */
+    val inkOnLight = Color(0xFF1C1C1E)
 
-    val hintBarLight = ink
-    val hintBarOnSystem = Color(0x47000000) // rgba(0,0,0,0.28)
+    /** Apple system blue, for controls that aren't tied to a system. */
+    val accent = Color(0xFF0A84FF)
+
+    /** Frosted glass: translucent dark fill plus a hairline edge, drawn over blurred art. */
+    val glass = Color(0x9E161618) // ~62%
+    val glassStrong = Color(0xCC161618) // 80%
+    val glassEdge = Color(0x1FFFFFFF) // 12%
+    /** Darkens art under text (top and bottom of full-screen backdrops). */
+    val shade = Color(0x8C000000) // 55%
+
+    val hintBarLight = glassStrong
+    val hintBarOnSystem = glass
 
     /** Translucent surfaces on system color (0.10–0.14). */
     val onSystemSurfaceWeak = Color(0x1AFFFFFF) // 0.10
@@ -66,8 +84,11 @@ object Palette {
     /** Modal scrim behind dialogs (translucency, not a shadow). */
     val scrim = Color(0x99000000)
 
-    val ok = Color(0xFF1E6B48)
-    val problem = Color(0xFFA3361A)
+    /** Apple dark-mode green/red, both readable on [card]. */
+    val ok = Color(0xFF30D158)
+    val problem = Color(0xFFFF6961)
+    /** Rating stars. */
+    val star = Color(0xFFFFD60A)
 }
 
 /** Default system colors (DESIGN.md table). Keys are ES-DE system names. Overridable in config. */
@@ -144,24 +165,25 @@ val Number.us: TextUnit
 // Type
 // ---------------------------------------------------------------------------------------------
 
-val Bricolage = FontFamily(
-    Font(R.font.bricolage_regular, FontWeight.W400),
-    Font(R.font.bricolage_semibold, FontWeight.W600),
-    Font(R.font.bricolage_extrabold, FontWeight.W800),
+/** Inter (SIL OFL), static instances tuned for text (400/600) and display (700) sizes. */
+val AppFont = FontFamily(
+    Font(R.font.inter_regular, FontWeight.W400),
+    Font(R.font.inter_semibold, FontWeight.W600),
+    Font(R.font.inter_bold, FontWeight.W700),
 )
 
 object Weight {
     val body = FontWeight.W400
     val label = FontWeight.W600
-    val heading = FontWeight.W800
+    val heading = FontWeight.W700
 }
 
 /** Type scale in mockup px. */
 object TypeScale {
-    const val HERO = 76
-    const val PAGE_TITLE = 54
-    const val SETUP_TITLE = 44
-    const val SECTION = 34
+    const val HERO = 60
+    const val PAGE_TITLE = 44
+    const val SETUP_TITLE = 38
+    const val SECTION = 30
     const val SCREEN_TITLE = 30
     const val SCREEN_TITLE_SMALL = 22
     const val STAT = 22
@@ -176,9 +198,9 @@ object TypeScale {
     const val MICRO = 11
     const val MICRO_SMALL = 10
 
-    const val HEADING_TRACKING = -0.03f
-    const val TITLE_TRACKING = -0.02f
-    const val HEADING_LINE_HEIGHT = 0.95f
+    const val HEADING_TRACKING = -0.025f
+    const val TITLE_TRACKING = -0.015f
+    const val HEADING_LINE_HEIGHT = 1.02f
     const val CAPS_TRACKING = 0.08f
     const val BODY_LINE_HEIGHT = 1.5f
     const val CARD_TITLE_LINE_HEIGHT = 1.15f
@@ -194,7 +216,7 @@ fun textStyle(
     tracking: Float = 0f,
     lineHeight: Float? = null,
 ): TextStyle = TextStyle(
-    fontFamily = Bricolage,
+    fontFamily = AppFont,
     fontSize = size.us,
     fontWeight = weight,
     letterSpacing = tracking.em,
@@ -205,7 +227,7 @@ fun textStyle(
 
 object Type {
     val hero @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.HERO, Weight.heading, TypeScale.HEADING_TRACKING, 0.92f)
+        textStyle(TypeScale.HERO, Weight.heading, TypeScale.HEADING_TRACKING, TypeScale.HEADING_LINE_HEIGHT)
     val pageTitle @Composable @ReadOnlyComposable get() =
         textStyle(TypeScale.PAGE_TITLE, Weight.heading, TypeScale.HEADING_TRACKING, TypeScale.HEADING_LINE_HEIGHT)
     val setupTitle @Composable @ReadOnlyComposable get() =
@@ -242,6 +264,9 @@ object Type {
     val caps @Composable @ReadOnlyComposable get() =
         textStyle(TypeScale.MICRO, Weight.heading, TypeScale.CAPS_TRACKING)
     val badge @Composable @ReadOnlyComposable get() = textStyle(TypeScale.MICRO_SMALL, Weight.heading)
+    /** Small caps label above a title ("PLAYSTATION 2 · 2000"). */
+    val eyebrow @Composable @ReadOnlyComposable get() =
+        textStyle(TypeScale.LABEL_SMALL, Weight.label, TypeScale.CAPS_TRACKING)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -341,7 +366,24 @@ object Size {
     const val DESCRIPTION_MAX_W = 440
     const val STAT_MAX_W = 200
     const val BORDER = 2
+    const val HAIRLINE = 1
     const val PROGRESS_H = 8
+
+    // Console screen: logo rail | glass info panel | hero art
+    const val RAIL_W = 168
+    const val RAIL_LOGO_H = 30
+    const val RAIL_LOGO_SELECTED_H = 50
+    const val RAIL_ITEM_GAP = 26
+    const val SYSTEM_PANEL_W = 300
+    const val CONSOLE_ART_H = 130
+
+    // Game browser: media + info column | cover grid
+    const val BROWSER_INFO_W = 410
+    const val MEDIA_H = 230
+    const val COVER_COLUMNS = 3
+    const val COVER_H = 196
+    const val LOGO_SMALL_H = 30
+    const val STATUS_H = 26
 
     const val FOCUS_RING = 4
     const val FOCUS_RING_CARD = 3
@@ -352,6 +394,22 @@ object Size {
 object Focus {
     /** Grid cards grow slightly when focused (tiles grow via their size tokens). */
     const val CARD_SCALE = 1.05f
+    /** tvOS-style lift for a focused cover. */
+    const val COVER_SCALE = 1.08f
+    /** Unfocused rail logos fade back. */
+    const val RAIL_DIM = 0.45f
+}
+
+/** Soft shadows (in units) under lifted and floating elements. */
+object Elevation {
+    const val CARD = 10
+    const val LIFTED = 24
+    const val MEDIA = 18
+}
+
+/** Blur radius (units) for art used as a backdrop behind glass. */
+object Blur {
+    const val BACKDROP = 26
 }
 
 object Alpha {
@@ -362,6 +420,10 @@ object Alpha {
     const val BACKDROP_SCRIM = 0.84f
     /** Lighter layer on the details panel, where only box art sits on top. */
     const val PANEL_BACKDROP_SCRIM = 0.55f
+    /** Darkest point of the shade behind the console screen's rail and panel. */
+    const val HERO_SHADE = 0.85f
+    /** Dark layer over the blurred backdrop of the game browser. */
+    const val BROWSER_DIM = 0.45f
 }
 
 // ---------------------------------------------------------------------------------------------

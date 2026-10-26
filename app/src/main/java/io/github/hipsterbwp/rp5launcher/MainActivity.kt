@@ -64,6 +64,8 @@ class MainActivity : ComponentActivity() {
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val button = Pad.fromKeyCode(event.keyCode) ?: return super.dispatchKeyEvent(event)
+        // While typing, keys belong to the text field; only B (cancel) and Start (save) reach us.
+        if (vm.textInputActive && button != Pad.B && button != Pad.Start) return super.dispatchKeyEvent(event)
         if (button == Pad.L2 || button == Pad.R2) triggerKeysSeen = true
         if (event.action == KeyEvent.ACTION_DOWN) press(button, event.repeatCount)
         return true

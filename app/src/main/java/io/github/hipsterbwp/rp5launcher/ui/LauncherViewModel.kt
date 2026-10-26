@@ -17,6 +17,11 @@ import io.github.hipsterbwp.rp5launcher.art.GameArt
 import io.github.hipsterbwp.rp5launcher.art.ArtIndex
 import io.github.hipsterbwp.rp5launcher.art.LogoStore
 import io.github.hipsterbwp.rp5launcher.art.Scraper
+import io.github.hipsterbwp.rp5launcher.art.ScreenScraper
+import io.github.hipsterbwp.rp5launcher.art.ScreenScraperAccount
+import io.github.hipsterbwp.rp5launcher.art.ScreenScraperSession
+import io.github.hipsterbwp.rp5launcher.art.ScreenScraperStop
+import io.github.hipsterbwp.rp5launcher.art.SystemArtStore
 import io.github.hipsterbwp.rp5launcher.data.CommandDef
 import io.github.hipsterbwp.rp5launcher.data.ConfigStore
 import io.github.hipsterbwp.rp5launcher.data.EsdeCatalog
@@ -55,7 +60,11 @@ sealed interface Dialog {
     data class LaunchError(val system: String, val game: Game?, val problem: LaunchProblem) : Dialog
     data class Message(val title: String, val body: String) : Dialog
     data object Update : Dialog
+    /** On-screen-keyboard entry for one setting. */
+    data class TextInput(val field: TextField, val title: String, val initial: String, val secret: Boolean) : Dialog
 }
+
+enum class TextField { SsUser, SsPassword, SsDevId, SsDevPassword }
 
 sealed interface UpdateState {
     data object Idle : UpdateState
@@ -89,6 +98,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val updater = Updater(app)
     private val logoStore = LogoStore(app)
     private val scraper = Scraper(app)
+    private val systemArtStore = SystemArtStore(app)
+    private val ssAccount = ScreenScraperAccount(app)
     private var catalog: EsdeCatalog? = null
 
     var ready by mutableStateOf(false)
@@ -126,6 +137,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val logos = mutableStateMapOf<String, File>()
     var scrape by mutableStateOf<ScrapeProgress?>(null)
         private set
+    /** Console illustrations and fact sheets per system. */
+    val systemImages = mutableStateMapOf<String, File>()
+    val systemFacts = mutableStateMapOf<String, List<Pair<String, String>>>()
+
+    var screenScraper by mutableStateOf(ScreenScraperAccount.Credentials("", "", "", ""))
+        private set
+    /** Last ScreenScraper message: login check result or why lookups stopped. */
+    var screenScraperStatus by mutableStateOf<String?>(null)
+        private set
+    /** True while a text field has the keyboard, so the activity lets key presses through. */
+    var textInputActive by mutableStateOf(false)
     private var scrapeJob: Job? = null
 
     var update by mutableStateOf<UpdateState>(UpdateState.Idle)
@@ -143,6 +165,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun cycleSoundVolume() = updateConfig { it.copy(soundVolume = it.soundVolume % 3 + 1) }
 
+    fun setVideoSound(enabled: Boolean) = updateConfig { it.copy(videoSound = enabled) }
+
     val configPath: String get() = configStore.file.absolutePath
 
     private var scanJob: Job? = null
@@ -158,6 +182,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
             art.putAll(loaded.art.games)
+            screenScraper = withContext(Dispatchers.IO) { ssAccount.load() }
             catalog = loaded.catalog
             applyConfig(loaded.config)
             stats = loaded.stats
@@ -432,16 +457,80 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Downloads logos for the library's systems that don't have one yet. */
     private fun refreshLogos(force: Boolean = false) {
         val names = systems.map { it.name }
-        names.forEach { name -> logoStore.file(name)?.let { logos[name] = it } }
+        fun publish(name: String) {
+            logoStore.file(name)?.let { logos[name] = it }
+            systemArtStore.image(name)?.let { systemImages[name] = it }
+            systemArtStore.facts(name).takeIf { it.isNotEmpty() }?.let { systemFacts[name] = it }
+        }
+        names.forEach(::publish)
         viewModelScope.launch {
-            val added = withContext(Dispatchers.IO) { logoStore.fetchMissing(names, force) }
-            added.forEach { name -> logoStore.file(name)?.let { logos[name] = it } }
+            val added = withContext(Dispatchers.IO) {
+                logoStore.fetchMissing(names, force) + systemArtStore.fetchMissing(names, force)
+            }
+            added.distinct().forEach(::publish)
+        }
+    }
+
+    fun fanart(game: Game): File? = scraper.file(art[game.id]?.fanart)
+
+    /** Hero art for a console: fanart of the last played game, else of any game that has some. */
+    fun systemHero(system: SystemEntry): File? {
+        val withFanart = system.games.filter { art[it.id]?.fanart != null }
+        val pick = withFanart.maxByOrNull { stats(it).lastPlayed } ?: return null
+        return fanart(pick)
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // ScreenScraper
+    // -----------------------------------------------------------------------------------------
+
+    fun editScreenScraper(field: TextField) {
+        val c = screenScraper
+        dialog = when (field) {
+            TextField.SsUser -> Dialog.TextInput(field, "ScreenScraper username", c.user, secret = false)
+            TextField.SsPassword -> Dialog.TextInput(field, "ScreenScraper password", c.password, secret = true)
+            TextField.SsDevId -> Dialog.TextInput(field, "Developer ID", c.devId, secret = false)
+            TextField.SsDevPassword -> Dialog.TextInput(field, "Developer password", c.devPassword, secret = true)
+        }
+    }
+
+    fun submitText(field: TextField, value: String) {
+        val c = screenScraper
+        val updated = when (field) {
+            TextField.SsUser -> c.copy(user = value.trim())
+            TextField.SsPassword -> c.copy(password = value)
+            TextField.SsDevId -> c.copy(devId = value.trim())
+            TextField.SsDevPassword -> c.copy(devPassword = value)
+        }
+        screenScraper = updated
+        screenScraperStatus = null
+        dialog = null
+        viewModelScope.launch(Dispatchers.IO) { ssAccount.save(updated) }
+    }
+
+    fun testScreenScraper() {
+        val c = screenScraper
+        if (!c.complete) {
+            screenScraperStatus = "Fill in all four fields first."
+            return
+        }
+        screenScraperStatus = "Checking…"
+        viewModelScope.launch {
+            screenScraperStatus = withContext(Dispatchers.IO) {
+                try {
+                    ScreenScraper(c).testLogin()
+                } catch (e: ScreenScraperStop) {
+                    e.message
+                } catch (e: Exception) {
+                    "Couldn't reach ScreenScraper: ${e.message ?: e.javaClass.simpleName}"
+                }
+            }
         }
     }
 
     /** Games the scraper would fetch for: supported systems, not yet scraped (unless forced). */
     fun scrapeTodo(force: Boolean): Int = systems.filter { scraper.supports(it.name) }
-        .sumOf { s -> if (force) s.games.size else s.games.count { scraper.needsArt(art[it.id]) } }
+        .sumOf { s -> if (force) s.games.size else s.games.count { scraper.needsArt(art[it.id], screenScraper.complete) } }
 
     fun setAutoScrape(enabled: Boolean) = updateConfig { it.copy(autoScrape = enabled) }
 
@@ -452,25 +541,31 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (force) refreshLogos(force = true)
         if (total == 0) return
         scrape = ScrapeProgress(0, total, targets.first().info.displayName)
+        val ss = screenScraper.takeIf { it.complete }?.let { ScreenScraperSession(ScreenScraper(it)) }
         scrapeJob = viewModelScope.launch {
             var done = 0
             try {
                 for (system in targets) {
                     scrape = ScrapeProgress(done, total, system.info.displayName)
                     withContext(Dispatchers.IO) {
-                        scraper.scrapeSystem(system.name, system.games, art.toMap(), force) { game, result ->
+                        scraper.scrapeSystem(system.name, system.games, art.toMap(), force, ss) { game, result ->
                             viewModelScope.launch {
                                 art[game.id] = result
                                 done++
                                 scrape = ScrapeProgress(done, total, system.info.displayName)
+                                // Save as we go, so an update or restart mid-scrape doesn't lose finished art.
+                                if (done % SAVE_EVERY == 0) {
+                                    val snapshot = ArtIndex(art.toMap())
+                                    launch(Dispatchers.IO) { scraper.save(snapshot) }
+                                }
                             }
                         }
-                        scraper.save(ArtIndex(art.toMap()))
                     }
                 }
             } finally {
                 withContext(Dispatchers.IO + kotlinx.coroutines.NonCancellable) { scraper.save(ArtIndex(art.toMap())) }
                 scrape = null
+                ss?.stopped?.let { screenScraperStatus = it }
             }
         }
     }
@@ -591,5 +686,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val MAX_SESSION_MS = 12L * 60 * 60 * 1000
+        private const val SAVE_EVERY = 20
     }
 }

@@ -55,8 +55,8 @@ private const val STEPS = 3
 
 @Composable
 fun SetupScreen(vm: LauncherViewModel, step: Int, appName: String, pickFolder: () -> Unit) {
-    val accentTarget = vm.systems.firstOrNull()?.color ?: SystemColors.neutral
-    val accent by animateColorAsState(accentTarget, Motion.colorFade(), label = "setup-accent")
+    // Settings-style screens use Apple blue: system colors are too dark to read as focus on black.
+    val accent = Palette.accent
 
     // Step 2 state: rows are one per system, then the Continue button.
     val systems = vm.systems
@@ -149,7 +149,7 @@ fun SetupScreen(vm: LauncherViewModel, step: Int, appName: String, pickFolder: (
                 add(Hint(Pad.Start, "Continue", trailing = true, onClick = ::toArt))
             }
         }
-        HintBar(hints, onSystem = false, glyphInk = Palette.ink)
+        HintBar(hints, onSystem = false, glyphInk = Palette.inkOnLight)
     }
 }
 
@@ -159,7 +159,7 @@ private fun SetupPanel(step: Int, accent: Color, appName: String) {
         Modifier
             .width(Size.SETUP_PANEL.u)
             .fillMaxHeight()
-            .background(accent)
+            .background(Palette.sidebar)
             .padding(top = Space.SCREEN_TOP_LIGHT.u, start = Space.PANEL_H.u, end = Space.PANEL_H.u),
     ) {
         Txt(appName, Type.brand, Palette.white)

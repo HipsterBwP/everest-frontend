@@ -2,6 +2,22 @@ package io.github.hipsterbwp.rp5launcher.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
+import io.github.hipsterbwp.rp5launcher.ui.glass
+import io.github.hipsterbwp.rp5launcher.ui.lightFocus
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +69,7 @@ fun DialogHost(vm: LauncherViewModel) {
         is Dialog.LaunchError -> LaunchErrorDialog(vm, d)
         is Dialog.Message -> MessageDialog(vm, d)
         Dialog.Update -> UpdateDialog(vm)
+        is Dialog.TextInput -> TextInputDialog(vm, d)
         null -> Unit
     }
 }
@@ -65,12 +82,11 @@ private fun DialogFrame(hints: List<Hint>, content: @Composable () -> Unit) {
             Column(
                 Modifier
                     .width(Size.DIALOG_W.u)
-                    .clip(rounded(Radius.PANEL))
-                    .background(Palette.page)
+                    .glass(Radius.PANEL, Palette.glassStrong)
                     .padding(Space.SECTION_LARGE.u),
             ) { content() }
         }
-        HintBar(hints, onSystem = false, glyphInk = Palette.ink)
+        HintBar(hints, onSystem = false, glyphInk = Palette.inkOnLight)
     }
 }
 
@@ -298,5 +314,60 @@ private fun UpdateDialog(vm: LauncherViewModel) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TextInputDialog(vm: LauncherViewModel, d: Dialog.TextInput) {
+    var value by remember(d) { mutableStateOf(TextFieldValue(d.initial, TextRange(d.initial.length))) }
+    val focus = remember { FocusRequester() }
+    fun save() = vm.submitText(d.field, value.text)
+    fun cancel() {
+        vm.dialog = null
+    }
+
+    DisposableEffect(d) {
+        vm.textInputActive = true
+        onDispose { vm.textInputActive = false }
+    }
+    LaunchedEffect(d) { focus.requestFocus() }
+    PadInput { button, _ ->
+        when (button) {
+            Pad.Start -> save()
+            Pad.B -> cancel()
+            else -> Unit
+        }
+        true
+    }
+
+    DialogFrame(
+        listOf(
+            Hint(Pad.Start, "Save", onClick = ::save),
+            Hint(Pad.B, "Cancel", onClick = ::cancel),
+        ),
+    ) {
+        Txt(d.title, Type.screenTitleSmall, Palette.ink, maxLines = 2)
+        Spacer(Modifier.height(Space.SECTION_SMALL.u))
+        BasicTextField(
+            value = value,
+            onValueChange = { value = it },
+            singleLine = true,
+            textStyle = Type.body.copy(color = Palette.ink),
+            cursorBrush = SolidColor(Palette.accent),
+            visualTransformation = if (d.secret) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (d.secret) KeyboardType.Password else KeyboardType.Text,
+                autoCorrectEnabled = false,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { save() }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focus)
+                .lightFocus(true, Palette.accent, Radius.CARD_SMALL)
+                .clip(rounded(Radius.CARD_SMALL))
+                .background(Palette.surface)
+                .padding(vertical = Space.ROW_V.u, horizontal = Space.ROW_H.u),
+        )
     }
 }

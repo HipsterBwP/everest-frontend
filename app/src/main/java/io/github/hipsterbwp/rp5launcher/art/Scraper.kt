@@ -31,7 +31,22 @@ data class GameArt(
     /** The libretro name the game matched, e.g. "Chrono Trigger (USA)". */
     val matched: String? = null,
     val scrapedAt: Long = 0,
+    // From ScreenScraper, when signed in:
+    val fanart: String? = null,
+    /** Gameplay video URL (streamed and cached by the player, not stored as a file). */
+    val video: String? = null,
+    val description: String? = null,
+    /** 0..1 */
+    val rating: Float? = null,
+    val players: String? = null,
+    val ssCheckedAt: Long = 0,
 )
+
+/** One scraping run's ScreenScraper state: one request at a time, and a stop reason if refused. */
+class ScreenScraperSession(val client: ScreenScraper) {
+    val lock = Semaphore(1)
+    @Volatile var stopped: String? = null
+}
 
 @Serializable
 data class ArtIndex(val games: Map<String, GameArt> = emptyMap())
@@ -45,6 +60,7 @@ data class ArtIndex(val games: Map<String, GameArt> = emptyMap())
  * Games are matched by their No-Intro/Redump file name, falling back to a normalized title.
  */
 class Scraper(context: Context) {
+    private val resolver = context.contentResolver
     val dir: File = File(context.filesDir, "art").apply { mkdirs() }
     private val cacheDir = File(dir, "cache").apply { mkdirs() }
     private val indexFile = File(dir, "art.json")
@@ -54,6 +70,7 @@ class Scraper(context: Context) {
         json.decodeFromString(ArtIndex.serializer(), indexFile.readText())
     }.getOrDefault(ArtIndex())
 
+    @Synchronized
     fun save(index: ArtIndex) {
         val tmp = File(dir, "art.json.tmp")
         tmp.writeText(json.encodeToString(ArtIndex.serializer(), index))
@@ -62,10 +79,12 @@ class Scraper(context: Context) {
 
     fun file(name: String?): File? = name?.let { File(dir, it) }?.takeIf { it.exists() }
 
-    fun supports(system: String): Boolean = LIBRETRO_NAMES.containsKey(system)
+    fun supports(system: String): Boolean =
+        LIBRETRO_NAMES.containsKey(system) || ScreenScraper.SYSTEM_IDS.containsKey(system)
 
-    /** A game is worth (re)scraping until it has box art. */
-    fun needsArt(art: GameArt?): Boolean = art == null || art.scrapedAt == 0L || art.box == null
+    /** A game is worth (re)scraping until it has box art, and until ScreenScraper has been asked. */
+    fun needsArt(art: GameArt?, screenScraper: Boolean = false): Boolean =
+        art == null || art.scrapedAt == 0L || art.box == null || (screenScraper && art.ssCheckedAt == 0L)
 
     /**
      * Scrapes [games] of one system, calling [onGame] as each finishes. Skips games already
@@ -76,17 +95,19 @@ class Scraper(context: Context) {
         games: List<Game>,
         existing: Map<String, GameArt>,
         force: Boolean,
+        ss: ScreenScraperSession?,
         onGame: (Game, GameArt) -> Unit,
     ) {
-        val name = LIBRETRO_NAMES[system] ?: return
-        val todo = games.filter { force || needsArt(existing[it.id]) }
+        val todo = games.filter { force || needsArt(existing[it.id], ss != null) }
         if (todo.isEmpty()) return
 
-        val repo = name.replace(' ', '_')
-        val boxes = Matcher(index(repo, BOXARTS))
-        val snaps = Matcher(index(repo, SNAPS))
+        val name = LIBRETRO_NAMES[system]
+        val repo = name?.replace(' ', '_')
+        val boxes = Matcher(if (repo != null) index(repo, BOXARTS) else emptyList())
+        val snaps = Matcher(if (repo != null) index(repo, SNAPS) else emptyList())
         val previous = existing
-        val meta = MetaFields.entries.associateWith { metadata(it, name) }
+        val meta = if (name != null) MetaFields.entries.associateWith { metadata(it, name) } else emptyMap()
+        val ssSystem = ScreenScraper.SYSTEM_IDS[system]
 
         val semaphore = Semaphore(PARALLEL)
         coroutineScope {
@@ -94,7 +115,13 @@ class Scraper(context: Context) {
                 async {
                     semaphore.withPermit {
                         ensureActive()
-                        onGame(game, scrapeGame(game, repo, boxes, snaps, meta, previous[game.id]))
+                        val libretro = scrapeGame(game, repo, boxes, snaps, meta, previous[game.id])
+                        val full = if (ss != null && ssSystem != null && (force || libretro.ssCheckedAt == 0L)) {
+                            screenScrape(game, ssSystem, libretro, ss)
+                        } else {
+                            libretro
+                        }
+                        onGame(game, full)
                     }
                 }
             }.awaitAll()
@@ -103,7 +130,7 @@ class Scraper(context: Context) {
 
     private fun scrapeGame(
         game: Game,
-        repo: String,
+        repo: String?,
         boxes: Matcher,
         snaps: Matcher,
         meta: Map<MetaFields, Map<String, String>>,
@@ -116,9 +143,9 @@ class Scraper(context: Context) {
         // A network hiccup (not a missing image) leaves the game marked unscraped so it's retried.
         var transient = false
         fun fetch(folder: String, name: String?, target: String, maxHeight: Int): String? =
-            if (name == null) null
+            if (name == null || repo == null) null
             else try {
-                download(repo, folder, name, target, maxHeight)
+                download("$RAW/$repo/master/$folder/${Http.segment(name)}.png", target, maxHeight)
             } catch (e: java.io.IOException) {
                 transient = true
                 null
@@ -136,12 +163,67 @@ class Scraper(context: Context) {
             genre = lookup(MetaFields.Genre),
             matched = boxName ?: snapName,
             scrapedAt = if (transient) 0 else System.currentTimeMillis(),
+            // Keep what ScreenScraper found last time; it's refreshed separately.
+            fanart = previous?.fanart,
+            video = previous?.video,
+            description = previous?.description,
+            rating = previous?.rating,
+            players = previous?.players,
+            ssCheckedAt = previous?.ssCheckedAt ?: 0,
         )
     }
 
+    /** Adds ScreenScraper's fanart, video, description and rating to [base]. */
+    private suspend fun screenScrape(game: Game, systemId: Int, base: GameArt, ss: ScreenScraperSession): GameArt {
+        if (ss.stopped != null) return base
+        val crc = crc32(game)
+        val found = try {
+            ss.lock.withPermit { ss.client.lookup(systemId, game.fileName, game.sizeBytes, crc) }
+        } catch (e: ScreenScraperStop) {
+            ss.stopped = e.message
+            return base
+        } catch (e: java.io.IOException) {
+            return base // network trouble: ssCheckedAt stays 0, so it's retried next time
+        }
+        val now = System.currentTimeMillis()
+        if (found == null) return base.copy(ssCheckedAt = now)
+        val id = sha1(game.id)
+        fun fetch(url: String?, target: String, maxHeight: Int): String? =
+            url?.let { runCatching { download(it, target, maxHeight) }.getOrNull() }
+        return base.copy(
+            fanart = fetch(found.fanartUrl, "fanart/$id.webp", FANART_MAX_H) ?: base.fanart,
+            snap = base.snap ?: fetch(found.screenshotUrl, "snap/$id.webp", SNAP_MAX_H),
+            video = found.videoUrl ?: base.video,
+            description = found.description ?: base.description,
+            rating = found.rating ?: base.rating,
+            players = found.players ?: base.players,
+            year = base.year ?: found.year,
+            publisher = base.publisher ?: found.publisher,
+            developer = base.developer ?: found.developer,
+            genre = base.genre ?: found.genre,
+            ssCheckedAt = now,
+        )
+    }
+
+    /** CRC32 of small ROMs (cartridge systems); big disc images are matched by name and size. */
+    private fun crc32(game: Game): String? {
+        if (game.sizeBytes <= 0 || game.sizeBytes > CRC_MAX_BYTES) return null
+        return runCatching {
+            val crc = java.util.zip.CRC32()
+            resolver.openInputStream(android.net.Uri.parse(game.id))?.use { input ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    crc.update(buffer, 0, n)
+                }
+            } ?: return null
+            "%08X".format(crc.value)
+        }.getOrNull()
+    }
+
     /** Downloads, downsizes and stores one image. Returns its path relative to [dir], or null. */
-    private fun download(repo: String, folder: String, name: String, target: String, maxHeight: Int): String? {
-        val url = "$RAW/$repo/master/$folder/${Http.segment(name)}.png"
+    private fun download(url: String, target: String, maxHeight: Int): String? {
         val bytes = Http.get(url) ?: return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
@@ -245,6 +327,8 @@ class Scraper(context: Context) {
         private const val PARALLEL = 4
         private const val BOX_MAX_H = 640
         private const val SNAP_MAX_H = 420
+        private const val FANART_MAX_H = 720
+        private const val CRC_MAX_BYTES = 64L * 1024 * 1024
         private const val WEBP_QUALITY = 85
         private const val INDEX_TTL_MS = 7L * 24 * 60 * 60 * 1000
 

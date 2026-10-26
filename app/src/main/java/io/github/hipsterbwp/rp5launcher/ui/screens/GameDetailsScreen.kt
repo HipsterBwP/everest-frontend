@@ -20,6 +20,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import io.github.hipsterbwp.rp5launcher.ui.theme.Blur
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import io.github.hipsterbwp.rp5launcher.ui.ArtImage
@@ -74,6 +77,8 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
     }
 
     Box(Modifier.fillMaxSize().background(Palette.page)) {
+        ArtImage(vm.fanart(game) ?: vm.snapArt(game), Modifier.fillMaxSize().blur(Blur.BACKDROP.u), ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(Palette.black.copy(alpha = Alpha.BROWSER_DIM)))
         Row(Modifier.fillMaxSize()) {
             // Left: system-color panel with the box art (or a placeholder until it's scraped).
             Box(
@@ -171,7 +176,7 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
                 Hint(Pad.Y, if (stats.favorite) "Unfavorite" else "Favorite", onClick = { vm.toggleFavorite(game) }),
             ),
             onSystem = false,
-            glyphInk = Palette.ink,
+            glyphInk = Palette.inkOnLight,
         )
     }
 }
