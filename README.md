@@ -26,9 +26,10 @@ To build locally (needs JDK 17 and the Android SDK): `./gradlew assembleDebug`.
 
 | Screen | Buttons |
 |---|---|
-| Home · Systems | ↑/↓ choose a console · **A** open · **Y** search · **L1/R1** tabs (Systems, Favorites, Recent, Collections) · **START** settings |
+| Home · Systems | ↑/↓ choose a console · **A** open · **X** continue the last game you played on it · **Y** search · **L1/R1** tabs (Systems, Favorites, Recent, Collections) · **START** settings |
+| Anywhere | hold **SELECT** for the quick menu: brightness, volume, music, Wi-Fi, Bluetooth, Android settings |
 | Game lists (a system, Favorites, Recent, a collection, search results) | D-pad move (hold to accelerate) · **A** play · **X** options · **Y** favorite · **SELECT** random game · **B** back · in a system: **L1/R1** filter, **L2/R2** jump by letter |
-| Options | ↑/↓ choose · **A** do it: play, favorite, emulator for this game or the whole system, add to collection, fix artwork match, hide |
+| Options | ↑/↓ choose · **A** do it: play, favorite, progress (backlog / playing / beaten / 100%), emulator for this game or the whole system, add to collection, fix artwork match, hide |
 | Settings | ↑/↓ pages and rows · →/**A** enter · **A** change · **X** test-launch · **B** back |
 
 The hint bar always shows what the buttons do right now. **Settings › Controls** swaps the confirm
@@ -37,15 +38,27 @@ and opens Android's setting to make ARCROW the home screen (the Home button then
 
 ## Library extras
 
-- **Collections**: smart ones (Most played, Not played yet, Multiplayer, by genre) plus your own, made
-  from a game's Options › Add to collection.
+- **Collections**: smart ones (Playing, Backlog, Beaten, 100% complete, Most played, Not played yet,
+  Multiplayer, by genre) plus your own, made from a game's Options › Add to collection.
+- **Progress**: mark games Backlog, Playing, Beaten or 100% complete from their Options. Starting an
+  untracked or backlog game marks it Playing.
+- **RetroAchievements**: sign in under Settings › RetroAchievements (username + web API key from
+  retroachievements.org › Settings › Keys). Game pages show 🏆 unlocked/total; Settings › Stats shows
+  your points, rank and latest unlocks. Games are matched by title; it refreshes after each game.
 - **Search**: Y on the console screen.
 - **Hiding**: hide a game from its Options; unhide, and show or hide whole systems, in Settings › Library.
   BIOS files are skipped, and discs/tracks listed by an `.m3u`, `.cue` or `.gdi` appear once.
 - **Stats**: Settings › Stats shows total play time, most played games and day streaks.
 - **Background music**: three original tracks play softly while you browse and pause while a game
   runs. Put your own MP3/OGG/FLAC files in a `music` folder inside the ROMs folder to play those
-  instead. On/off, volume and next track are in Settings › Sound.
+  instead. On/off, volume and next track are in Settings › Sound, where each track can be switched
+  off (A) or put on repeat (X).
+- **Console startup sounds**: name sound files after each system (`snes.ogg`, `ps2.mp3`…) and import
+  them in Settings › Sound, or put them in a `_sounds` folder in the ROMs folder. They play when you
+  land on a console, with the music dipping underneath.
+- **Gameplay videos from ES-DE**: choose ES-DE's folder in Settings › Library and the videos ES-DE
+  downloaded play in game lists, and as a montage on the console screen after a few seconds
+  (Settings › Appearance turns the montage off).
 
 ## Your own console backdrops
 

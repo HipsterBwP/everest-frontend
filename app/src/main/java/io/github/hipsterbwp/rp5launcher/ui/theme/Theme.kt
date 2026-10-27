@@ -387,6 +387,8 @@ object Size {
     const val SYSTEM_PANEL_W = 300
     /** Box art thumbnail on the panel's Continue card. */
     const val CONTINUE_ART_H = 44
+    /** Quick menu sheet (hold Select). */
+    const val QUICK_MENU_W = 340
     /** Top-shade height on full-screen backdrops. */
     const val TOP_SHADE_H = 150
 
@@ -473,6 +475,11 @@ object Motion {
     /** Screensaver: time per picture and the cross-fade between pictures. */
     const val SCREENSAVER_SLIDE_MS = 9000L
     const val SCREENSAVER_FADE_MS = 1500
+    /** Pause on a console before its startup sound plays. */
+    const val CONSOLE_SOUND_DELAY_MS = 450L
+    /** Pause on a console before its gameplay montage starts, and how long each clip plays. */
+    const val MONTAGE_DELAY_MS = 4_000L
+    const val MONTAGE_CLIP_MS = 9_000L
     /** Gameplay stills slideshow: time per still, and its zoom duration. */
     const val SLIDE_MS = 4500
     const val KEN_BURNS_MS = 6000

@@ -64,7 +64,9 @@ The original Cartridge mockups still define layout proportions where a screen is
    system's best-selling game as a lifted card over a blurred copy of itself with a glass "Best-selling game"
    caption, else the console illustration as a product shot (Settings › Appearance can force the cover or the
    console). Full-screen art gets a shade on the left (tinted with the system color unless tinting is off) and
-   along the top. Top right: tabs
+   along the top. After MONTAGE_DELAY on a console, muted gameplay clips of its games play full screen
+   over the backdrop (same shades) with a glass "Now showing" caption. A console's startup sound (if the
+   player added one) plays once the selection settles. Top right: tabs
    (Systems / Favorites / Recent / Collections, L1/R1) and a clock/battery capsule. A opens the system; Start settings.
 2. **Game browser** (a system's games, and the Favorites/Recent tabs) — blurred, dimmed art of the focused game
    fills the screen. Left: gameplay video over its screenshot, then a glass card with system · year, title,
@@ -100,3 +102,10 @@ The original Cartridge mockups still define layout proportions where a screen is
 - Brand: the frontend is **ARCROW**. App icon and loading screen use the crow logo (`res/drawable-nodpi/brand_logo.webp`)
   and wordmark (`brand_wordmark.png`) on navy `#050B18` with electric-blue glow `#1E6BFF`. The loading screen shows real
   start-up progress (emulators → settings → systems → artwork) and stays at least 1.4 s, then fades into Home.
+
+## Quick menu
+
+Holding Select anywhere opens a glass sheet on the right (Size.QUICK_MENU_W) over a dim layer: battery
+header, then rows for brightness and volume (level meters, Left/Right adjust), music (A on/off, Right next
+track), Wi-Fi and Bluetooth (A opens Android's panel), and Android settings. B, Select or Start closes it.
+A short Select press still does the screen's own Select action.

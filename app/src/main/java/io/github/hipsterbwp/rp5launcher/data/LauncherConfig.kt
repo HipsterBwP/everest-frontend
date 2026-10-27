@@ -48,6 +48,16 @@ data class LauncherConfig(
     /** Background music while browsing, and its level 1 (low) to 3 (high). */
     val music: Boolean = true,
     val musicVolume: Int = 1,
+    /** Music tracks switched off (built-in names like "neon_drift", or your own files' names). */
+    val musicOff: Set<String> = emptySet(),
+    /** A track to play on repeat instead of shuffling them all. */
+    val musicRepeat: String? = null,
+    /** Play your console startup sounds (from the "_sounds" folder) when you land on a console. */
+    val consoleSounds: Boolean = true,
+    /** ES-DE's folder (or its downloaded_media folder), for the gameplay videos ES-DE downloaded. */
+    val esdeMedia: String? = null,
+    /** Play a montage of gameplay videos on the console screen after a few seconds. */
+    val consoleVideos: Boolean = true,
     /**
      * Console screen backdrop: "auto" (your own art from the "_art" folder, then game fanart, then the
      * best-selling game's cover), "cover" (best-selling game's cover only) or "console".

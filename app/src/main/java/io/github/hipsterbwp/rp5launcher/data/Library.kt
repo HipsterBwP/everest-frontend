@@ -49,7 +49,26 @@ data class GameStats(
     val hidden: Boolean = false,
     /** Launch command label for this game only; null = the system's choice. */
     val emulator: String? = null,
+    /** Where you are with it: one of [Progress]'s values, or null for not tracked. */
+    val status: String? = null,
 )
+
+/** Completion tracking states, in the order the details page cycles through them. */
+object Progress {
+    const val BACKLOG = "backlog"
+    const val PLAYING = "playing"
+    const val BEATEN = "beaten"
+    const val COMPLETED = "completed"
+    val ORDER = listOf(null, BACKLOG, PLAYING, BEATEN, COMPLETED)
+
+    fun label(status: String?): String = when (status) {
+        BACKLOG -> "Backlog"
+        PLAYING -> "Playing"
+        BEATEN -> "Beaten"
+        COMPLETED -> "100% complete"
+        else -> "Not tracked"
+    }
+}
 
 @Serializable
 data class StatsFile(
@@ -93,7 +112,7 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
         val rootDocId = DocumentsContract.getTreeDocumentId(rootUri)
         val folders = children(rootUri, rootDocId).filter {
             it.isDir && !it.name.startsWith(".") && it.name.lowercase() !in NON_SYSTEM_FOLDERS &&
-                !it.name.lowercase().startsWith("arcrow-art")
+                !it.name.lowercase().startsWith("arcrow-")
         }
         val systems = ArrayList<ScannedSystem>()
         val unknown = ArrayList<String>()
@@ -187,7 +206,7 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
     companion object {
         private const val MAX_DEPTH = 2
         /** Folders in the ROMs folder that aren't systems (your own background music and backdrops). */
-        private val NON_SYSTEM_FOLDERS = setOf("music", "_music", "_art")
+        private val NON_SYSTEM_FOLDERS = setOf("music", "_music", "_art", "_sounds")
         private val SHEET_EXTENSIONS = setOf("m3u", "cue", "gdi")
         private const val SHEET_MAX_BYTES = 64L * 1024
         private val CUE_FILE = Regex("""^FILE\s+"([^"]+)"""", RegexOption.IGNORE_CASE)

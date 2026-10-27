@@ -37,7 +37,9 @@ import io.github.hipsterbwp.rp5launcher.ui.ChevronIcon
 import io.github.hipsterbwp.rp5launcher.ui.Dialog
 import io.github.hipsterbwp.rp5launcher.ui.Hint
 import io.github.hipsterbwp.rp5launcher.ui.HintBar
+import io.github.hipsterbwp.rp5launcher.data.Progress
 import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
+import io.github.hipsterbwp.rp5launcher.ui.MediaKind
 import io.github.hipsterbwp.rp5launcher.ui.ListRow
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadInput
@@ -60,7 +62,7 @@ import java.util.Date
 
 private enum class Page(val title: String) {
     Library("Library"), Emulators("Emulators"), Controls("Controls"), Appearance("Appearance"), Scraper("Scraper"),
-    ScreenScraper("ScreenScraper"), Sound("Sound"), Stats("Stats"), About("About")
+    ScreenScraper("ScreenScraper"), RetroAchievements("RetroAchievements"), Sound("Sound"), Stats("Stats"), About("About")
 }
 
 /** One actionable row on a settings page. */
@@ -76,10 +78,20 @@ private data class Item(
 @Composable
 fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
     val artPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        vm.importArt(uris)
+        vm.importMedia(MediaKind.Art, uris)
     }
     val importArt: () -> Unit = {
         runCatching { artPicker.launch(arrayOf("image/*", "application/zip", "application/x-zip-compressed")) }
+    }
+    val esdePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let(vm::onEsdeMediaPicked)
+    }
+    val pickEsde: () -> Unit = { runCatching { esdePicker.launch(null) } }
+    val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        vm.importMedia(MediaKind.Sounds, uris)
+    }
+    val importSounds: () -> Unit = {
+        runCatching { soundPicker.launch(arrayOf("audio/*", "application/ogg", "application/zip", "application/x-zip-compressed")) }
     }
     var page by rememberSaveable { mutableStateOf(Page.Emulators) }
     var inContent by rememberSaveable { mutableStateOf(false) }
@@ -89,11 +101,12 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
     val version = vm.emulatorsVersion
 
     val items: List<Item> = when (page) {
-        Page.Library -> libraryItems(vm, accent, pickFolder)
+        Page.Library -> libraryItems(vm, accent, pickFolder, pickEsde)
         Page.Emulators -> emulatorItems(vm, accent, version)
         Page.Scraper -> scraperItems(vm, accent)
         Page.ScreenScraper -> screenScraperItems(vm, accent)
-        Page.Sound -> soundItems(vm, accent)
+        Page.RetroAchievements -> retroAchievementsItems(vm, accent)
+        Page.Sound -> soundItems(vm, accent, importSounds)
         Page.Appearance -> appearanceItems(vm, accent, importArt)
         Page.Controls -> controlsItems(vm, accent)
         Page.Stats -> statsItems(vm, accent)
@@ -216,6 +229,7 @@ private fun pageSubtitle(page: Page) = when (page) {
     Page.Emulators -> "Which app opens each system. Changes are saved to launcher-config.json."
     Page.Scraper -> "Box art, screenshots, game info and console logos, downloaded from free sources."
     Page.ScreenScraper -> "Sign in for gameplay videos, fanart, descriptions and ratings."
+    Page.RetroAchievements -> "Your achievements, points and progress for each game."
     Page.Sound -> "Menu sounds, background music and gameplay video sound."
     Page.Appearance -> "What fills the console screen behind each system."
     Page.Controls -> "Buttons, the screensaver, and making ARCROW your home screen."
@@ -224,7 +238,7 @@ private fun pageSubtitle(page: Page) = when (page) {
 }
 
 @Composable
-private fun libraryItems(vm: LauncherViewModel, accent: Color, pickFolder: () -> Unit): List<Item> {
+private fun libraryItems(vm: LauncherViewModel, accent: Color, pickFolder: () -> Unit, pickEsde: () -> Unit): List<Item> {
     val lib = vm.library
     val scanning = vm.scan
     val games = vm.systems.sumOf { it.games.size }
@@ -234,6 +248,20 @@ private fun libraryItems(vm: LauncherViewModel, accent: Color, pickFolder: () ->
                 Column(Modifier.weight(1f)) {
                     Txt("ROMS FOLDER", Type.caps, Palette.inkSecondary)
                     Txt(vm.rootLabel() ?: "Not chosen", Type.rowTitle, Palette.ink)
+                }
+                ChevronIcon(Palette.ink)
+            }
+        },
+        Item("esde", onA = pickEsde, aLabel = "Choose folder", onX = vm::clearEsdeMedia, xLabel = "Forget") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("ES-DE MEDIA FOLDER", Type.caps, Palette.inkSecondary)
+                    Txt(vm.esdeMediaLabel() ?: "Not chosen", Type.rowTitle, Palette.ink)
+                    Txt(
+                        "Plays the gameplay videos ES-DE downloaded. Choose the ES-DE folder " +
+                            "(usually Internal storage / ES-DE) or its downloaded_media folder.",
+                        Type.label, Palette.inkSecondary, maxLines = 2,
+                    )
                 }
                 ChevronIcon(Palette.ink)
             }
@@ -356,6 +384,51 @@ private fun scraperItems(vm: LauncherViewModel, accent: Color): List<Item> {
 }
 
 @Composable
+private fun retroAchievementsItems(vm: LauncherViewModel, accent: Color): List<Item> {
+    val r = vm.retroAchievements
+    fun field(key: String, label: String, value: String, secret: Boolean, field: TextField) =
+        Item(key, onA = { vm.editRetroAchievements(field) }, aLabel = "Edit") { focused ->
+            ListRow(focused, accent) {
+                Txt(label, Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt(
+                    when {
+                        value.isEmpty() -> "Not set"
+                        secret -> "••••••••"
+                        else -> value
+                    },
+                    Type.label, Palette.inkSecondary,
+                )
+                ChevronIcon(Palette.inkSecondary)
+            }
+        }
+    return listOf(
+        field("rauser", "Username", r.user, secret = false, TextField.RaUser),
+        field("rakey", "Web API key", r.key, secret = true, TextField.RaKey),
+        Item("ratest", onA = { vm.refreshRetroAchievements(userInitiated = true) }, aLabel = "Check") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Check sign-in and refresh", Type.rowTitle, Palette.ink)
+                    Txt(
+                        vm.raStatus ?: if (r.complete) "Refreshes by itself at start-up and after each game" else "Not signed in",
+                        Type.label, Palette.inkSecondary, maxLines = 2,
+                    )
+                }
+            }
+        },
+        Item("raabout") { _ ->
+            ListRow(false, accent, background = Palette.surface) {
+                Txt(
+                    "Use your free retroachievements.org account. The web API key is on the site under " +
+                        "Settings › Keys. Turn on RetroAchievements in RetroArch (or your emulator) too, " +
+                        "with the same account, so unlocks are recorded while you play.",
+                    Type.label, Palette.inkSecondary, maxLines = 4,
+                )
+            }
+        },
+    )
+}
+
+@Composable
 private fun screenScraperItems(vm: LauncherViewModel, accent: Color): List<Item> {
     val c = vm.screenScraper
     fun field(key: String, label: String, value: String, secret: Boolean, field: TextField) =
@@ -430,7 +503,7 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
         },
         Item(
             "custom", onA = importArt, aLabel = "Import",
-            onX = vm::clearImportedArt, xLabel = "Clear imported",
+            onX = { vm.clearImported(MediaKind.Art) }, xLabel = "Clear imported",
         ) { focused ->
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
@@ -458,6 +531,18 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
                 )
             }
         },
+        Item("videos", onA = { vm.setConsoleVideos(!c.consoleVideos) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Gameplay videos on the console screen", Type.rowTitle, Palette.ink)
+                    Txt(
+                        "After a few seconds on a console, plays clips of its games (from ScreenScraper or ES-DE)",
+                        Type.label, Palette.inkSecondary, maxLines = 2,
+                    )
+                }
+                Txt(if (c.consoleVideos) "On" else "Off", Type.labelStrong, if (c.consoleVideos) Palette.ok else Palette.inkSecondary)
+            }
+        },
         Item("tint", onA = { vm.setBackdropTint(!c.backdropTint) }, aLabel = "Toggle") { focused ->
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
@@ -470,13 +555,79 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
     )
 }
 
-private fun soundItems(vm: LauncherViewModel, accent: Color): List<Item> {
+/** One row per music track: A switches it off or on, X plays it on repeat. */
+private fun trackItems(vm: LauncherViewModel, accent: Color): List<Item> {
+    val music = vm.music ?: return emptyList()
+    return music.tracks.map { track ->
+        Item(
+            "track-${track.key}",
+            onA = { vm.toggleTrack(track.key) }, aLabel = "On/Off",
+            onX = { vm.toggleRepeat(track.key) }, xLabel = "Repeat",
+        ) { focused ->
+            val off = track.key in vm.config.musicOff
+            val repeating = vm.config.musicRepeat == track.key
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt(track.title, Type.rowTitle, if (off) Palette.inkSecondary else Palette.ink)
+                    Txt(
+                        when {
+                            music.nowPlaying == track.key && vm.config.music -> "Playing now"
+                            repeating -> "Plays on repeat"
+                            else -> "Track"
+                        },
+                        Type.label, Palette.inkSecondary,
+                    )
+                }
+                Txt(
+                    when {
+                        repeating -> "Repeat"
+                        off -> "Off"
+                        else -> "On"
+                    },
+                    Type.labelStrong, if (off) Palette.inkSecondary else Palette.ok,
+                )
+            }
+        }
+    }
+}
+
+private fun soundItems(vm: LauncherViewModel, accent: Color, importSounds: () -> Unit): List<Item> {
     val on = vm.config.navigationSounds
     return listOf(
         Item("sounds", onA = { vm.setNavigationSounds(!on) }, aLabel = "Toggle") { focused ->
             ListRow(focused, accent) {
                 Txt("Navigation sounds", Type.rowTitle, Palette.ink, Modifier.weight(1f))
                 Txt(if (on) "On" else "Off", Type.labelStrong, if (on) Palette.ok else Palette.inkSecondary)
+            }
+        },
+        Item("consolesounds", onA = { vm.setConsoleSounds(!vm.config.consoleSounds) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Console startup sounds", Type.rowTitle, Palette.ink)
+                    val n = vm.systemSounds.size
+                    Txt(
+                        if (n == 0) "None added yet" else "$n ${if (n == 1) "console has" else "consoles have"} a sound",
+                        Type.label, Palette.inkSecondary,
+                    )
+                }
+                val c = vm.config.consoleSounds
+                Txt(if (c) "On" else "Off", Type.labelStrong, if (c) Palette.ok else Palette.inkSecondary)
+            }
+        },
+        Item(
+            "importsounds", onA = importSounds, aLabel = "Import",
+            onX = { vm.clearImported(MediaKind.Sounds) }, xLabel = "Clear imported",
+        ) { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Add startup sounds", Type.rowTitle, Palette.ink)
+                    Txt(
+                        "Import sound files or a .zip named after each system (snes.ogg, ps2.mp3…). " +
+                            "Or put them in a \"_sounds\" folder in your ROMs folder and rescan.",
+                        Type.label, Palette.inkSecondary, maxLines = 3,
+                    )
+                }
+                ChevronIcon(Palette.inkSecondary)
             }
         },
         Item("music", onA = { vm.setMusic(!vm.config.music) }, aLabel = "Toggle") { focused ->
@@ -512,6 +663,7 @@ private fun soundItems(vm: LauncherViewModel, accent: Color): List<Item> {
                 ChevronIcon(Palette.inkSecondary)
             }
         },
+        *trackItems(vm, accent).toTypedArray(),
         Item("videosound", onA = { vm.setVideoSound(!vm.config.videoSound) }, aLabel = "Toggle") { focused ->
             ListRow(focused, accent) {
                 Txt("Gameplay video sound", Type.rowTitle, Palette.ink, Modifier.weight(1f))
@@ -598,6 +750,17 @@ private fun statsItems(vm: LauncherViewModel, accent: Color): List<Item> {
         stat("launches", "Launches", summary.launches.toString()),
         stat("streak", "Current streak", "${summary.currentStreak} ${if (summary.currentStreak == 1) "day" else "days"}"),
         stat("best", "Longest streak", "${summary.longestStreak} ${if (summary.longestStreak == 1) "day" else "days"}"),
+        *vm.raSummary?.let { ra ->
+            arrayOf(stat("ra", "RetroAchievements points", ra.points.toString() + (ra.rank?.let { " · rank #$it" } ?: ""))) +
+                ra.recent.mapIndexed { i, u -> stat("ra-$i", "🏆 ${u.title}", "${u.game} · ${u.points} pts") }
+        }.orEmpty(),
+        vm.statusCounts().let { counts ->
+            stat(
+                "progress", "Beaten · 100% · Playing · Backlog",
+                listOf(Progress.BEATEN, Progress.COMPLETED, Progress.PLAYING, Progress.BACKLOG)
+                    .joinToString(" · ") { (counts[it] ?: 0).toString() },
+            )
+        },
     ) + summary.top.mapIndexed { i, (game, s) ->
         Item("top-$i") { _ ->
             ListRow(false, accent, background = Palette.surface) {

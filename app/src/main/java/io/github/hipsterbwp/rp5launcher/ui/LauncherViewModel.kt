@@ -15,7 +15,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.hipsterbwp.rp5launcher.art.GameArt
 import io.github.hipsterbwp.rp5launcher.art.ArtIndex
-import io.github.hipsterbwp.rp5launcher.art.CustomArt
+import io.github.hipsterbwp.rp5launcher.art.CustomMedia
+import io.github.hipsterbwp.rp5launcher.art.EsdeMedia
+import io.github.hipsterbwp.rp5launcher.art.RaProgress
+import io.github.hipsterbwp.rp5launcher.art.RaSummary
+import io.github.hipsterbwp.rp5launcher.art.RetroAchievements
+import io.github.hipsterbwp.rp5launcher.art.RetroAchievementsAccount
 import io.github.hipsterbwp.rp5launcher.art.LogoStore
 import io.github.hipsterbwp.rp5launcher.art.Scraper
 import io.github.hipsterbwp.rp5launcher.art.ScreenScraper
@@ -33,6 +38,7 @@ import io.github.hipsterbwp.rp5launcher.data.LibraryCache
 import io.github.hipsterbwp.rp5launcher.data.LibraryScanner
 import io.github.hipsterbwp.rp5launcher.data.LibraryStore
 import io.github.hipsterbwp.rp5launcher.data.StatsFile
+import io.github.hipsterbwp.rp5launcher.data.Progress
 import io.github.hipsterbwp.rp5launcher.data.SystemDef
 import io.github.hipsterbwp.rp5launcher.data.SystemInfo
 import io.github.hipsterbwp.rp5launcher.data.SystemMeta
@@ -70,7 +76,7 @@ sealed interface Dialog {
     data class TextInput(val field: TextField, val title: String, val initial: String, val secret: Boolean) : Dialog
 }
 
-enum class TextField { SsUser, SsPassword, SsDevId, SsDevPassword, Search, NewCollection }
+enum class TextField { SsUser, SsPassword, SsDevId, SsDevPassword, RaUser, RaKey, Search, NewCollection }
 
 /** A named list of games: one you made, or one ARCROW builds from your library. */
 data class GameCollection(
@@ -125,6 +131,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val scraper = Scraper(app)
     private val systemArtStore = SystemArtStore(app)
     private val ssAccount = ScreenScraperAccount(app)
+    private val raAccount = RetroAchievementsAccount(app)
     private var catalog: EsdeCatalog? = null
 
     var ready by mutableStateOf(false)
@@ -173,6 +180,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val featureTried = HashSet<String>()
     /** Your own backdrops from the ROMs folder's "_art" folder, per system. */
     val systemCustom = mutableStateMapOf<String, File>()
+    /** Your own console startup sounds ("_sounds" folder), per system. */
+    val systemSounds = mutableStateMapOf<String, File>()
 
     var screenScraper by mutableStateOf(ScreenScraperAccount.Credentials("", "", "", ""))
         private set
@@ -204,6 +213,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun cycleMusicVolume() = updateConfig { it.copy(musicVolume = it.musicVolume % 3 + 1) }
 
+    /** Switches one track off or back on (switching off the repeating track also ends the repeat). */
+    fun toggleTrack(key: String) = updateConfig {
+        if (key in it.musicOff) it.copy(musicOff = it.musicOff - key)
+        else it.copy(musicOff = it.musicOff + key, musicRepeat = it.musicRepeat.takeIf { r -> r != key })
+    }
+
+    /** Plays one track on repeat, or goes back to shuffling all of them. */
+    fun toggleRepeat(key: String) = updateConfig {
+        if (it.musicRepeat == key) it.copy(musicRepeat = null)
+        else it.copy(musicRepeat = key, musicOff = it.musicOff - key)
+    }
+
     fun cycleBackdrop() = updateConfig {
         it.copy(backdrop = BACKDROPS[(BACKDROPS.indexOf(it.backdrop) + 1).mod(BACKDROPS.size)])
     }
@@ -212,30 +233,131 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setBackdropTint(enabled: Boolean) = updateConfig { it.copy(backdropTint = enabled) }
 
-    /** Imports pictures (or a zip of them) picked from anywhere on the device, e.g. Downloads. */
-    fun importArt(uris: List<Uri>) {
+    /** Imports files (or a zip of them) picked from anywhere on the device, e.g. Downloads. */
+    fun importMedia(kind: MediaKind, uris: List<Uri>) {
         if (uris.isEmpty()) return
         val app = getApplication<Application>()
         viewModelScope.launch {
-            val count = withContext(Dispatchers.IO) { CustomArt.import(app.contentResolver, uris, importedArtDir) }
-            refreshCustomArt()
+            val count = withContext(Dispatchers.IO) { kind.media.import(app.contentResolver, uris, importedDir(kind)) }
+            refreshCustomMedia()
             dialog = if (count == 0) {
-                Dialog.Message("No pictures found", "Pick .jpg, .png or .webp pictures, or a .zip with pictures inside.")
+                Dialog.Message("No ${kind.noun}s found", kind.pickHint)
             } else {
-                Dialog.Message(
-                    "Imported $count ${if (count == 1) "picture" else "pictures"}",
-                    "Pictures named after a system (like snes.jpg) now fill its console screen.",
-                )
+                Dialog.Message("Imported $count ${kind.noun}${if (count == 1) "" else "s"}", kind.doneHint)
             }
         }
     }
 
-    fun clearImportedArt() {
+    fun clearImported(kind: MediaKind) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { importedArtDir.deleteRecursively() }
-            refreshCustomArt()
+            withContext(Dispatchers.IO) { importedDir(kind).deleteRecursively() }
+            refreshCustomMedia()
         }
     }
+
+    private fun importedDir(kind: MediaKind) = File(getApplication<Application>().filesDir, "${kind.dir}-imported")
+
+    /**
+     * Collects your own backdrops and startup sounds: imported ones, then the ROMs folder's "_art" and
+     * "_sounds" folders (which win). Matched by system name or folder name.
+     */
+    private fun refreshCustomMedia() {
+        val root = rootUri()
+        val app = getApplication<Application>()
+        for (kind in MediaKind.entries) {
+            val target = if (kind == MediaKind.Art) systemCustom else systemSounds
+            viewModelScope.launch {
+                val found = withContext(Dispatchers.IO) {
+                    val folder = root?.let {
+                        runCatching { kind.media.sync(app.contentResolver, it, File(app.filesDir, kind.dir)) }.getOrNull()
+                    }.orEmpty()
+                    kind.media.imported(importedDir(kind)) + folder
+                }
+                val matched = systems.mapNotNull { s ->
+                    (found[s.name] ?: found[s.folderName.lowercase()])?.let { s.name to it }
+                }.toMap()
+                (target.keys - matched.keys).forEach { target.remove(it) }
+                target.putAll(matched)
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Gameplay videos (ScreenScraper, or the ones ES-DE downloaded)
+    // -----------------------------------------------------------------------------------------
+
+    /** ES-DE's videos per system: game id -> video URI. Loaded when a system is first shown. */
+    val esdeVideos = mutableStateMapOf<String, Map<String, String>>()
+    private val esdeLoading = HashSet<String>()
+
+    fun loadEsdeVideos(system: String) {
+        val tree = config.esdeMedia?.let(Uri::parse) ?: return
+        val entry = system(system) ?: return
+        if (!esdeLoading.add(system)) return
+        val resolver = getApplication<Application>().contentResolver
+        viewModelScope.launch {
+            val byName = withContext(Dispatchers.IO) {
+                EsdeMedia(resolver).videos(tree, listOf(entry.name, entry.folderName))
+            }
+            esdeVideos[system] = entry.games.mapNotNull { game ->
+                byName[game.fileName.substringBeforeLast('.').lowercase()]?.let { game.id to it.toString() }
+            }.toMap()
+        }
+    }
+
+    /** Video for a game: ScreenScraper's, else the one ES-DE downloaded. */
+    fun videoFor(system: String, game: Game): String? = art[game.id]?.video ?: esdeVideos[system]?.get(game.id)
+
+    /** Clips for the console screen montage: favorites and most played first, then the rest shuffled. */
+    fun consoleClips(system: SystemEntry): List<Pair<Game, String>> {
+        val withVideo = system.games.mapNotNull { g -> videoFor(system.name, g)?.let { g to it } }
+        val (loved, rest) = withVideo.partition { stats(it.first).favorite || stats(it.first).playCount > 0 }
+        return (loved.sortedByDescending { stats(it.first).playtimeMs } + rest.shuffled()).take(MAX_CLIPS)
+    }
+
+    fun onEsdeMediaPicked(uri: Uri) {
+        val resolver = getApplication<Application>().contentResolver
+        runCatching { resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        config.esdeMedia?.takeIf { it != uri.toString() }?.let { old ->
+            runCatching { resolver.releasePersistableUriPermission(Uri.parse(old), Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        }
+        updateConfig { it.copy(esdeMedia = uri.toString()) }
+        esdeVideos.clear()
+        esdeLoading.clear()
+    }
+
+    fun clearEsdeMedia() {
+        updateConfig { it.copy(esdeMedia = null) }
+        esdeVideos.clear()
+        esdeLoading.clear()
+    }
+
+    /** "ES-DE / downloaded_media" style label for the picked folder. */
+    fun esdeMediaLabel(): String? {
+        val uri = config.esdeMedia?.let(Uri::parse) ?: return null
+        val docId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return uri.toString()
+        return docId.substringAfter(':').replace("/", " / ").ifEmpty { "Storage root" }
+    }
+
+    fun setConsoleVideos(enabled: Boolean) = updateConfig { it.copy(consoleVideos = enabled) }
+
+    /** The quick menu (hold Select), and the device controls it uses (set by the activity). */
+    var quickMenu by mutableStateOf(false)
+    var quickControls: QuickControls? = null
+
+    /** Set by the activity: plays a console startup sound file. */
+    var consoleSoundPlayer: ((File) -> Unit)? = null
+    private var lastConsoleSound: String? = null
+
+    /** Plays the startup sound for the console you've landed on (once per visit, not on return). */
+    fun landedOn(system: String) {
+        if (system == lastConsoleSound) return
+        lastConsoleSound = system
+        if (!config.consoleSounds) return
+        systemSounds[system]?.let { consoleSoundPlayer?.invoke(it) }
+    }
+
+    fun setConsoleSounds(enabled: Boolean) = updateConfig { it.copy(consoleSounds = enabled) }
 
     /** Set by the activity, which owns the music player. */
     var music: BackgroundMusic? = null
@@ -261,13 +383,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             val loaded = Loaded(esde, loadedConfig, configProblem, libraryCache, statsFile, artIndex)
             art.putAll(loaded.art.games)
             screenScraper = withContext(Dispatchers.IO) { ssAccount.load() }
+            retroAchievements = withContext(Dispatchers.IO) { raAccount.load() }
             catalog = loaded.catalog
             applyConfig(loaded.config)
             stats = loaded.stats
             library = loaded.library?.takeIf { it.rootUri == loaded.config.romsRoot }
             rebuildSystems()
             refreshLogos()
-            refreshCustomArt()
+            refreshCustomMedia()
             val root = rootUri()
             if (root == null || !hasAccess(root)) {
                 backStack += Screen.Setup(1)
@@ -278,6 +401,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             ready = true
             loaded.configProblem?.let { dialog = Dialog.Message("Config file has an error", it) }
             checkForUpdate(userInitiated = false)
+            refreshRetroAchievements(userInitiated = false)
         }
         viewModelScope.launch {
             Updater.installError.collect { error ->
@@ -498,7 +622,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 rebuildSystems()
                 homeSystemIndex = homeSystemIndex.coerceIn(0, (systems.size - 1).coerceAtLeast(0))
                 refreshLogos()
-                refreshCustomArt()
+                refreshCustomMedia()
                 if (config.autoScrape) scrapeArt(force = false)
             }.onFailure {
                 dialog = Dialog.Message(
@@ -536,6 +660,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun toggleFavorite(game: Game) = updateStats(game) { it.copy(favorite = !it.favorite) }
+
+    /** Steps through Not tracked → Backlog → Playing → Beaten → 100% complete. */
+    fun cycleStatus(game: Game) = updateStats(game) {
+        it.copy(status = Progress.ORDER[(Progress.ORDER.indexOf(it.status) + 1) % Progress.ORDER.size])
+    }
+
+    fun statusCounts(): Map<String, Int> =
+        allGames().mapNotNull { stats(it.second).status }.groupingBy { it }.eachCount()
 
     // -----------------------------------------------------------------------------------------
     // Hiding
@@ -580,6 +712,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val played = all.filter { stats(it.second).playCount > 0 }
             .sortedByDescending { stats(it.second).playtimeMs }.take(MOST_PLAYED)
         val auto = buildList {
+            for (status in listOf(Progress.PLAYING, Progress.BACKLOG, Progress.BEATEN, Progress.COMPLETED)) {
+                val games = all.filter { stats(it.second).status == status }
+                    .sortedByDescending { stats(it.second).lastPlayed }
+                add(GameCollection("status:$status", Progress.label(status), games, custom = false))
+            }
             add(GameCollection("auto:most", "Most played", played, custom = false))
             add(GameCollection("auto:unplayed", "Not played yet", all.filter { stats(it.second).playCount == 0 }, custom = false))
             add(GameCollection("auto:multi", "Multiplayer", all.filter { maxPlayers(art[it.second.id]?.players) >= 2 }, custom = false))
@@ -778,30 +915,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun titleArt(game: Game): File? = scraper.file(art[game.id]?.titleShot)
 
-    private val importedArtDir get() = File(getApplication<Application>().filesDir, "custom-art-imported")
-
-    /**
-     * Collects your own backdrops: imported ones, then the ROMs folder's "_art" folder (which wins).
-     * Matched by system name or folder name.
-     */
-    private fun refreshCustomArt() {
-        val root = rootUri()
-        val app = getApplication<Application>()
-        viewModelScope.launch {
-            val found = withContext(Dispatchers.IO) {
-                val folder = root?.let {
-                    runCatching { CustomArt.sync(app.contentResolver, it, File(app.filesDir, "custom-art")) }.getOrNull()
-                }.orEmpty()
-                CustomArt.imported(importedArtDir) + folder
-            }
-            val matched = systems.mapNotNull { s ->
-                (found[s.name] ?: found[s.folderName.lowercase()])?.let { s.name to it }
-            }.toMap()
-            (systemCustom.keys - matched.keys).forEach { systemCustom.remove(it) }
-            systemCustom.putAll(matched)
-        }
-    }
-
     /** Hero art for a console: fanart of the last played game, else of any game that has some. */
     fun systemHero(system: SystemEntry): File? {
         val withFanart = system.games.filter { art[it.id]?.fanart != null }
@@ -813,6 +926,76 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     // ScreenScraper
     // -----------------------------------------------------------------------------------------
 
+    // -----------------------------------------------------------------------------------------
+    // RetroAchievements
+    // -----------------------------------------------------------------------------------------
+
+    var retroAchievements by mutableStateOf(RetroAchievementsAccount.Credentials("", ""))
+        private set
+    /** Result of the last sign-in check or refresh, for the settings page. */
+    var raStatus by mutableStateOf<String?>(null)
+        private set
+    var raSummary by mutableStateOf<RaSummary?>(null)
+        private set
+    /** Achievement progress per game id, for games RetroAchievements supports. */
+    val raProgress = mutableStateMapOf<String, RaProgress>()
+    private var raJob: Job? = null
+
+    fun editRetroAchievements(field: TextField) {
+        val r = retroAchievements
+        dialog = when (field) {
+            TextField.RaUser -> Dialog.TextInput(field, "RetroAchievements username", r.user, secret = false)
+            TextField.RaKey -> Dialog.TextInput(field, "Web API key", r.key, secret = true)
+            else -> return
+        }
+    }
+
+    /** Fetches your points, recent unlocks and per-game progress; matches games by title. */
+    fun refreshRetroAchievements(userInitiated: Boolean) {
+        val creds = retroAchievements
+        if (!creds.complete) {
+            if (userInitiated) raStatus = "Fill in your username and web API key first."
+            return
+        }
+        if (raJob?.isActive == true) return
+        if (userInitiated) raStatus = "Checking…"
+        val cacheDir = File(getApplication<Application>().cacheDir, "retroachievements")
+        val library = systems.map { it.name to it.games }
+        raJob = viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val ra = RetroAchievements(cacheDir, creds)
+                    val summary = ra.summary()
+                    val progress = ra.progress()
+                    val matched = HashMap<String, RaProgress>()
+                    for ((system, games) in library) {
+                        val console = RetroAchievements.CONSOLES[system] ?: continue
+                        val list = runCatching { ra.games(console) }.getOrNull() ?: continue
+                        for (game in games) {
+                            val found = RetroAchievements.match(list, game.title) ?: continue
+                            matched[game.id] = progress[found.id] ?: RaProgress(found.id, 0, found.achievements, 0)
+                        }
+                    }
+                    summary to matched
+                }
+            }
+            result.onSuccess { (summary, matched) ->
+                raSummary = summary
+                raProgress.clear()
+                raProgress.putAll(matched)
+                raStatus = "Signed in · ${summary.points} points" + (summary.rank?.let { " · rank #$it" } ?: "") +
+                    " · ${matched.size} of your games have achievements"
+            }.onFailure {
+                val message = it.message ?: it.javaClass.simpleName
+                raStatus = if ((it as? java.io.IOException)?.message?.startsWith("HTTP 401") == true) {
+                    "Username or web API key not accepted."
+                } else {
+                    "Couldn't reach RetroAchievements: $message"
+                }
+            }
+        }
+    }
+
     fun editScreenScraper(field: TextField) {
         val c = screenScraper
         dialog = when (field) {
@@ -820,7 +1003,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             TextField.SsPassword -> Dialog.TextInput(field, "ScreenScraper password", c.password, secret = true)
             TextField.SsDevId -> Dialog.TextInput(field, "Developer ID", c.devId, secret = false)
             TextField.SsDevPassword -> Dialog.TextInput(field, "Developer password", c.devPassword, secret = true)
-            TextField.Search, TextField.NewCollection -> return
+            TextField.RaUser, TextField.RaKey, TextField.Search, TextField.NewCollection -> return
         }
     }
 
@@ -839,6 +1022,15 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 pendingCollectionGame = null
                 return
             }
+            TextField.RaUser, TextField.RaKey -> {
+                val r = retroAchievements
+                val updated = if (field == TextField.RaUser) r.copy(user = value.trim()) else r.copy(key = value.trim())
+                retroAchievements = updated
+                raStatus = null
+                dialog = null
+                viewModelScope.launch(Dispatchers.IO) { raAccount.save(updated) }
+                return
+            }
             else -> Unit
         }
         val c = screenScraper
@@ -847,7 +1039,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             TextField.SsPassword -> c.copy(password = value)
             TextField.SsDevId -> c.copy(devId = value.trim())
             TextField.SsDevPassword -> c.copy(devPassword = value)
-            TextField.Search, TextField.NewCollection -> c
+            TextField.RaUser, TextField.RaKey, TextField.Search, TextField.NewCollection -> c
         }
         screenScraper = updated
         screenScraperStatus = null
@@ -1007,7 +1199,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 sound(UiSound.Launch)
                 val now = System.currentTimeMillis()
                 session = game.id to now
-                updateStats(game) { it.copy(lastPlayed = now, playCount = it.playCount + 1) }
+                // Starting a game you haven't tracked (or had in the backlog) marks it as playing.
+                updateStats(game) {
+                    val status = if (it.status == null || it.status == Progress.BACKLOG) Progress.PLAYING else it.status
+                    it.copy(lastPlayed = now, playCount = it.playCount + 1, status = status)
+                }
                 val today = java.time.LocalDate.now().toString()
                 if (today !in stats.playDays) updateStatsFile { it.copy(playDays = it.playDays + today) }
             }
@@ -1031,8 +1227,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             val game = systems.firstNotNullOfOrNull { s -> s.games.firstOrNull { it.id == id } }
             if (game != null) updateStats(game) { it.copy(playtimeMs = it.playtimeMs + elapsed) }
         }
+        val played = session != null
         session = null
         redetectEmulators()
+        // Back from a game: pick up any achievements unlocked in it.
+        if (played) refreshRetroAchievements(userInitiated = false)
         // Back from granting "Install unknown apps": carry on with the update.
         (update as? UpdateState.NeedsPermission)?.let { if (updater.canInstall()) installUpdate() }
     }
@@ -1058,3 +1257,20 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
 /** Console screen backdrop choices, in the order Settings cycles through them. */
 val BACKDROPS = listOf("auto", "cover", "console")
+
+/** Kinds of your own per-console files. */
+enum class MediaKind(val media: CustomMedia, val dir: String, val noun: String, val pickHint: String, val doneHint: String) {
+    Art(
+        CustomMedia.ART, "custom-art", "picture",
+        "Pick .jpg, .png or .webp pictures, or a .zip with pictures inside.",
+        "Pictures named after a system (like snes.jpg) now fill its console screen.",
+    ),
+    Sounds(
+        CustomMedia.SOUNDS, "custom-sounds", "sound",
+        "Pick .ogg, .mp3 or .wav files, or a .zip with sounds inside.",
+        "Sounds named after a system (like snes.ogg) now play when you land on that console.",
+    ),
+}
+
+/** Most clips the console screen montage cycles through. */
+private const val MAX_CLIPS = 12

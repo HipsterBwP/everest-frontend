@@ -170,7 +170,8 @@ private fun InfoColumn(vm: LauncherViewModel, system: SystemEntry, game: Game) {
                     else Txt(system.info.shortName, Type.section, Palette.inkSecondary)
                 }
             }
-            GameVideo(info?.video, vm.config.videoSound, Modifier.fillMaxSize())
+            LaunchedEffect(system.name) { vm.loadEsdeVideos(system.name) }
+            GameVideo(vm.videoFor(system.name, game), vm.config.videoSound, Modifier.fillMaxSize())
         }
         Spacer(Modifier.height(Space.TILE_GAP.u))
 

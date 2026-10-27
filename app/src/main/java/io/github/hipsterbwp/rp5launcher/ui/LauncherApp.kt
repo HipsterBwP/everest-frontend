@@ -27,6 +27,7 @@ import io.github.hipsterbwp.rp5launcher.ui.screens.GameGridScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.HomeScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.CollectionScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.LoadingScreen
+import io.github.hipsterbwp.rp5launcher.ui.screens.QuickMenu
 import io.github.hipsterbwp.rp5launcher.ui.screens.Screensaver
 import io.github.hipsterbwp.rp5launcher.ui.screens.SearchScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.SettingsScreen
@@ -80,6 +81,7 @@ fun LauncherApp(vm: LauncherViewModel) {
                 LauncherContent(vm, appName, pickFolder)
             }
         }
+        if (vm.quickMenu && !vm.screensaver) vm.quickControls?.let { QuickMenu(vm, it) }
         if (vm.screensaver) Screensaver(vm)
         if (loadingAlpha > 0f) {
             Box(Modifier.fillMaxSize().alpha(loadingAlpha)) { LoadingScreen(vm.loading) }

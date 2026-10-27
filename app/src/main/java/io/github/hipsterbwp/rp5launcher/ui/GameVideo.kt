@@ -25,6 +25,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
@@ -60,7 +61,9 @@ fun GameVideo(url: String?, withSound: Boolean, modifier: Modifier = Modifier) {
     var videoSize by remember { mutableStateOf(VideoSize.UNKNOWN) }
     val player = remember {
         val upstream = DefaultHttpDataSource.Factory().setUserAgent("rp5-launcher/${BuildConfig.VERSION_NAME}")
-        val source = CacheDataSource.Factory().setCache(VideoCache.get(context)).setUpstreamDataSourceFactory(upstream)
+        val cached = CacheDataSource.Factory().setCache(VideoCache.get(context)).setUpstreamDataSourceFactory(upstream)
+        // Downloads go through the cache; local files and ES-DE's videos (content://) are read directly.
+        val source = DefaultDataSource.Factory(context, cached)
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(source))
             .build()

@@ -29,6 +29,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import io.github.hipsterbwp.rp5launcher.data.Progress
 import io.github.hipsterbwp.rp5launcher.ui.ArtImage
 import io.github.hipsterbwp.rp5launcher.ui.Dialog
 import io.github.hipsterbwp.rp5launcher.ui.GameplayBackdrop
@@ -73,6 +74,7 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
     val actions = listOf(
         OptionRow("Play", null, primary = true) { play() },
         OptionRow(if (stats.favorite) "Remove from Favorites" else "Add to Favorites", null) { vm.toggleFavorite(game) },
+        OptionRow("Progress", Progress.label(stats.status)) { vm.cycleStatus(game) },
         OptionRow("Emulator for this game", stats.emulator?.let { command?.shortName } ?: "Same as system") {
             vm.dialog = Dialog.EmulatorPicker(systemName, game.id)
         },
@@ -149,6 +151,10 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
                     info?.genre?.let { Pill(it, Palette.surface, Palette.ink) }
                     game.tag?.let { Pill(it, Palette.surface, Palette.ink) }
                     if (stats.favorite) Pill("Favorite", Palette.surface, Palette.ink)
+                    stats.status?.let { Pill(Progress.label(it), Palette.surface, Palette.ink) }
+                    vm.raProgress[game.id]?.takeIf { it.total > 0 }?.let {
+                        Pill("🏆 ${it.awarded}/${it.total}", if (it.awarded == it.total) Palette.ok else Palette.surface, Palette.ink)
+                    }
                 }
                 Spacer(Modifier.height(Space.ROW_GAP.u))
                 Txt(game.title, Type.section, Palette.ink, maxLines = 1)

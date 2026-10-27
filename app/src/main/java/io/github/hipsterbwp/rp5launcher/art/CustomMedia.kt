@@ -9,17 +9,23 @@ import java.io.InputStream
 import java.util.zip.ZipInputStream
 
 /**
- * Your own console backdrops, named after the system ("snes.jpg", "ps2.png"). They come from two places:
- *  - an "_art" folder in the ROMs folder (also found inside an "arcrow-art" folder, one level of
- *    subfolders deep, or as an "arcrow-art….zip" there or in the ROMs folder itself);
- *  - pictures or a zip imported from Settings › Appearance.
+ * Your own files per console, named after the system ("snes.jpg", "ps2.ogg"): backdrops ([ART]) and
+ * startup sounds ([SOUNDS]). They come from two places:
+ *  - a folder in the ROMs folder such as "_art" (also found inside an "arcrow-art" folder, one level
+ *    of subfolders deep, or as an "arcrow-art….zip" there or in the ROMs folder itself);
+ *  - files or a zip imported from Settings.
  * Both are copied into app storage so they load fast and survive the SD card being slow to mount.
  */
-object CustomArt {
-    const val FOLDER = "_art"
-    private const val PACK_PREFIX = "arcrow-art"
-    private const val STAMP = ".stamp"
-    private val EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
+class CustomMedia private constructor(
+    private val folder: String,
+    private val packPrefix: String,
+    private val extensions: Set<String>,
+) {
+    companion object {
+        val ART = CustomMedia("_art", "arcrow-art", setOf("jpg", "jpeg", "png", "webp"))
+        val SOUNDS = CustomMedia("_sounds", "arcrow-sounds", setOf("ogg", "mp3", "wav", "m4a", "aac", "flac", "opus"))
+        private const val STAMP = ".stamp"
+    }
 
     private data class Child(val docId: String, val name: String, val isDir: Boolean, val size: Long, val modified: Long) {
         val ext: String get() = name.substringAfterLast('.', "").lowercase()
@@ -28,10 +34,10 @@ object CustomArt {
     /** Copies new or changed pictures from the ROMs folder into [dir]; returns system key -> local file. */
     fun sync(resolver: ContentResolver, root: Uri, dir: File): Map<String, File> {
         val top = children(resolver, root, DocumentsContract.getTreeDocumentId(root))
-        val folders = top.filter { it.isDir && (it.name.equals(FOLDER, true) || it.name.lowercase().startsWith(PACK_PREFIX)) }
+        val folders = top.filter { it.isDir && (it.name.equals(folder, true) || it.name.lowercase().startsWith(packPrefix)) }
         // Pictures directly in those folders, and one level down (zip apps often add a folder of their own).
-        val files = top.filter { isPack(it) } + folders.flatMap { folder ->
-            val inside = children(resolver, root, folder.docId)
+        val files = top.filter { isPack(it) } + folders.flatMap { found ->
+            val inside = children(resolver, root, found.docId)
             inside.filter { !it.isDir } + inside.filter { it.isDir }.flatMap { children(resolver, root, it.docId) }.filter { !it.isDir }
         }
         if (files.isEmpty()) {
@@ -59,7 +65,7 @@ object CustomArt {
             keep += stamp
             extracted.forEach { out[key(it.name)] = it; keep += it }
         }
-        for (child in files.filter { it.ext in EXTENSIONS && !it.name.startsWith(".") }) {
+        for (child in files.filter { it.ext in extensions && !it.name.startsWith(".") }) {
             val local = File(dir, "${key(child.name)}.${child.ext}")
             if (local.length() != child.size || local.lastModified() != child.modified) {
                 val copied = runCatching { open(child)?.use { copy(it, local) } }.getOrNull() == true
@@ -76,7 +82,7 @@ object CustomArt {
     /** Pictures imported from Settings, in [dir]. */
     fun imported(dir: File): Map<String, File> =
         dir.listFiles().orEmpty()
-            .filter { it.extension.lowercase() in EXTENSIONS }
+            .filter { it.extension.lowercase() in extensions }
             .associateBy { key(it.name) }
 
     /** Copies picked pictures, or the pictures inside picked zips, into [dir]. Returns how many were added. */
@@ -90,7 +96,7 @@ object CustomArt {
                 resolver.openInputStream(uri)?.use { input ->
                     when {
                         ext == "zip" -> count += unzip(input, dir).size
-                        ext in EXTENSIONS -> {
+                        ext in extensions -> {
                             // Replace any earlier picture for the same system, whatever its format.
                             dir.listFiles()?.filter { key(it.name) == key(name) }?.forEach { it.delete() }
                             if (copy(input, File(dir, "${key(name)}.$ext"))) count++
@@ -105,7 +111,7 @@ object CustomArt {
     private fun key(fileName: String) = fileName.substringBeforeLast('.').trim().lowercase()
 
     private fun isPack(child: Child) =
-        !child.isDir && child.ext == "zip" && child.name.lowercase().startsWith(PACK_PREFIX)
+        !child.isDir && child.ext == "zip" && child.name.lowercase().startsWith(packPrefix)
 
     /** Extracts the pictures in a zip (folders inside it are ignored) into [dir]. */
     private fun unzip(input: InputStream, dir: File): List<File> {
@@ -115,8 +121,8 @@ object CustomArt {
                 val entry = zip.nextEntry ?: break
                 val name = entry.name.substringAfterLast('/')
                 val ext = name.substringAfterLast('.', "").lowercase()
-                if (entry.isDirectory || ext !in EXTENSIONS || name.startsWith(".")) continue
-                dir.listFiles()?.filter { key(it.name) == key(name) && it.extension.lowercase() in EXTENSIONS }
+                if (entry.isDirectory || ext !in extensions || name.startsWith(".")) continue
+                dir.listFiles()?.filter { key(it.name) == key(name) && it.extension.lowercase() in extensions }
                     ?.forEach { it.delete() }
                 val file = File(dir, "${key(name)}.$ext")
                 if (copy(zip, file)) out += file

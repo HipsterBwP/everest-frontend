@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import io.github.hipsterbwp.rp5launcher.ui.ButtonGlyph
+import io.github.hipsterbwp.rp5launcher.ui.GameVideo
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import io.github.hipsterbwp.rp5launcher.data.Game
@@ -125,6 +126,12 @@ private fun SystemsTab(
         selected?.let { vm.push(Screen.Games(it.name)) }
     }
     val last = selected?.let(vm::lastPlayed)
+    // Startup sound once the selection settles, so scrolling past consoles stays quiet.
+    LaunchedEffect(selected?.name) {
+        val name = selected?.name ?: return@LaunchedEffect
+        delay(Motion.CONSOLE_SOUND_DELAY_MS)
+        vm.landedOn(name)
+    }
     fun resume() {
         if (selected != null && last != null) vm.play(selected.name, last)
     }
@@ -192,6 +199,8 @@ private fun SystemsTab(
                 }
             }
         }
+
+        if (selected != null && vm.config.consoleVideos) ConsoleMontage(vm, selected, shade)
 
         Row(Modifier.fillMaxSize()) {
             LogoRail(vm, systems, if (collections) -1 else index, ::select, ::open)
@@ -508,3 +517,45 @@ private fun FeatureCover(cover: File, title: String?, blurLevel: Int, shade: Col
 
 /** Box-art proportion used until the feature cover has loaded. */
 private const val FEATURE_RATIO = 0.72f
+
+/**
+ * After a few seconds on a console, gameplay clips of its games play full screen over the backdrop,
+ * one after another, muted, with the game's name in a glass caption.
+ */
+@Composable
+private fun ConsoleMontage(vm: LauncherViewModel, system: SystemEntry, shade: Color) {
+    LaunchedEffect(system.name) { vm.loadEsdeVideos(system.name) }
+    val clips = remember(system.name, vm.esdeVideos[system.name], vm.art.size) { vm.consoleClips(system) }
+    var index by remember(system.name) { mutableStateOf(-1) }
+    LaunchedEffect(system.name, clips) {
+        index = -1
+        if (clips.isEmpty()) return@LaunchedEffect
+        delay(Motion.MONTAGE_DELAY_MS)
+        while (true) {
+            index++
+            delay(Motion.MONTAGE_CLIP_MS)
+        }
+    }
+    val clip = clips.takeIf { index >= 0 }?.let { it[index % it.size] } ?: return
+    Box(Modifier.fillMaxSize()) {
+        GameVideo(clip.second, withSound = false, modifier = Modifier.fillMaxSize())
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(0f to shade.copy(alpha = Alpha.HERO_SHADE), 0.62f to Palette.transparent),
+            ),
+        )
+        Box(
+            Modifier.fillMaxWidth().height(Size.TOP_SHADE_H.u).background(
+                Brush.verticalGradient(0f to Palette.black.copy(alpha = Alpha.TOP_SHADE), 1f to Palette.transparent),
+            ),
+        )
+        Crossfade(clip.first.title, animationSpec = Motion.colorFade(), label = "clip-title",
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = Space.SCREEN_H.u, bottom = (Size.HINT_BAR + Space.LG).u),
+        ) { title ->
+            Column(Modifier.glass(Radius.PILL).padding(vertical = Space.CHIP_V.u, horizontal = Space.LG.u)) {
+                Txt("NOW SHOWING", Type.eyebrow, Palette.inkSecondary)
+                Txt(title, Type.labelStrong, Palette.ink, maxLines = 1)
+            }
+        }
+    }
+}

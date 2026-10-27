@@ -3,6 +3,8 @@ package io.github.hipsterbwp.rp5launcher
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -13,6 +15,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.lifecycleScope
 import io.github.hipsterbwp.rp5launcher.ui.BackgroundMusic
+import io.github.hipsterbwp.rp5launcher.ui.ConsoleSounds
+import io.github.hipsterbwp.rp5launcher.ui.QuickControls
 import io.github.hipsterbwp.rp5launcher.ui.Screen
 import kotlinx.coroutines.launch
 import androidx.core.view.WindowCompat
@@ -26,11 +30,14 @@ import io.github.hipsterbwp.rp5launcher.ui.PadDispatcher
 import io.github.hipsterbwp.rp5launcher.ui.UiSounds
 import io.github.hipsterbwp.rp5launcher.ui.theme.LauncherTheme
 
+private data class MusicSettings(val on: Boolean, val volume: Float, val root: String?, val off: Set<String>, val repeat: String?)
+
 class MainActivity : ComponentActivity() {
     private val vm: LauncherViewModel by viewModels()
     private val pad = PadDispatcher()
     private lateinit var sounds: UiSounds
     private lateinit var music: BackgroundMusic
+    private lateinit var consoleSounds: ConsoleSounds
 
     /** Analog triggers: once the device sends L2/R2 key events, ignore the trigger axes. */
     private var triggerKeysSeen = false
@@ -43,14 +50,17 @@ class MainActivity : ComponentActivity() {
         vm.soundPlayer = { sounds.play(it, UiSounds.volume(vm.config.soundVolume)) }
         music = BackgroundMusic(this, lifecycleScope)
         vm.music = music
+        consoleSounds = ConsoleSounds { playing -> music.duck(playing) }
+        vm.quickControls = QuickControls(this)
+        vm.consoleSoundPlayer = { consoleSounds.play(it, (UiSounds.volume(vm.config.soundVolume) * CONSOLE_SOUND_GAIN).coerceAtMost(1f)) }
         // Follow the music settings; play quieter on screens with gameplay video when its sound is on.
         lifecycleScope.launch {
             snapshotFlow {
                 val cfg = vm.config
                 val videoScreen = vm.screen.let { it is Screen.Games || it is Screen.Search || it is Screen.Collection }
                 val duck = if (cfg.videoSound && videoScreen) VIDEO_DUCK else 1f
-                Triple(vm.ready && cfg.music, BackgroundMusic.volume(cfg.musicVolume) * duck, cfg.romsRoot)
-            }.collect { (on, volume, root) -> music.configure(on, volume, root?.let(Uri::parse)) }
+                MusicSettings(vm.ready && cfg.music, BackgroundMusic.volume(cfg.musicVolume) * duck, cfg.romsRoot, cfg.musicOff, cfg.musicRepeat)
+            }.collect { m -> music.configure(m.on, m.volume, m.root?.let(Uri::parse), m.off, m.repeat) }
         }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideSystemBars()
@@ -65,6 +75,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+        consoleSounds.stop()
         music.onPause()
     }
 
@@ -93,8 +104,35 @@ class MainActivity : ComponentActivity() {
         // While typing, keys belong to the text field; only B (cancel) and Start (save) reach us.
         if (vm.textInputActive && button != Pad.B && button != Pad.Start) return super.dispatchKeyEvent(event)
         if (button == Pad.L2 || button == Pad.R2) triggerKeysSeen = true
+        // Select: a tap does what the screen says (e.g. random game); holding it opens the quick menu.
+        if (button == Pad.Select && !vm.quickMenu) {
+            when {
+                event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 -> {
+                    selectHeld = true
+                    quickOpened = false
+                    handler.postDelayed(openQuickMenu, QUICK_MENU_HOLD_MS)
+                }
+                event.action == KeyEvent.ACTION_UP -> {
+                    selectHeld = false
+                    handler.removeCallbacks(openQuickMenu)
+                    if (!quickOpened) press(Pad.Select, 0)
+                }
+            }
+            return true
+        }
         if (event.action == KeyEvent.ACTION_DOWN) press(button, event.repeatCount)
         return true
+    }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var selectHeld = false
+    private var quickOpened = false
+    private val openQuickMenu = Runnable {
+        if (!selectHeld) return@Runnable
+        quickOpened = true
+        if (vm.onInput()) return@Runnable
+        UiSounds.forButton(Pad.Start)?.let(vm::sound)
+        vm.quickMenu = true
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
@@ -137,6 +175,10 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         vm.soundPlayer = null
         vm.music = null
+        vm.consoleSoundPlayer = null
+        vm.quickControls = null
+        handler.removeCallbacks(openQuickMenu)
+        consoleSounds.release()
         sounds.release()
         music.release()
         super.onDestroy()
@@ -145,5 +187,8 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val TRIGGER_THRESHOLD = 0.5f
         const val VIDEO_DUCK = 0.35f
+        /** Startup sounds play a little louder than menu clicks. */
+        const val CONSOLE_SOUND_GAIN = 1.6f
+        const val QUICK_MENU_HOLD_MS = 500L
     }
 }
