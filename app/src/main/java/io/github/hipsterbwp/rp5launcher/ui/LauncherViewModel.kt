@@ -15,6 +15,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.hipsterbwp.rp5launcher.art.GameArt
 import io.github.hipsterbwp.rp5launcher.art.ArtIndex
+import io.github.hipsterbwp.rp5launcher.art.CustomArt
 import io.github.hipsterbwp.rp5launcher.art.LogoStore
 import io.github.hipsterbwp.rp5launcher.art.Scraper
 import io.github.hipsterbwp.rp5launcher.art.ScreenScraper
@@ -170,6 +171,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** HD cover of each system's best-selling game, for the console screen. */
     val systemFeature = mutableStateMapOf<String, File>()
     private val featureTried = HashSet<String>()
+    /** Your own backdrops from the ROMs folder's "_art" folder, per system. */
+    val systemCustom = mutableStateMapOf<String, File>()
 
     var screenScraper by mutableStateOf(ScreenScraperAccount.Credentials("", "", "", ""))
         private set
@@ -201,6 +204,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun cycleMusicVolume() = updateConfig { it.copy(musicVolume = it.musicVolume % 3 + 1) }
 
+    fun cycleBackdrop() = updateConfig {
+        it.copy(backdrop = BACKDROPS[(BACKDROPS.indexOf(it.backdrop) + 1).mod(BACKDROPS.size)])
+    }
+
+    fun cycleBackdropBlur() = updateConfig { it.copy(backdropBlur = (it.backdropBlur + 1) % 3) }
+
+    fun setBackdropTint(enabled: Boolean) = updateConfig { it.copy(backdropTint = enabled) }
+
     /** Set by the activity, which owns the music player. */
     var music: BackgroundMusic? = null
 
@@ -231,6 +242,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             library = loaded.library?.takeIf { it.rootUri == loaded.config.romsRoot }
             rebuildSystems()
             refreshLogos()
+            refreshCustomArt()
             val root = rootUri()
             if (root == null || !hasAccess(root)) {
                 backStack += Screen.Setup(1)
@@ -461,6 +473,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 rebuildSystems()
                 homeSystemIndex = homeSystemIndex.coerceIn(0, (systems.size - 1).coerceAtLeast(0))
                 refreshLogos()
+                refreshCustomArt()
                 if (config.autoScrape) scrapeArt(force = false)
             }.onFailure {
                 dialog = Dialog.Message(
@@ -740,6 +753,22 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun titleArt(game: Game): File? = scraper.file(art[game.id]?.titleShot)
 
+    /** Copies backdrops from the ROMs folder's "_art" folder; matched by system name or folder name. */
+    private fun refreshCustomArt() {
+        val root = rootUri() ?: return
+        val app = getApplication<Application>()
+        viewModelScope.launch {
+            val found = withContext(Dispatchers.IO) {
+                runCatching { CustomArt.sync(app.contentResolver, root, File(app.filesDir, "custom-art")) }.getOrNull()
+            } ?: return@launch
+            val matched = systems.mapNotNull { s ->
+                (found[s.name] ?: found[s.folderName.lowercase()])?.let { s.name to it }
+            }.toMap()
+            (systemCustom.keys - matched.keys).forEach { systemCustom.remove(it) }
+            systemCustom.putAll(matched)
+        }
+    }
+
     /** Hero art for a console: fanart of the last played game, else of any game that has some. */
     fun systemHero(system: SystemEntry): File? {
         val withFanart = system.games.filter { art[it.id]?.fanart != null }
@@ -993,3 +1022,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             genre.substringBefore(" / ").substringBefore(',').substringBefore(" (").trim()
     }
 }
+
+/** Console screen backdrop choices, in the order Settings cycles through them. */
+val BACKDROPS = listOf("auto", "cover", "console")

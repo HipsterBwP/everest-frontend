@@ -48,6 +48,15 @@ data class LauncherConfig(
     /** Background music while browsing, and its level 1 (low) to 3 (high). */
     val music: Boolean = true,
     val musicVolume: Int = 1,
+    /**
+     * Console screen backdrop: "auto" (your own art from the "_art" folder, then game fanart, then the
+     * best-selling game's cover), "cover" (best-selling game's cover only) or "console".
+     */
+    val backdrop: String = "auto",
+    /** Blur behind the best-selling game's cover: 0 off, 1 soft, 2 strong. */
+    val backdropBlur: Int = 2,
+    /** Tint console backdrops with the system's colour. */
+    val backdropTint: Boolean = true,
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 

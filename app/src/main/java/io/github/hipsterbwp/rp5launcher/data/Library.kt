@@ -185,8 +185,8 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
 
     companion object {
         private const val MAX_DEPTH = 2
-        /** Folders in the ROMs folder that aren't systems (your own background music). */
-        private val NON_SYSTEM_FOLDERS = setOf("music", "_music")
+        /** Folders in the ROMs folder that aren't systems (your own background music and backdrops). */
+        private val NON_SYSTEM_FOLDERS = setOf("music", "_music", "_art")
         private val SHEET_EXTENSIONS = setOf("m3u", "cue", "gdi")
         private const val SHEET_MAX_BYTES = 64L * 1024
         private val CUE_FILE = Regex("""^FILE\s+"([^"]+)"""", RegexOption.IGNORE_CASE)

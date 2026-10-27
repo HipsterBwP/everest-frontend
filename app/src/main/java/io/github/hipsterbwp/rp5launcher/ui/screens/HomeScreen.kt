@@ -46,6 +46,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import io.github.hipsterbwp.rp5launcher.ui.ButtonGlyph
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import io.github.hipsterbwp.rp5launcher.data.Game
@@ -121,6 +124,10 @@ private fun SystemsTab(
     fun open() {
         selected?.let { vm.push(Screen.Games(it.name)) }
     }
+    val last = selected?.let(vm::lastPlayed)
+    fun resume() {
+        if (selected != null && last != null) vm.play(selected.name, last)
+    }
 
     PadInput { button, _ ->
         when (button) {
@@ -129,6 +136,7 @@ private fun SystemsTab(
             Pad.L1 -> { switchTab(-1); true }
             Pad.R1 -> { switchTab(1); true }
             Pad.A -> { open(); true }
+            Pad.X -> { resume(); true }
             Pad.Y -> { vm.push(Screen.Search); true }
             Pad.Start -> { openSettings(); true }
             else -> false
@@ -136,24 +144,39 @@ private fun SystemsTab(
     }
 
     Box(Modifier.fillMaxSize().background(bg)) {
-        val hero = selected?.let(vm::systemHero)
-        val feature = selected?.let { vm.systemFeature[it.name] }
+        val backdrop = vm.config.backdrop
+        // Hero, best first (in "auto"): your own picture from the "_art" folder, widescreen fanart of
+        // one of your games, an HD cover of the best-selling game over a blur of itself, the console.
+        val hero = selected?.takeIf { backdrop == "auto" }?.let { vm.systemCustom[it.name] ?: vm.systemHero(it) }
+        val feature = selected?.takeIf { backdrop != "console" }?.let { vm.systemFeature[it.name] }
         val product = selected?.let { vm.systemImages[it.name] }
+        val shade = if (vm.config.backdropTint && selected != null) {
+            lerp(Palette.black, selected.color, Alpha.BACKDROP_TINT)
+        } else {
+            Palette.black
+        }
 
-        // Hero, best first: widescreen fanart of one of your games (ScreenScraper), else an HD cover
-        // of the system's best-selling game over a blur of itself, else the console as a product shot.
         Crossfade(targetState = Triple(hero, feature, product), animationSpec = Motion.colorFade(), label = "hero") { (art, cover, console) ->
             Box(Modifier.fillMaxSize()) {
                 if (art == null && cover != null) {
-                    FeatureCover(cover, selected?.let { vm.bestSeller(it.name) })
+                    FeatureCover(cover, selected?.let { vm.bestSeller(it.name) }, vm.config.backdropBlur, shade)
                 } else if (art != null) {
                     ArtImage(art, Modifier.fillMaxSize(), ContentScale.Crop)
-                    // Soft shade behind the rail and panel so text stays readable over any art.
+                    // Soft shade behind the rail and panel, and along the top under the tabs and clock,
+                    // so text stays readable over any art.
                     Box(
                         Modifier.fillMaxSize().background(
                             Brush.horizontalGradient(
-                                0f to Palette.black.copy(alpha = Alpha.HERO_SHADE),
+                                0f to shade.copy(alpha = Alpha.HERO_SHADE),
                                 0.62f to Palette.transparent,
+                            ),
+                        ),
+                    )
+                    Box(
+                        Modifier.fillMaxWidth().height(Size.TOP_SHADE_H.u).background(
+                            Brush.verticalGradient(
+                                0f to Palette.black.copy(alpha = Alpha.TOP_SHADE),
+                                1f to Palette.transparent,
                             ),
                         ),
                     )
@@ -200,6 +223,7 @@ private fun SystemsTab(
 
         val hints = buildList {
             if (selected != null) add(Hint(Pad.A, "Open", onClick = ::open))
+            if (last != null) add(Hint(Pad.X, "Continue", onClick = ::resume))
             add(Hint(Pad.Y, "Search", onClick = { vm.push(Screen.Search) }))
             add(Hint(listOf(Pad.L1, Pad.R1), "Switch tab", onClick = { switchTab(1) }))
             add(Hint(Pad.Start, "Settings", trailing = true, onClick = openSettings))
@@ -239,11 +263,16 @@ private fun LogoRail(
                     if (focused) Size.RAIL_LOGO_SELECTED_H.u else Size.RAIL_LOGO_H.u, Motion.focus(), label = "rail-h",
                 )
                 val alpha by animateFloatAsState(if (focused) 1f else Focus.RAIL_DIM, Motion.focus(), label = "rail-a")
+                val highlight by animateFloatAsState(
+                    if (focused) Alpha.RAIL_SELECTION else 0f, Motion.focus(), label = "rail-hl",
+                )
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height(itemHeight)
-                        .padding(horizontal = Space.SECTION_SMALL.u)
+                        .padding(horizontal = Space.SM.u, vertical = Space.SM.u)
+                        .background(Palette.white.copy(alpha = highlight), rounded(Radius.CARD))
+                        .padding(horizontal = Space.SECTION_SMALL.u - Space.SM.u)
                         .alpha(alpha)
                         .tap { if (focused) open() else select(i) },
                     contentAlignment = Alignment.Center,
@@ -294,11 +323,26 @@ private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry) {
                     Txt(value, Type.label, Palette.ink, maxLines = 2)
                 }
             }
-            vm.lastPlayed(system)?.let { last ->
-                Column {
-                    Txt("Last played", Type.caption, Palette.inkSecondary)
-                    Txt(last.title, Type.label, Palette.ink)
+        }
+        vm.lastPlayed(system)?.let { last ->
+            Spacer(Modifier.height(Space.SECTION_SMALL.u))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(Palette.white.copy(alpha = Alpha.RAIL_SELECTION), rounded(Radius.CARD))
+                    .tap { vm.play(system.name, last) }
+                    .padding(Space.MD.u),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Space.MD.u),
+            ) {
+                vm.boxArt(last)?.let {
+                    ArtImage(it, Modifier.height(Size.CONTINUE_ART_H.u).width(Size.CONTINUE_ART_H.u))
                 }
+                Column(Modifier.weight(1f)) {
+                    Txt("CONTINUE", Type.eyebrow, Palette.inkSecondary)
+                    Txt(last.title, Type.labelStrong, Palette.ink, maxLines = 1)
+                }
+                ButtonGlyph(listOf(Pad.X), Palette.inkOnLight)
             }
         }
         // The console (or its controller) fills the rest of the panel.
@@ -414,10 +458,15 @@ private fun GamesTab(vm: LauncherViewModel, tab: Int, switchTab: (Int) -> Unit, 
  * dimmed copy of itself that fills the screen.
  */
 @Composable
-private fun FeatureCover(cover: File, title: String?) {
+private fun FeatureCover(cover: File, title: String?, blurLevel: Int, shade: Color) {
+    val radius = when (blurLevel) {
+        0 -> 0
+        1 -> Blur.BACKDROP / 2
+        else -> Blur.BACKDROP
+    }
     Box(Modifier.fillMaxSize()) {
-        ArtImage(cover, Modifier.fillMaxSize().blur(Blur.BACKDROP.u), ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Palette.black.copy(alpha = Alpha.BROWSER_DIM)))
+        ArtImage(cover, Modifier.fillMaxSize().then(if (radius > 0) Modifier.blur(radius.u) else Modifier), ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(shade.copy(alpha = Alpha.BROWSER_DIM)))
         Column(
             Modifier
                 .fillMaxSize()

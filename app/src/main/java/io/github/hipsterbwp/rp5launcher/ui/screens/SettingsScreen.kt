@@ -57,7 +57,7 @@ import java.text.DateFormat
 import java.util.Date
 
 private enum class Page(val title: String) {
-    Library("Library"), Emulators("Emulators"), Controls("Controls"), Scraper("Scraper"),
+    Library("Library"), Emulators("Emulators"), Controls("Controls"), Appearance("Appearance"), Scraper("Scraper"),
     ScreenScraper("ScreenScraper"), Sound("Sound"), Stats("Stats"), About("About")
 }
 
@@ -86,6 +86,7 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
         Page.Scraper -> scraperItems(vm, accent)
         Page.ScreenScraper -> screenScraperItems(vm, accent)
         Page.Sound -> soundItems(vm, accent)
+        Page.Appearance -> appearanceItems(vm, accent)
         Page.Controls -> controlsItems(vm, accent)
         Page.Stats -> statsItems(vm, accent)
         Page.About -> aboutItems(vm, accent)
@@ -208,6 +209,7 @@ private fun pageSubtitle(page: Page) = when (page) {
     Page.Scraper -> "Box art, screenshots, game info and console logos, downloaded from free sources."
     Page.ScreenScraper -> "Sign in for gameplay videos, fanart, descriptions and ratings."
     Page.Sound -> "Menu sounds, background music and gameplay video sound."
+    Page.Appearance -> "What fills the console screen behind each system."
     Page.Controls -> "Buttons, the screensaver, and making ARCROW your home screen."
     Page.Stats -> "Your play time, favourites and streaks."
     Page.About -> "Version, config file and credits."
@@ -392,6 +394,71 @@ private fun screenScraperItems(vm: LauncherViewModel, accent: Color): List<Item>
 }
 
 @Composable
+private fun appearanceItems(vm: LauncherViewModel, accent: Color): List<Item> {
+    val c = vm.config
+    return listOf(
+        Item("backdrop", onA = { vm.cycleBackdrop() }, aLabel = "Change") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Console backdrop", Type.rowTitle, Palette.ink)
+                    Txt(
+                        when (c.backdrop) {
+                            "cover" -> "The best-selling game's cover, over a blur of itself"
+                            "console" -> "The console on its own colour"
+                            else -> "Your own pictures first, then game fanart, then the best-selling game's cover"
+                        },
+                        Type.label, Palette.inkSecondary, maxLines = 2,
+                    )
+                }
+                Txt(
+                    when (c.backdrop) {
+                        "cover" -> "Best-seller"
+                        "console" -> "Console"
+                        else -> "Automatic"
+                    },
+                    Type.labelStrong, Palette.inkSecondary,
+                )
+            }
+        },
+        Item("custom") { focused ->
+            ListRow(focused, accent, background = Palette.surface) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Your own pictures", Type.rowTitle, Palette.ink)
+                    Txt(
+                        "Put images named after each system (snes.jpg, ps2.png…) in an \"_art\" folder in your " +
+                            "ROMs folder, then rescan. Wide 1920×1080 pictures look best.",
+                        Type.label, Palette.inkSecondary, maxLines = 3,
+                    )
+                }
+                val n = vm.systemCustom.size
+                Txt(if (n == 0) "None" else "$n found", Type.labelStrong, if (n > 0) Palette.ok else Palette.inkSecondary)
+            }
+        },
+        Item("blur", onA = { vm.cycleBackdropBlur() }, aLabel = "Change") { focused ->
+            ListRow(focused, accent) {
+                Txt("Blur behind covers", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt(
+                    when (c.backdropBlur) {
+                        0 -> "Off"
+                        1 -> "Soft"
+                        else -> "Strong"
+                    },
+                    Type.labelStrong, Palette.inkSecondary,
+                )
+            }
+        },
+        Item("tint", onA = { vm.setBackdropTint(!c.backdropTint) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Console colour tint", Type.rowTitle, Palette.ink)
+                    Txt("Shade backdrops with each system's colour", Type.label, Palette.inkSecondary)
+                }
+                Txt(if (c.backdropTint) "On" else "Off", Type.labelStrong, if (c.backdropTint) Palette.ok else Palette.inkSecondary)
+            }
+        },
+    )
+}
+
 private fun soundItems(vm: LauncherViewModel, accent: Color): List<Item> {
     val on = vm.config.navigationSounds
     return listOf(

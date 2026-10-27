@@ -385,6 +385,10 @@ object Size {
     const val RAIL_LOGO_SELECTED_H = 50
     const val RAIL_ITEM_GAP = 26
     const val SYSTEM_PANEL_W = 300
+    /** Box art thumbnail on the panel's Continue card. */
+    const val CONTINUE_ART_H = 44
+    /** Top-shade height on full-screen backdrops. */
+    const val TOP_SHADE_H = 150
 
     // Game browser: media + info column | cover grid
     const val BROWSER_INFO_W = 410
@@ -417,7 +421,7 @@ object Focus {
     /** Slow zoom on slideshow stills. */
     const val KEN_BURNS_SCALE = 1.12f
     /** Unfocused rail logos fade back. */
-    const val RAIL_DIM = 0.45f
+    const val RAIL_DIM = 0.3f
 }
 
 /** Soft shadows (in units) under lifted and floating elements. */
@@ -442,6 +446,12 @@ object Alpha {
     const val PANEL_BACKDROP_SCRIM = 0.55f
     /** Darkest point of the shade behind the console screen's rail and panel. */
     const val HERO_SHADE = 0.85f
+    /** Shade along the top of full-screen backdrops, under the tabs and clock. */
+    const val TOP_SHADE = 0.45f
+    /** How much of the system colour mixes into backdrop shades when tinting is on. */
+    const val BACKDROP_TINT = 0.4f
+    /** Highlight behind the selected logo in the rail. */
+    const val RAIL_SELECTION = 0.12f
     /** Dark layer over the blurred backdrop of the game browser. */
     const val BROWSER_DIM = 0.45f
 }
