@@ -321,8 +321,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun rebuildSystems() {
         val catalog = catalog ?: return
-        val colors = SystemColors.assign(library?.systems.orEmpty().map { it.name })
-        systems = library?.systems.orEmpty().mapNotNull { scanned ->
+        val visible = library?.systems.orEmpty().filter { it.name !in config.hiddenSystems }
+        val colors = SystemColors.assign(visible.map { it.name })
+        systems = visible.mapNotNull { scanned ->
             val def = catalog.system(scanned.name) ?: return@mapNotNull null
             SystemEntry(
                 def = def,

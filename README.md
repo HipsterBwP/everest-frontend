@@ -62,6 +62,8 @@ Android/data/io.github.hipsterbwp.rp5launcher/files/launcher-config.json
 
 - `emulator` is a command label from ES-DE's `es_systems.xml` (or one of your own `commands`).
 - `color` overrides the system color.
+- `hiddenSystems` (top level) lists systems to leave off the console list, e.g.
+  `"hiddenSystems": ["androidapps", "androidgames", "emulators"]` (the default).
 - `commands` adds launch options in ES-DE syntax; `emulators` adds or overrides find rules
   (`package/activity`).
 

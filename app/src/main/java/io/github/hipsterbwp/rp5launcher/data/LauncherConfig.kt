@@ -22,6 +22,8 @@ import java.io.File
  *
  * "emulator" is a command label from ES-DE's es_systems.xml (or one added under "commands").
  * "emulators" adds or overrides ES-DE find rules: emulator name -> "package/activity" entries.
+ * "hiddenSystems" lists ES-DE system names to leave off the console list
+ * (default: androidapps, androidgames, emulators).
  */
 @Serializable
 data class LauncherConfig(
@@ -35,6 +37,8 @@ data class LauncherConfig(
     val soundVolume: Int = 2,
     /** Play gameplay videos with sound (muted by default). */
     val videoSound: Boolean = false,
+    /** ES-DE system names left off the console list even when their folder has files. */
+    val hiddenSystems: Set<String> = DEFAULT_HIDDEN_SYSTEMS,
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 
@@ -42,6 +46,9 @@ data class LauncherConfig(
         copy(systems = systems + (name to update(system(name))))
 
     companion object {
+        /** ES-DE's shortcut folders for Android apps aren't consoles. */
+        val DEFAULT_HIDDEN_SYSTEMS = setOf("androidapps", "androidgames", "emulators")
+
         /** First-run defaults: the emulators this device's owner uses. */
         val defaults = LauncherConfig(
             systems = mapOf(
