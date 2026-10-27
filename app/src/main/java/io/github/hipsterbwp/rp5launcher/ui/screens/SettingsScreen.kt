@@ -207,7 +207,7 @@ private fun pageSubtitle(page: Page) = when (page) {
     Page.Emulators -> "Which app opens each system. Changes are saved to launcher-config.json."
     Page.Scraper -> "Box art, screenshots, game info and console logos, downloaded from free sources."
     Page.ScreenScraper -> "Sign in for gameplay videos, fanart, descriptions and ratings."
-    Page.Sound -> "Clicks and chimes as you move around, and gameplay video sound."
+    Page.Sound -> "Menu sounds, background music and gameplay video sound."
     Page.Controls -> "Buttons, the screensaver, and making ARCROW your home screen."
     Page.Stats -> "Your play time, favourites and streaks."
     Page.About -> "Version, config file and credits."
@@ -399,6 +399,39 @@ private fun soundItems(vm: LauncherViewModel, accent: Color): List<Item> {
             ListRow(focused, accent) {
                 Txt("Navigation sounds", Type.rowTitle, Palette.ink, Modifier.weight(1f))
                 Txt(if (on) "On" else "Off", Type.labelStrong, if (on) Palette.ok else Palette.inkSecondary)
+            }
+        },
+        Item("music", onA = { vm.setMusic(!vm.config.music) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Background music", Type.rowTitle, Palette.ink)
+                    val (count, own) = vm.music?.source ?: (0 to false)
+                    Txt(
+                        if (own) "$count tracks from your music folder"
+                        else "ARCROW's own tracks · or add MP3s to a \"music\" folder in your ROMs folder",
+                        Type.label, Palette.inkSecondary, maxLines = 2,
+                    )
+                }
+                Txt(if (vm.config.music) "On" else "Off", Type.labelStrong, if (vm.config.music) Palette.ok else Palette.inkSecondary)
+            }
+        },
+        Item("musicvolume", onA = { vm.cycleMusicVolume() }, aLabel = "Change") { focused ->
+            ListRow(focused, accent) {
+                Txt("Music volume", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt(
+                    when (vm.config.musicVolume) {
+                        1 -> "Low"
+                        3 -> "High"
+                        else -> "Medium"
+                    },
+                    Type.labelStrong, Palette.inkSecondary,
+                )
+            }
+        },
+        Item("skip", onA = { vm.music?.skip() }, aLabel = "Skip") { focused ->
+            ListRow(focused, accent, background = Palette.surface) {
+                Txt("Next track", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                ChevronIcon(Palette.inkSecondary)
             }
         },
         Item("videosound", onA = { vm.setVideoSound(!vm.config.videoSound) }, aLabel = "Toggle") { focused ->

@@ -91,7 +91,9 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
 
     fun scan(rootUri: Uri, onProgress: (systemsDone: Int, systemsTotal: Int) -> Unit = { _, _ -> }): LibraryCache {
         val rootDocId = DocumentsContract.getTreeDocumentId(rootUri)
-        val folders = children(rootUri, rootDocId).filter { it.isDir && !it.name.startsWith(".") }
+        val folders = children(rootUri, rootDocId).filter {
+            it.isDir && !it.name.startsWith(".") && it.name.lowercase() !in NON_SYSTEM_FOLDERS
+        }
         val systems = ArrayList<ScannedSystem>()
         val unknown = ArrayList<String>()
         folders.forEachIndexed { i, folder ->
@@ -183,6 +185,8 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
 
     companion object {
         private const val MAX_DEPTH = 2
+        /** Folders in the ROMs folder that aren't systems (your own background music). */
+        private val NON_SYSTEM_FOLDERS = setOf("music", "_music")
         private val SHEET_EXTENSIONS = setOf("m3u", "cue", "gdi")
         private const val SHEET_MAX_BYTES = 64L * 1024
         private val CUE_FILE = Regex("""^FILE\s+"([^"]+)"""", RegexOption.IGNORE_CASE)

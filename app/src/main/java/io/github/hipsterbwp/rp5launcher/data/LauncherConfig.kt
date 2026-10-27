@@ -45,6 +45,9 @@ data class LauncherConfig(
     val buttonLabels: String = "letters",
     /** Minutes idle before the screensaver; 0 turns it off. */
     val screensaverMinutes: Int = 5,
+    /** Background music while browsing, and its level 1 (low) to 3 (high). */
+    val music: Boolean = true,
+    val musicVolume: Int = 1,
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 

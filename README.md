@@ -43,6 +43,9 @@ and opens Android's setting to make ARCROW the home screen (the Home button then
 - **Hiding**: hide a game from its Options; unhide, and show or hide whole systems, in Settings › Library.
   BIOS files are skipped, and discs/tracks listed by an `.m3u`, `.cue` or `.gdi` appear once.
 - **Stats**: Settings › Stats shows total play time, most played games and day streaks.
+- **Background music**: three original tracks play softly while you browse and pause while a game
+  runs. Put your own MP3/OGG/FLAC files in a `music` folder inside the ROMs folder to play those
+  instead. On/off, volume and next track are in Settings › Sound.
 
 ## Emulators and the config file
 

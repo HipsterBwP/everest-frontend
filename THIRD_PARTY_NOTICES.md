@@ -45,6 +45,11 @@ Licensed under the SIL Open Font License 1.1; the full text is in `app/src/main/
 
 `app/src/main/res/raw/ui_*.wav` were synthesized for this project and carry no third-party rights.
 
+## Music
+
+`app/src/main/res/raw/music_*.ogg` (Neon Drift, Pixel Garden, After Hours) are original compositions
+synthesized for ARCROW by `tools/music/compose.py`, with no samples or third-party material.
+
 ## Libraries
 
 - [Coil](https://github.com/coil-kt/coil), Apache License 2.0

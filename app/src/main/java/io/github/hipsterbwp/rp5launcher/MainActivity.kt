@@ -1,6 +1,7 @@
 package io.github.hipsterbwp.rp5launcher
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -9,6 +10,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.lifecycleScope
+import io.github.hipsterbwp.rp5launcher.ui.BackgroundMusic
+import io.github.hipsterbwp.rp5launcher.ui.Screen
+import kotlinx.coroutines.launch
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -24,6 +30,7 @@ class MainActivity : ComponentActivity() {
     private val vm: LauncherViewModel by viewModels()
     private val pad = PadDispatcher()
     private lateinit var sounds: UiSounds
+    private lateinit var music: BackgroundMusic
 
     /** Analog triggers: once the device sends L2/R2 key events, ignore the trigger axes. */
     private var triggerKeysSeen = false
@@ -34,6 +41,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         sounds = UiSounds(this)
         vm.soundPlayer = { sounds.play(it, UiSounds.volume(vm.config.soundVolume)) }
+        music = BackgroundMusic(this, lifecycleScope)
+        vm.music = music
+        // Follow the music settings; play quieter on screens with gameplay video when its sound is on.
+        lifecycleScope.launch {
+            snapshotFlow {
+                val cfg = vm.config
+                val videoScreen = vm.screen.let { it is Screen.Games || it is Screen.Search || it is Screen.Collection }
+                val duck = if (cfg.videoSound && videoScreen) VIDEO_DUCK else 1f
+                Triple(vm.ready && cfg.music, BackgroundMusic.volume(cfg.musicVolume) * duck, cfg.romsRoot)
+            }.collect { (on, volume, root) -> music.configure(on, volume, root?.let(Uri::parse)) }
+        }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideSystemBars()
         setContent {
@@ -45,8 +63,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        music.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        music.onResume()
         hideSystemBars()
         vm.onResumed()
     }
@@ -112,11 +136,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         vm.soundPlayer = null
+        vm.music = null
         sounds.release()
+        music.release()
         super.onDestroy()
     }
 
     private companion object {
         const val TRIGGER_THRESHOLD = 0.5f
+        const val VIDEO_DUCK = 0.35f
     }
 }

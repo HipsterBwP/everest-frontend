@@ -194,6 +194,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setVideoSound(enabled: Boolean) = updateConfig { it.copy(videoSound = enabled) }
 
+    fun setMusic(enabled: Boolean) = updateConfig { it.copy(music = enabled) }
+
+    fun cycleMusicVolume() = updateConfig { it.copy(musicVolume = it.musicVolume % 3 + 1) }
+
+    /** Set by the activity, which owns the music player. */
+    var music: BackgroundMusic? = null
+
     val configPath: String get() = configStore.file.absolutePath
 
     private var scanJob: Job? = null
