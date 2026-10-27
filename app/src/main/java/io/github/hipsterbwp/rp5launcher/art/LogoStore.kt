@@ -17,6 +17,9 @@ import kotlin.math.abs
  * Each logo is stored as a white-on-transparent PNG mask so the UI can tint it: white on a
  * system-color tile, system color on the focused (white) tile.
  */
+/** Outcome of fetching one piece of art: got it, it doesn't exist, or try again later. */
+enum class Fetch { OK, MISSING, FAILED }
+
 class LogoStore(context: Context) {
     private val dir = File(context.filesDir, "art/logos").apply { mkdirs() }
 
@@ -32,16 +35,25 @@ class LogoStore(context: Context) {
             val fresh = miss.exists() && miss.readText() == SOURCES_VERSION &&
                 System.currentTimeMillis() - miss.lastModified() < RETRY_MS
             if (!force && (png.exists() || fresh)) return@filter false
-            val ok = runCatching { download(system, png) }.getOrDefault(false)
-            if (ok) miss.delete() else miss.writeText(SOURCES_VERSION)
-            ok
+            when (runCatching { download(system, png) }.getOrDefault(Fetch.FAILED)) {
+                Fetch.OK -> { miss.delete(); true }
+                // Only a definite "no logo anywhere" is remembered; network trouble retries next launch.
+                Fetch.MISSING -> { miss.writeText(SOURCES_VERSION); false }
+                Fetch.FAILED -> false
+            }
         }
 
-    private fun download(system: String, out: File): Boolean {
+    private fun download(system: String, out: File): Fetch {
         val urls = carbonNames(system).map { "$CARBON/$it/art/system.svg" } + "$SLATE/$system/images/logo.svg"
+        var failed = false
         val svgText = urls.firstNotNullOfOrNull { url ->
-            runCatching { Http.get(url) }.getOrNull()?.toString(Charsets.UTF_8)
-        } ?: return false
+            try {
+                Http.get(url)?.toString(Charsets.UTF_8)
+            } catch (e: java.io.IOException) {
+                failed = true
+                null
+            }
+        } ?: return if (failed) Fetch.FAILED else Fetch.MISSING
         val svg = SVG.getFromString(inlineEntities(svgText))
         val box = svg.documentViewBox
         val aspect = when {
@@ -58,13 +70,13 @@ class LogoStore(context: Context) {
         val mask = toMask(bitmap)
         val tmp = File(out.parentFile, out.name + ".tmp")
         tmp.outputStream().use { mask.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        return tmp.renameTo(out)
+        return if (tmp.renameTo(out)) Fetch.OK else Fetch.FAILED
     }
 
     companion object {
         private const val CARBON = "https://raw.githubusercontent.com/RetroPie/es-theme-carbon/master"
         private const val SLATE = "https://gitlab.com/es-de/themes/slate-es-de/-/raw/master"
-        private const val SOURCES_VERSION = "carbon+slate"
+        private const val SOURCES_VERSION = "carbon+slate/2"
         private const val SIZE = 512
         private const val RETRY_MS = 7L * 24 * 60 * 60 * 1000
 

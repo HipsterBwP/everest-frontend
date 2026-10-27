@@ -13,16 +13,29 @@ internal object Http {
     /** Non-OK response; [body] is the server's error text, if any (ScreenScraper explains errors there). */
     class Status(val code: Int, val body: String = "") : IOException("HTTP $code${if (body.isNotBlank()) ": $body" else ""}")
 
-    private val RETRY_DELAYS_MS = longArrayOf(1_000, 3_000)
+    private val RETRY_DELAYS_MS = longArrayOf(1_000, 3_000, 8_000)
+
+    /** GitLab throttles bursts from one device; space its requests out. */
+    private const val GITLAB_GAP_MS = 400L
+    private var lastGitLab = 0L
+
+    @Synchronized
+    private fun pace(url: String) {
+        if ("gitlab.com" !in url) return
+        val wait = lastGitLab + GITLAB_GAP_MS - System.currentTimeMillis()
+        if (wait > 0) Thread.sleep(wait)
+        lastGitLab = System.currentTimeMillis()
+    }
 
     /**
      * Returns the body, or null on 404. Retries rate limits (429), server errors and dropped
-     * connections twice, then throws ([Status] or the IOException).
+     * connections three times with growing pauses, then throws ([Status] or the IOException).
      */
     fun get(url: String, accept: String? = null): ByteArray? {
         var attempt = 0
         while (true) {
             try {
+                pace(url)
                 return getOnce(url, accept)
             } catch (e: IOException) {
                 val retryable = e !is Status || e.code == 429 || e.code >= 500

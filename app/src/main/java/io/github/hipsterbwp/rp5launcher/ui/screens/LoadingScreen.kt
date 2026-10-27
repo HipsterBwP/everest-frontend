@@ -9,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -68,13 +69,16 @@ fun LoadingScreen(step: LoadingStep) {
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Box(contentAlignment = Alignment.Center) {
-                // Blue light behind the logo.
-                Box(
-                    Modifier
-                        .size(Size.SPLASH_GLOW.u)
-                        .background(Brush.radialGradient(listOf(Palette.brandGlow, Palette.transparent))),
-                )
+            val glow = Size.SPLASH_GLOW.u
+            Box(
+                // Blue light behind the logo, drawn past its bounds so it takes no layout space
+                // (a glow-sized box pushed the progress bar off the bottom of the screen).
+                Modifier.drawBehind {
+                    val radius = glow.toPx() / 2
+                    drawCircle(Brush.radialGradient(listOf(Palette.brandGlow, Palette.transparent), center, radius), radius)
+                },
+                contentAlignment = Alignment.Center,
+            ) {
                 Image(
                     painterResource(R.drawable.brand_logo),
                     contentDescription = "ARCROW",

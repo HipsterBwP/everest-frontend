@@ -42,11 +42,20 @@ class SystemArtStore(context: Context) {
         val png = png(system)
         val facts = File(dir, "$system.facts")
         val miss = File(dir, "$system.none")
-        val recentMiss = miss.exists() && System.currentTimeMillis() - miss.lastModified() < RETRY_MS
+        // Markers from older builds were also written on network errors; only trust current ones.
+        val recentMiss = miss.exists() && miss.readText() == MARKER &&
+            System.currentTimeMillis() - miss.lastModified() < RETRY_MS
         if (!force && ((png.exists() && facts.exists()) || recentMiss)) return@filter false
         var gained = false
+        var failed = false
         if (force || !facts.exists()) {
-            runCatching { Http.get("$SLATE/$system/systeminfo.xml") }.getOrNull()?.toString(Charsets.UTF_8)?.let { xml ->
+            val xmlBytes = try {
+                Http.get("$SLATE/$system/systeminfo.xml")
+            } catch (e: java.io.IOException) {
+                failed = true
+                null
+            }
+            xmlBytes?.toString(Charsets.UTF_8)?.let { xml ->
                 val lines = Regex("""<text>([^<]+)</text>""").findAll(xml).map { it.groupValues[1].trim() }
                     .filter { ':' in it }.toList()
                 if (lines.isNotEmpty()) {
@@ -56,15 +65,39 @@ class SystemArtStore(context: Context) {
             }
         }
         if (force || !png.exists()) {
-            gained = (render("$SLATE/$system/images/controller.svg", png, rotate = true) ||
-                render("$SLATE/$system/images/consolegame.svg", png, rotate = false)) || gained
+            val controller = render("$SLATE/$system/images/controller.svg", png, rotate = true)
+            val result = if (controller == Fetch.OK) {
+                Fetch.OK
+            } else {
+                val console = render("$SLATE/$system/images/consolegame.svg", png, rotate = false)
+                when {
+                    console == Fetch.OK -> Fetch.OK
+                    controller == Fetch.FAILED || console == Fetch.FAILED -> Fetch.FAILED
+                    else -> Fetch.MISSING
+                }
+            }
+            if (result == Fetch.OK) gained = true
+            if (result == Fetch.FAILED) failed = true
         }
-        if (!gained && !png.exists()) miss.writeText("") else miss.delete()
+        when {
+            png.exists() -> miss.delete()
+            // Remember "nothing here" only when the server said so, never after a network error.
+            !gained && !failed -> miss.writeText(MARKER)
+        }
         gained
     }
 
-    private fun render(url: String, out: File, rotate: Boolean): Boolean = runCatching {
-        val text = Http.get(url)?.toString(Charsets.UTF_8) ?: return false
+    private fun render(url: String, out: File, rotate: Boolean): Fetch {
+        val text = try {
+            Http.get(url)?.toString(Charsets.UTF_8)
+        } catch (e: java.io.IOException) {
+            return Fetch.FAILED
+        } ?: return Fetch.MISSING
+        // An SVG this renderer can't draw counts as missing, so the other image is tried.
+        return if (draw(text, out, rotate)) Fetch.OK else Fetch.MISSING
+    }
+
+    private fun draw(text: String, out: File, rotate: Boolean): Boolean = runCatching {
         val svg = SVG.getFromString(LogoStore.inlineEntities(text))
         val box = svg.documentViewBox
         val aspect = if (box != null && box.height() > 0) box.width() / box.height() else 1f
@@ -89,6 +122,7 @@ class SystemArtStore(context: Context) {
         private const val SLATE = "https://gitlab.com/es-de/themes/slate-es-de/-/raw/master"
         private const val HEIGHT = 480
         private const val ART_VERSION = 2
+        private const val MARKER = "slate/2"
         private const val RETRY_MS = 7L * 24 * 60 * 60 * 1000
     }
 }
