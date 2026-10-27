@@ -82,6 +82,7 @@ fun HomeScreen(vm: LauncherViewModel, appName: String) {
 
     when (tab) {
         TAB_FAVORITES, TAB_RECENT -> GamesTab(vm, tab, ::switchTab, ::openSettings)
+        TAB_COLLECTIONS -> CollectionsTab(vm, TABS, tab, ::switchTab, ::openSettings)
         else -> SystemsTab(vm, tab, ::switchTab, ::openSettings)
     }
 }
@@ -117,6 +118,7 @@ private fun SystemsTab(
             Pad.L1 -> { switchTab(-1); true }
             Pad.R1 -> { switchTab(1); true }
             Pad.A -> { open(); true }
+            Pad.Y -> { vm.push(Screen.Search); true }
             Pad.Start -> { openSettings(); true }
             else -> false
         }
@@ -183,6 +185,7 @@ private fun SystemsTab(
 
         val hints = buildList {
             if (selected != null) add(Hint(Pad.A, "Open", onClick = ::open))
+            add(Hint(Pad.Y, "Search", onClick = { vm.push(Screen.Search) }))
             add(Hint(listOf(Pad.L1, Pad.R1), "Switch tab", onClick = { switchTab(1) }))
             add(Hint(Pad.Start, "Settings", trailing = true, onClick = openSettings))
         }
@@ -310,7 +313,7 @@ private fun EmptyPanel(title: String, body: String) {
 
 /** Clock and battery in a glass capsule, refreshed every half minute. */
 @Composable
-private fun StatusPill() {
+internal fun StatusPill() {
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
     var battery by remember { mutableStateOf<Int?>(null) }
@@ -375,6 +378,7 @@ private fun GamesTab(vm: LauncherViewModel, tab: Int, switchTab: (Int) -> Unit, 
         }
         add(Hint(listOf(Pad.L1, Pad.R1), "Switch tab", onClick = { switchTab(1) }))
         add(Hint(Pad.Start, "Settings", trailing = true, onClick = openSettings))
+        randomHint(games.size) { browserMove(Pad.Select, 0, index, games.size, Size.COVER_COLUMNS, ::select) }?.let { add(it) }
     }
     GameBrowser(
         vm = vm,

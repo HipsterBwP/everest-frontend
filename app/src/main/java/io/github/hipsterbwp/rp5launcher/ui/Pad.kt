@@ -77,3 +77,20 @@ fun PadInput(handler: (Pad, Int) -> Boolean) {
         onDispose { dispatcher.remove(h) }
     }
 }
+
+/**
+ * What a hint glyph shows for a button. "playstation" maps face buttons to the symbol on the
+ * physical button that triggers them (bottom ✕, right ○, left □, top △), honouring the swap.
+ */
+fun buttonLabel(button: Pad, style: String, swapped: Boolean): String {
+    if (style != "playstation") return button.glyph
+    return when (button) {
+        Pad.A -> if (swapped) "○" else "✕"
+        Pad.B -> if (swapped) "✕" else "○"
+        Pad.X -> if (swapped) "△" else "□"
+        Pad.Y -> if (swapped) "□" else "△"
+        else -> button.glyph
+    }
+}
+
+val LocalButtonLabel = staticCompositionLocalOf<(Pad) -> String> { { it.glyph } }

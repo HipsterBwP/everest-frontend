@@ -39,6 +39,12 @@ data class LauncherConfig(
     val videoSound: Boolean = false,
     /** ES-DE system names left off the console list even when their folder has files. */
     val hiddenSystems: Set<String> = DEFAULT_HIDDEN_SYSTEMS,
+    /** Confirm with the right face button instead of the bottom one (A/B and X/Y swapped). */
+    val swapButtons: Boolean = false,
+    /** Hint glyphs: "letters" (A B X Y) or "playstation" (✕ ○ □ △). */
+    val buttonLabels: String = "letters",
+    /** Minutes idle before the screensaver; 0 turns it off. */
+    val screensaverMinutes: Int = 5,
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 

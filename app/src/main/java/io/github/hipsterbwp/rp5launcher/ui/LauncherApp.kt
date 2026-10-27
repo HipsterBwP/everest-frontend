@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,7 +25,10 @@ import io.github.hipsterbwp.rp5launcher.ui.screens.DialogHost
 import io.github.hipsterbwp.rp5launcher.ui.screens.GameDetailsScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.GameGridScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.HomeScreen
+import io.github.hipsterbwp.rp5launcher.ui.screens.CollectionScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.LoadingScreen
+import io.github.hipsterbwp.rp5launcher.ui.screens.Screensaver
+import io.github.hipsterbwp.rp5launcher.ui.screens.SearchScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.SettingsScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.SetupScreen
 import io.github.hipsterbwp.rp5launcher.ui.theme.Motion
@@ -58,8 +62,25 @@ fun LauncherApp(vm: LauncherViewModel) {
         if (showLoading) 1f else 0f, tween(Motion.SPLASH_FADE_MS), label = "loading-fade",
     )
 
+    val labelStyle = vm.config.buttonLabels
+    val swapped = vm.config.swapButtons
+    val labels = remember(labelStyle, swapped) { { pad: Pad -> buttonLabel(pad, labelStyle, swapped) } }
+
+    // Screensaver after the configured idle time (not during first-run setup or while typing).
+    val idleMinutes = vm.config.screensaverMinutes
+    LaunchedEffect(idleMinutes, vm.lastInputAt) {
+        if (idleMinutes <= 0) return@LaunchedEffect
+        delay(idleMinutes * 60_000L)
+        if (vm.screen !is Screen.Setup && !vm.textInputActive) vm.screensaver = true
+    }
+
     Box(Modifier.fillMaxSize().background(Palette.brandNavy)) {
-        if (vm.ready) LauncherContent(vm, appName, pickFolder)
+        if (vm.ready) {
+            CompositionLocalProvider(LocalButtonLabel provides labels) {
+                LauncherContent(vm, appName, pickFolder)
+            }
+        }
+        if (vm.screensaver) Screensaver(vm)
         if (loadingAlpha > 0f) {
             Box(Modifier.fillMaxSize().alpha(loadingAlpha)) { LoadingScreen(vm.loading) }
         }
@@ -76,6 +97,8 @@ private fun LauncherContent(vm: LauncherViewModel, appName: String, pickFolder: 
                 is Screen.Games -> GameGridScreen(vm, screen.system)
                 is Screen.Details -> GameDetailsScreen(vm, screen.system, screen.gameId)
                 Screen.Settings -> SettingsScreen(vm, pickFolder)
+                Screen.Search -> SearchScreen(vm)
+                is Screen.Collection -> CollectionScreen(vm, screen.key)
                 null -> Unit
             }
         }

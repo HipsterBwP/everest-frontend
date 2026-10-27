@@ -45,10 +45,20 @@ data class GameStats(
     val lastPlayed: Long = 0,
     val playCount: Int = 0,
     val playtimeMs: Long = 0,
+    /** Left out of lists (BIOS files, duplicates, games you don't want to see). */
+    val hidden: Boolean = false,
+    /** Launch command label for this game only; null = the system's choice. */
+    val emulator: String? = null,
 )
 
 @Serializable
-data class StatsFile(val games: Map<String, GameStats> = emptyMap())
+data class StatsFile(
+    val games: Map<String, GameStats> = emptyMap(),
+    /** Days with at least one launch ("2026-10-27"), for streaks. */
+    val playDays: Set<String> = emptySet(),
+    /** Your own collections: name -> game ids, in the order added. */
+    val collections: Map<String, List<String>> = emptyMap(),
+)
 
 /** Small JSON files in app-private storage: the last scan and play stats. */
 class LibraryStore(context: Context) {
@@ -103,7 +113,13 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
     }
 
     private fun collectGames(root: Uri, dirDocId: String, extensions: Set<String>, out: MutableList<Game>, depth: Int) {
-        for (child in children(root, dirDocId)) {
+        val entries = children(root, dirDocId)
+        // Multi-disc and multi-track games: show the playlist/sheet once, not every file it lists.
+        val referenced = entries
+            .filter { !it.isDir && it.name.substringAfterLast('.', "").lowercase() in SHEET_EXTENSIONS && it.size in 1..SHEET_MAX_BYTES }
+            .flatMap { sheet -> referencedFiles(root, sheet) }
+            .toHashSet()
+        for (child in entries) {
             if (child.name.startsWith(".")) continue
             if (child.isDir) {
                 if (depth < MAX_DEPTH) collectGames(root, child.docId, extensions, out, depth + 1)
@@ -111,6 +127,8 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
             }
             val ext = child.name.substringAfterLast('.', "").lowercase()
             if (ext !in extensions) continue
+            if (child.name.lowercase() in referenced) continue
+            if (BIOS.containsMatchIn(child.name)) continue
             val (title, tag) = cleanTitle(child.name)
             out += Game(
                 id = DocumentsContract.buildDocumentUriUsingTree(root, child.docId).toString(),
@@ -121,6 +139,24 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
                 sizeBytes = child.size,
             )
         }
+    }
+
+    /** File names (lower case) listed by an .m3u playlist, .cue sheet or .gdi track list. */
+    private fun referencedFiles(root: Uri, sheet: Child): List<String> {
+        val uri = DocumentsContract.buildDocumentUriUsingTree(root, sheet.docId)
+        val text = runCatching { resolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } }.getOrNull()
+            ?: return emptyList()
+        val ext = sheet.name.substringAfterLast('.').lowercase()
+        return text.lineSequence().mapNotNull { raw ->
+            val line = raw.trim()
+            when {
+                line.isEmpty() || line.startsWith("#") -> null
+                ext == "m3u" -> line
+                ext == "cue" -> CUE_FILE.find(line)?.groupValues?.get(1)
+                ext == "gdi" -> GDI_TRACK.find(line)?.groupValues?.let { it[1].ifEmpty { it[2] } }
+                else -> null
+            }
+        }.map { it.replace('\\', '/').substringAfterLast('/').lowercase() }.toList()
     }
 
     private fun children(root: Uri, docId: String): List<Child> {
@@ -147,6 +183,12 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
 
     companion object {
         private const val MAX_DEPTH = 2
+        private val SHEET_EXTENSIONS = setOf("m3u", "cue", "gdi")
+        private const val SHEET_MAX_BYTES = 64L * 1024
+        private val CUE_FILE = Regex("""^FILE\s+"([^"]+)"""", RegexOption.IGNORE_CASE)
+        private val GDI_TRACK = Regex("""^\d+\s+\d+\s+\d+\s+\d+\s+(?:"([^"]+)"|(\S+))""")
+        /** BIOS and firmware files that share extensions with games. */
+        private val BIOS = Regex("""(?i)(^|[^a-z])bios([^a-z]|$)""")
         private val TAG = Regex("""\s*[(\[]([^)\]]*)[)\]]""")
 
         /** "Chrono Trigger (USA) [!].sfc" -> ("Chrono Trigger", "USA"). */

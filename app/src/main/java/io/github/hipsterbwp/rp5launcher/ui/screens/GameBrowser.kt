@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.delay
+import kotlin.random.Random
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -72,12 +73,14 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.u
 private const val DEFAULT_COVER_RATIO = 0.72f
 
 /**
- * Moves through a cover grid of [count] items in [columns] columns. Returns true if handled.
- * Up/Down accelerate while held.
+ * Moves through a cover grid of [count] items in [columns] columns, or jumps to a random one
+ * (Select). Returns true if handled. Up/Down accelerate while held.
  */
 fun browserMove(button: Pad, repeat: Int, index: Int, count: Int, columns: Int, select: (Int) -> Unit): Boolean {
-    if (count == 0) return button in setOf(Pad.Up, Pad.Down, Pad.Left, Pad.Right)
+    if (count == 0) return button in setOf(Pad.Up, Pad.Down, Pad.Left, Pad.Right, Pad.Select)
     when (button) {
+        // Random game.
+        Pad.Select -> if (count > 1) select((index + 1 + Random.nextInt(count - 1)) % count)
         Pad.Left -> if (index > 0) select(index - 1)
         Pad.Right -> if (index < count - 1) select(index + 1)
         Pad.Up -> {
@@ -329,6 +332,7 @@ fun BrowserHeader(
 /** Glass segmented control (Apple-style): selected item white, others translucent. */
 @Composable
 fun TabPills(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    if (items.isEmpty()) return
     Row(
         Modifier.glass(Radius.PILL).padding(Space.SM.u),
         horizontalArrangement = Arrangement.spacedBy(Space.SM.u),
@@ -347,3 +351,7 @@ fun TabPills(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
         }
     }
 }
+
+/** Trailing "Random" hint for game lists with more than one game. */
+fun randomHint(count: Int, onRandom: () -> Unit): Hint? =
+    if (count > 1) Hint(Pad.Select, "Random", trailing = true, onClick = onRandom) else null

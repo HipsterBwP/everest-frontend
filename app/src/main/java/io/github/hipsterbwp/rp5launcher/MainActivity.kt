@@ -1,5 +1,6 @@
 package io.github.hipsterbwp.rp5launcher
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -63,7 +64,8 @@ class MainActivity : ComponentActivity() {
      * D-pad key events from the framework.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val button = Pad.fromKeyCode(event.keyCode) ?: return super.dispatchKeyEvent(event)
+        val mapped = Pad.fromKeyCode(event.keyCode) ?: return super.dispatchKeyEvent(event)
+        val button = if (vm.config.swapButtons) swapped(event.keyCode, mapped) else mapped
         // While typing, keys belong to the text field; only B (cancel) and Start (save) reach us.
         if (vm.textInputActive && button != Pad.B && button != Pad.Start) return super.dispatchKeyEvent(event)
         if (button == Pad.L2 || button == Pad.R2) triggerKeysSeen = true
@@ -85,7 +87,24 @@ class MainActivity : ComponentActivity() {
         return super.dispatchGenericMotionEvent(event)
     }
 
+    /** Swaps the gamepad face buttons (A/B, X/Y) for confirm-on-the-right layouts; keyboards stay as they are. */
+    private fun swapped(keyCode: Int, button: Pad): Pad = when (keyCode) {
+        KeyEvent.KEYCODE_BUTTON_A -> Pad.B
+        KeyEvent.KEYCODE_BUTTON_B -> Pad.A
+        KeyEvent.KEYCODE_BUTTON_X -> Pad.Y
+        KeyEvent.KEYCODE_BUTTON_Y -> Pad.X
+        else -> button
+    }
+
+    /** The device's Home button while ARCROW is the home app: back to the console screen. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) vm.goHome()
+    }
+
     private fun press(button: Pad, repeat: Int) {
+        // A press that only wakes the screensaver does nothing else.
+        if (vm.onInput()) return
         // Click first, so a launch or error sound triggered by this press can replace it.
         UiSounds.forButton(button)?.let(vm::sound)
         pad.dispatch(button, repeat)

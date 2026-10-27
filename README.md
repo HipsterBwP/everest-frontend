@@ -26,12 +26,23 @@ To build locally (needs JDK 17 and the Android SDK): `./gradlew assembleDebug`.
 
 | Screen | Buttons |
 |---|---|
-| Home | ↑/↓ choose a console · **A** open · **L1/R1** tabs (Systems, Favorites, Recent, Collections) · **START** settings |
-| Game list | D-pad move (hold to accelerate) · **A** play · **X** options · **B** back · **Y** favorite · **L1/R1** filter · **L2/R2** jump by letter |
-| Options | **A** play · **B** back · **X** change emulator · **Y** favorite |
+| Home · Systems | ↑/↓ choose a console · **A** open · **Y** search · **L1/R1** tabs (Systems, Favorites, Recent, Collections) · **START** settings |
+| Game lists (a system, Favorites, Recent, a collection, search results) | D-pad move (hold to accelerate) · **A** play · **X** options · **Y** favorite · **SELECT** random game · **B** back · in a system: **L1/R1** filter, **L2/R2** jump by letter |
+| Options | ↑/↓ choose · **A** do it: play, favorite, emulator for this game or the whole system, add to collection, fix artwork match, hide |
 | Settings | ↑/↓ pages and rows · →/**A** enter · **A** change · **X** test-launch · **B** back |
 
-The hint bar at the bottom of every screen always shows what the buttons do right now.
+The hint bar always shows what the buttons do right now. **Settings › Controls** swaps the confirm
+button (bottom or right), switches hints to PlayStation symbols (✕ ○ □ △), sets the screensaver delay,
+and opens Android's setting to make ARCROW the home screen (the Home button then returns to it).
+
+## Library extras
+
+- **Collections**: smart ones (Most played, Not played yet, Multiplayer, by genre) plus your own, made
+  from a game's Options › Add to collection.
+- **Search**: Y on the console screen.
+- **Hiding**: hide a game from its Options; unhide, and show or hide whole systems, in Settings › Library.
+  BIOS files are skipped, and discs/tracks listed by an `.m3u`, `.cue` or `.gdi` appear once.
+- **Stats**: Settings › Stats shows total play time, most played games and day streaks.
 
 ## Emulators and the config file
 

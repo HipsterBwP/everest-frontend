@@ -240,8 +240,9 @@ private fun HintItem(hint: Hint, glyphInk: Color) {
 /** 24 px white circle for face buttons; rounded rect for shoulder/START/SELECT. */
 @Composable
 fun ButtonGlyph(buttons: List<Pad>, ink: Color) {
-    val round = buttons.size == 1 && buttons[0].glyph.length == 1
-    val label = buttons.joinToString(" ") { it.glyph }
+    val labelFor = LocalButtonLabel.current
+    val label = buttons.joinToString(" ") { labelFor(it) }
+    val round = buttons.size == 1 && label.length == 1
     Box(
         modifier = Modifier
             .then(

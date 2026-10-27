@@ -92,6 +92,7 @@ fun GameGridScreen(vm: LauncherViewModel, systemName: String) {
         add(Hint(Pad.B, "Back", onClick = { vm.back() }))
         add(Hint(listOf(Pad.L1, Pad.R1), "Filter", onClick = { setFilter(filter + 1) }))
         if (games.size > 1) add(Hint(listOf(Pad.L2, Pad.R2), "Jump letter", trailing = true, onClick = { jumpLetter(true) }))
+        randomHint(games.size) { browserMove(Pad.Select, 0, index, games.size, Size.COVER_COLUMNS, ::select) }?.let { add(it) }
     }
 
     GameBrowser(

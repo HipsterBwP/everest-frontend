@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import io.github.hipsterbwp.rp5launcher.data.CommandDef
 import io.github.hipsterbwp.rp5launcher.ui.Dialog
 import io.github.hipsterbwp.rp5launcher.ui.Hint
 import io.github.hipsterbwp.rp5launcher.ui.HintBar
@@ -66,6 +67,8 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.u
 fun DialogHost(vm: LauncherViewModel) {
     when (val d = vm.dialog) {
         is Dialog.EmulatorPicker -> EmulatorPicker(vm, d)
+        is Dialog.CollectionPicker -> CollectionPicker(vm, d)
+        is Dialog.MatchPicker -> MatchPicker(vm, d)
         is Dialog.LaunchError -> LaunchErrorDialog(vm, d)
         is Dialog.Message -> MessageDialog(vm, d)
         Dialog.Update -> UpdateDialog(vm)
@@ -93,15 +96,25 @@ private fun DialogFrame(hints: List<Hint>, content: @Composable () -> Unit) {
 @Composable
 private fun EmulatorPicker(vm: LauncherViewModel, d: Dialog.EmulatorPicker) {
     val system = vm.system(d.system)
-    val accent = system?.color ?: SystemColors.forSystem(d.system)
+    val accent = Palette.white
     val version = vm.emulatorsVersion
-    val commands = remember(d.system, vm.config) { vm.commands(d.system) }
-    val installed = remember(version, commands) { commands.map(vm::isInstalled) }
-    val current = remember(version, vm.config) { vm.selectedCommand(d.system) }
+    // For one game, the first choice is "Same as system" (null).
+    val game = d.gameId?.let { vm.game(d.system, it) }
+    val systemCommands = remember(d.system, vm.config) { vm.commands(d.system) }
+    val commands: List<CommandDef?> = if (game != null) listOf(null) + systemCommands else systemCommands
+    val installed = remember(version, commands) { commands.map { it == null || vm.isInstalled(it) } }
+    val current: CommandDef? = remember(version, vm.config, vm.stats) {
+        if (game != null) vm.stats(game).emulator?.let { label -> systemCommands.firstOrNull { it.label == label } }
+        else vm.selectedCommand(d.system)
+    }
     var index by remember { mutableIntStateOf(commands.indexOf(current).coerceAtLeast(0)) }
 
     fun choose(i: Int) {
-        commands.getOrNull(i)?.let { vm.chooseEmulator(d.system, it) }
+        if (i in commands.indices) {
+            val command = commands[i]
+            if (game != null) vm.chooseGameEmulator(game, command)
+            else if (command != null) vm.chooseEmulator(d.system, command)
+        }
         vm.dialog = null
     }
     fun get(i: Int) {
@@ -125,9 +138,15 @@ private fun EmulatorPicker(vm: LauncherViewModel, d: Dialog.EmulatorPicker) {
         if (installed.getOrNull(index) == false) add(Hint(Pad.X, "Get emulator", onClick = { get(index) }))
     }
     DialogFrame(hints) {
-        Txt("Emulator for ${system?.info?.displayName ?: d.system}", Type.screenTitleSmall, Palette.ink, maxLines = 2)
+        Txt(
+            if (game != null) "Emulator for ${game.title}" else "Emulator for ${system?.info?.displayName ?: d.system}",
+            Type.screenTitleSmall, Palette.ink, maxLines = 2,
+        )
         Spacer(Modifier.height(Space.SM.u))
-        Txt("Applies to every game on this system.", Type.bodySmall, Palette.inkSecondary)
+        Txt(
+            if (game != null) "Only this game. Other games keep the system's emulator." else "Applies to every game on this system.",
+            Type.bodySmall, Palette.inkSecondary,
+        )
         Spacer(Modifier.height(Space.SECTION_SMALL.u))
         if (commands.isEmpty()) {
             Txt("ES-DE has no Android launch command for this system.", Type.body, Palette.inkBody, maxLines = 3)
@@ -148,10 +167,11 @@ private fun EmulatorPicker(vm: LauncherViewModel, d: Dialog.EmulatorPicker) {
                         padV = Space.ROW_V_SMALL,
                         onClick = { if (i == index) choose(i) else index = i },
                     ) {
-                        Txt(command.displayName, Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                        Txt(command?.displayName ?: "Same as system", Type.rowTitle, Palette.ink, Modifier.weight(1f))
                         val ok = installed.getOrNull(i) == true
                         Txt(
                             when {
+                                command == null -> if (current == null) "In use" else ""
                                 command == current && ok -> "In use"
                                 command == current -> "In use · not installed"
                                 ok -> "Installed"
@@ -370,4 +390,90 @@ private fun TextInputDialog(vm: LauncherViewModel, d: Dialog.TextInput) {
                 .padding(vertical = Space.ROW_V.u, horizontal = Space.ROW_H.u),
         )
     }
+}
+
+/** A simple list dialog: Up/Down, A chooses, B cancels. Rows show a title and an optional note. */
+@Composable
+private fun ListDialog(
+    title: String,
+    subtitle: String,
+    rows: List<Pair<String, String?>>,
+    onChoose: (Int) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var index by remember(rows.size) { mutableIntStateOf(0) }
+    PadInput { button, _ ->
+        when (button) {
+            Pad.Up -> index = (index - 1).coerceAtLeast(0)
+            Pad.Down -> index = (index + 1).coerceAtMost(rows.size - 1)
+            Pad.A -> if (rows.isNotEmpty()) onChoose(index)
+            Pad.B -> onCancel()
+            else -> Unit
+        }
+        true
+    }
+    DialogFrame(listOf(Hint(Pad.A, "Choose", onClick = { onChoose(index) }), Hint(Pad.B, "Cancel", onClick = onCancel))) {
+        Txt(title, Type.screenTitleSmall, Palette.ink, maxLines = 2)
+        Spacer(Modifier.height(Space.SM.u))
+        Txt(subtitle, Type.bodySmall, Palette.inkSecondary, maxLines = 2)
+        Spacer(Modifier.height(Space.SECTION_SMALL.u))
+        val state = rememberLazyListState()
+        LaunchedEffect(index) { state.bringIntoView(index) }
+        val ring = Size.FOCUS_RING_LIGHT + Size.FOCUS_OFFSET
+        LazyColumn(
+            state = state,
+            modifier = Modifier.fillMaxWidth().heightIn(max = Size.BOX_ART_H.u),
+            contentPadding = PaddingValues(ring.u),
+            verticalArrangement = Arrangement.spacedBy(Space.LIST_GAP.u),
+        ) {
+            itemsIndexed(rows) { i, (name, note) ->
+                ListRow(
+                    focused = i == index,
+                    accent = Palette.white,
+                    padV = Space.ROW_V_SMALL,
+                    onClick = { if (i == index) onChoose(i) else index = i },
+                ) {
+                    Txt(name, Type.rowTitle, Palette.ink, Modifier.weight(1f), maxLines = 2)
+                    note?.let { Txt(it, Type.labelStrong, Palette.ok) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollectionPicker(vm: LauncherViewModel, d: Dialog.CollectionPicker) {
+    val game = vm.systems.firstNotNullOfOrNull { s -> s.games.firstOrNull { it.id == d.gameId } }
+    if (game == null) {
+        LaunchedEffect(Unit) { vm.dialog = null }
+        return
+    }
+    val names = vm.customCollectionNames()
+    val rows = names.map { it to (if (vm.isInCollection(it, game)) "Added" else null) } + ("New collection…" to null)
+    ListDialog(
+        title = "Add to collection",
+        subtitle = "A adds the game; A on a collection that has it takes it out.",
+        rows = rows,
+        onChoose = { i ->
+            if (i < names.size) vm.toggleInCollection(names[i], game) else vm.newCollection(game)
+        },
+        onCancel = { vm.dialog = null },
+    )
+}
+
+@Composable
+private fun MatchPicker(vm: LauncherViewModel, d: Dialog.MatchPicker) {
+    val game = vm.game(d.system, d.gameId)
+    if (game == null) {
+        LaunchedEffect(Unit) { vm.dialog = null }
+        return
+    }
+    val currentMatch = vm.artFor(game)?.matched
+    ListDialog(
+        title = "Which game is this?",
+        subtitle = "Picking one downloads its cover, screenshots and info for ${game.fileName}.",
+        rows = d.candidates.map { it to (if (it == currentMatch) "Current" else null) },
+        onChoose = { i -> vm.chooseMatch(d.system, game, d.candidates[i]) },
+        onCancel = { vm.dialog = null },
+    )
 }

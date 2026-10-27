@@ -402,6 +402,7 @@ object Size {
     const val SPLASH_BAR_H = 12
     const val SPLASH_BAR_EDGE = 1
     const val STATUS_H = 26
+    const val PREVIEW_COVER_W = 140
 
     const val FOCUS_RING = 4
     const val FOCUS_RING_CARD = 3
@@ -460,6 +461,9 @@ object Motion {
     /** The bar's minimum fill time (kept under SPLASH_MIN_MS so it reaches the end on screen). */
     const val SPLASH_FILL_MS = 1200
     const val SPLASH_SHEEN_MS = 1100
+    /** Screensaver: time per picture and the cross-fade between pictures. */
+    const val SCREENSAVER_SLIDE_MS = 9000L
+    const val SCREENSAVER_FADE_MS = 1500
     /** Gameplay stills slideshow: time per still, and its zoom duration. */
     const val SLIDE_MS = 4500
     const val KEN_BURNS_MS = 6000

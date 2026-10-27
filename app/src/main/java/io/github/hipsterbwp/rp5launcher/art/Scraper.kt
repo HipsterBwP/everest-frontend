@@ -274,6 +274,48 @@ class Scraper(context: Context) {
         return target
     }
 
+    /** libretro cover names that might be [game], best first, for fixing a wrong match. */
+    fun candidates(system: String, game: Game, limit: Int = MAX_CANDIDATES): List<String> {
+        val repo = LIBRETRO_NAMES[system]?.replace(' ', '_') ?: return emptyList()
+        val names = index(repo, BOXARTS).orEmpty()
+        val want = words(game.title)
+        if (want.isEmpty()) return emptyList()
+        return names
+            .map { it to words(it).intersect(want).size.toFloat() / want.size }
+            .filter { it.second > 0f }
+            .sortedWith(compareByDescending<Pair<String, Float>> { it.second }.thenBy { it.first.length })
+            .take(limit)
+            .map { it.first }
+    }
+
+    /** Re-downloads art and info for [game] as the libretro entry [name]. Call from Dispatchers.IO. */
+    fun rematch(system: String, game: Game, name: String, previous: GameArt?, platform: String): GameArt {
+        val libretro = LIBRETRO_NAMES[system] ?: return previous ?: GameArt()
+        val repo = libretro.replace(' ', '_')
+        val id = sha1(game.id)
+        fun fetch(folder: String, target: String, maxHeight: Int): String? =
+            runCatching { download("$RAW/$repo/master/$folder/${Http.segment(name)}.png", target, maxHeight) }.getOrNull()
+        val meta = MetaFields.entries.associateWith { metadata(it, libretro) }
+        fun lookup(field: MetaFields) = meta[field]?.let { m -> m[name] ?: m[key(name)] }
+        val base = previous ?: GameArt()
+        return base.copy(
+            box = fetch(BOXARTS, "box/$id.webp", BOX_MAX_H) ?: base.box,
+            snap = fetch(SNAPS, "snap/$id.webp", SNAP_MAX_H) ?: base.snap,
+            titleShot = fetch(TITLES, "title/$id.webp", SNAP_MAX_H) ?: base.titleShot,
+            year = lookup(MetaFields.Year) ?: base.year,
+            publisher = lookup(MetaFields.Publisher) ?: base.publisher,
+            developer = lookup(MetaFields.Developer) ?: base.developer,
+            genre = lookup(MetaFields.Genre) ?: base.genre,
+            description = runCatching { Wikipedia.describe(name.replace(TAGS, "").trim(), platform) }.getOrNull()
+                ?: base.description,
+            matched = name,
+            scrapedAt = System.currentTimeMillis(),
+        )
+    }
+
+    private fun words(s: String): Set<String> =
+        s.lowercase().replace(TAGS, " ").split(Regex("[^a-z0-9]+")).filter { it.length > 1 && it != "the" }.toSet()
+
     /** Thumbnail names in one libretro-thumbnails folder, cached for a week; null if unavailable. */
     private fun index(repo: String, folder: String): List<String>? {
         val cache = File(cacheDir, "$repo-$folder.txt")
@@ -357,6 +399,7 @@ class Scraper(context: Context) {
         private const val SNAP_MAX_H = 420
         private const val FANART_MAX_H = 720
         private const val CRC_MAX_BYTES = 64L * 1024 * 1024
+        private const val MAX_CANDIDATES = 12
         private const val WEBP_QUALITY = 85
         private const val INDEX_TTL_MS = 7L * 24 * 60 * 60 * 1000
 

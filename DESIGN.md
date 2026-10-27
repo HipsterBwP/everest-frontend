@@ -69,7 +69,13 @@ The original Cartridge mockups still define layout proportions where a screen is
 4. **First-run setup (3 steps)** — 1) pick ROMs folder; 2) detected systems with matched emulators, missing ones
    flagged with a fix; 3) download art. Target: install → playing in under 2 minutes.
 5. **Settings** — dark sidebar (Library, Emulators, Scraper, ScreenScraper, Sound, About), grouped rows.
-6. To design next: Search, Collections, remaining Appearance/Controls pages.
+6. **Collections tab** — glass list of collections (yours first, then smart ones) beside the selected
+   collection's title, count and a strip of covers; A opens it in the game browser.
+7. **Search** — Y on Home; on-screen keyboard, results in the game browser (Y edits the search).
+8. **Screensaver** — after the configured idle time: random game art full-screen with a slow zoom and a
+   glass caption; any button wakes it without doing anything else.
+9. Options (3) is an action list: Play (system-color row), Favorite, Emulator for this game, Emulator for
+   all games of the system, Add to collection, Fix artwork match, Hide. Up/Down, A, B.
 
 ## Quality bar
 

@@ -53,10 +53,15 @@ sealed interface Screen {
     data class Games(val system: String) : Screen
     data class Details(val system: String, val gameId: String) : Screen
     data object Settings : Screen
+    data object Search : Screen
+    data class Collection(val key: String) : Screen
 }
 
 sealed interface Dialog {
-    data class EmulatorPicker(val system: String) : Dialog
+    /** Emulator for a whole system, or for one game when [gameId] is set. */
+    data class EmulatorPicker(val system: String, val gameId: String? = null) : Dialog
+    data class CollectionPicker(val gameId: String) : Dialog
+    data class MatchPicker(val system: String, val gameId: String, val candidates: List<String>) : Dialog
     data class LaunchError(val system: String, val game: Game?, val problem: LaunchProblem) : Dialog
     data class Message(val title: String, val body: String) : Dialog
     data object Update : Dialog
@@ -64,7 +69,24 @@ sealed interface Dialog {
     data class TextInput(val field: TextField, val title: String, val initial: String, val secret: Boolean) : Dialog
 }
 
-enum class TextField { SsUser, SsPassword, SsDevId, SsDevPassword }
+enum class TextField { SsUser, SsPassword, SsDevId, SsDevPassword, Search, NewCollection }
+
+/** A named list of games: one you made, or one ARCROW builds from your library. */
+data class GameCollection(
+    val key: String,
+    val name: String,
+    val entries: List<Pair<SystemEntry, Game>>,
+    val custom: Boolean,
+)
+
+data class PlaySummary(
+    val totalMs: Long,
+    val gamesPlayed: Int,
+    val launches: Int,
+    val top: List<Pair<Game, GameStats>>,
+    val currentStreak: Int,
+    val longestStreak: Int,
+)
 
 sealed interface UpdateState {
     data object Idle : UpdateState
@@ -330,7 +352,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 info = SystemMeta.info(def),
                 color = parseColor(config.system(def.name).color) ?: colors.getValue(def.name),
                 folderName = scanned.folderName,
-                games = scanned.games,
+                games = scanned.games.filter { stats.games[it.id]?.hidden != true },
             )
         }
     }
@@ -358,6 +380,15 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun finishSetup() = resetTo(Screen.Home)
+
+    fun setSwapButtons(enabled: Boolean) = updateConfig { it.copy(swapButtons = enabled) }
+
+    fun setButtonLabels(style: String) = updateConfig { it.copy(buttonLabels = style) }
+
+    fun cycleScreensaver() = updateConfig { cfg ->
+        val next = SCREENSAVER_STEPS[(SCREENSAVER_STEPS.indexOf(cfg.screensaverMinutes) + 1) % SCREENSAVER_STEPS.size]
+        cfg.copy(screensaverMinutes = next)
+    }
 
     // -----------------------------------------------------------------------------------------
     // Library
@@ -447,13 +478,205 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun lastPlayed(system: SystemEntry): Game? =
         system.games.filter { stats(it).lastPlayed > 0 }.maxByOrNull { stats(it).lastPlayed }
 
-    private fun updateStats(game: Game, update: (GameStats) -> GameStats) {
-        val updated = StatsFile(stats.games + (game.id to update(stats(game))))
+    private fun updateStats(game: Game, update: (GameStats) -> GameStats) =
+        updateStatsFile { it.copy(games = it.games + (game.id to update(stats(game)))) }
+
+    private fun updateStatsFile(update: (StatsFile) -> StatsFile) {
+        val updated = update(stats)
         stats = updated
         viewModelScope.launch(Dispatchers.IO) { libraryStore.saveStats(updated) }
     }
 
     fun toggleFavorite(game: Game) = updateStats(game) { it.copy(favorite = !it.favorite) }
+
+    // -----------------------------------------------------------------------------------------
+    // Hiding
+    // -----------------------------------------------------------------------------------------
+
+    fun hideGame(game: Game) {
+        updateStats(game) { it.copy(hidden = true) }
+        rebuildSystems()
+    }
+
+    fun hiddenGameCount(): Int = stats.games.count { it.value.hidden }
+
+    fun unhideAllGames() {
+        updateStatsFile { file -> file.copy(games = file.games.mapValues { it.value.copy(hidden = false) }) }
+        rebuildSystems()
+    }
+
+    /** Every system found in the ROMs folder, hidden ones included, for the Library page. */
+    fun scannedSystems(): List<Pair<String, String>> {
+        val catalog = catalog ?: return emptyList()
+        return library?.systems.orEmpty().mapNotNull { scanned ->
+            catalog.system(scanned.name)?.let { scanned.name to SystemMeta.info(it).displayName }
+        }
+    }
+
+    fun toggleSystemHidden(name: String) = updateConfig { cfg ->
+        cfg.copy(hiddenSystems = if (name in cfg.hiddenSystems) cfg.hiddenSystems - name else cfg.hiddenSystems + name)
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Collections, search, random, stats
+    // -----------------------------------------------------------------------------------------
+
+    private fun allGames(): List<Pair<SystemEntry, Game>> = systems.flatMap { s -> s.games.map { s to it } }
+
+    fun collections(): List<GameCollection> {
+        val all = allGames()
+        val byId = all.associateBy { it.second.id }
+        val custom = stats.collections.map { (name, ids) ->
+            GameCollection("custom:$name", name, ids.mapNotNull(byId::get), custom = true)
+        }
+        val played = all.filter { stats(it.second).playCount > 0 }
+            .sortedByDescending { stats(it.second).playtimeMs }.take(MOST_PLAYED)
+        val auto = buildList {
+            add(GameCollection("auto:most", "Most played", played, custom = false))
+            add(GameCollection("auto:unplayed", "Not played yet", all.filter { stats(it.second).playCount == 0 }, custom = false))
+            add(GameCollection("auto:multi", "Multiplayer", all.filter { maxPlayers(art[it.second.id]?.players) >= 2 }, custom = false))
+            all.groupBy { art[it.second.id]?.genre?.let(::mainGenre) }
+                .filterKeys { it != null }
+                .filterValues { it.size >= MIN_GENRE_SIZE }
+                .entries.sortedByDescending { it.value.size }.take(MAX_GENRES)
+                .forEach { (genre, games) ->
+                    add(GameCollection("genre:$genre", genre!!, games.sortedBy { it.second.title.lowercase() }, custom = false))
+                }
+        }
+        return (custom + auto).filter { it.entries.isNotEmpty() || it.custom }
+    }
+
+    fun collection(key: String): GameCollection? = collections().firstOrNull { it.key == key }
+
+    fun customCollectionNames(): List<String> = stats.collections.keys.toList()
+
+    fun isInCollection(name: String, game: Game): Boolean = stats.collections[name]?.contains(game.id) == true
+
+    /** Adds [game] to the collection, or takes it out if it's already there. */
+    fun toggleInCollection(name: String, game: Game) = updateStatsFile { file ->
+        val ids = file.collections[name].orEmpty()
+        val updated = if (game.id in ids) ids - game.id else ids + game.id
+        file.copy(collections = file.collections + (name to updated))
+    }
+
+    fun deleteCollection(name: String) = updateStatsFile { it.copy(collections = it.collections - name) }
+
+    private var pendingCollectionGame: Game? = null
+
+    fun newCollection(game: Game) {
+        pendingCollectionGame = game
+        dialog = Dialog.TextInput(TextField.NewCollection, "New collection", "", secret = false)
+    }
+
+    var searchQuery by mutableStateOf("")
+        private set
+
+    fun editSearch() {
+        dialog = Dialog.TextInput(TextField.Search, "Search games", searchQuery, secret = false)
+    }
+
+    /** Games whose title contains every word of the query, best matches first. */
+    fun searchResults(): List<Pair<SystemEntry, Game>> {
+        val words = searchQuery.lowercase().split(' ').map { w -> w.filter(Char::isLetterOrDigit) }.filter { it.isNotEmpty() }
+        if (words.isEmpty()) return emptyList()
+        val first = words.first()
+        return allGames()
+            .filter { (_, g) ->
+                val title = g.title.lowercase().filter { it.isLetterOrDigit() || it == ' ' }
+                val compact = title.replace(" ", "")
+                words.all { it in compact }
+            }
+            .sortedWith(
+                compareBy<Pair<SystemEntry, Game>> { !it.second.title.lowercase().startsWith(first) }
+                    .thenBy { it.second.title.lowercase() },
+            )
+    }
+
+    fun playSummary(): PlaySummary {
+        val played = stats.games.filterValues { it.playCount > 0 }
+        val byId = allGames().associateBy { it.second.id }
+        val top = played.entries.sortedByDescending { it.value.playtimeMs }
+            .mapNotNull { (id, s) -> byId[id]?.let { it.second to s } }.take(TOP_GAMES)
+        val days = stats.playDays.mapNotNull { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }.sorted()
+        var longest = 0
+        var run = 0
+        var previous: java.time.LocalDate? = null
+        days.forEach { day ->
+            run = if (previous != null && previous!!.plusDays(1) == day) run + 1 else 1
+            longest = maxOf(longest, run)
+            previous = day
+        }
+        val today = java.time.LocalDate.now()
+        val daySet = days.toHashSet()
+        var current = 0
+        var cursor = if (today in daySet) today else today.minusDays(1)
+        while (cursor in daySet) {
+            current++
+            cursor = cursor.minusDays(1)
+        }
+        return PlaySummary(
+            totalMs = played.values.sumOf { it.playtimeMs },
+            gamesPlayed = played.size,
+            launches = played.values.sumOf { it.playCount },
+            top = top,
+            currentStreak = current,
+            longestStreak = longest,
+        )
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Fix a wrong match
+    // -----------------------------------------------------------------------------------------
+
+    fun fixMatch(system: String, game: Game) {
+        viewModelScope.launch {
+            val options = withContext(Dispatchers.IO) { scraper.candidates(system, game) }
+            dialog = if (options.isEmpty()) {
+                Dialog.Message("No other matches", "libretro has no other covers that look like \"${game.title}\". Try a ScreenScraper sign-in.")
+            } else {
+                Dialog.MatchPicker(system, game.id, options)
+            }
+        }
+    }
+
+    fun chooseMatch(system: String, game: Game, name: String) {
+        dialog = null
+        val entry = system(system) ?: return
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                scraper.rematch(system, game, name, art[game.id], entry.info.displayName)
+            }
+            art[game.id] = result
+            val snapshot = ArtIndex(art.toMap())
+            launch(Dispatchers.IO) { scraper.save(snapshot) }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Screensaver and Home button
+    // -----------------------------------------------------------------------------------------
+
+    var lastInputAt by mutableStateOf(System.currentTimeMillis())
+        private set
+    var screensaver by mutableStateOf(false)
+
+    /** Any button press: resets the idle timer. Returns true if it only woke the screensaver. */
+    fun onInput(): Boolean {
+        lastInputAt = System.currentTimeMillis()
+        if (screensaver) {
+            screensaver = false
+            return true
+        }
+        return false
+    }
+
+    /** The device's Home button: back to the console screen (unless still in setup). */
+    fun goHome() {
+        onInput()
+        if (screen is Screen.Setup) return
+        dialog = null
+        resetTo(Screen.Home)
+    }
 
     // -----------------------------------------------------------------------------------------
     // Art
@@ -504,16 +727,34 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             TextField.SsPassword -> Dialog.TextInput(field, "ScreenScraper password", c.password, secret = true)
             TextField.SsDevId -> Dialog.TextInput(field, "Developer ID", c.devId, secret = false)
             TextField.SsDevPassword -> Dialog.TextInput(field, "Developer password", c.devPassword, secret = true)
+            TextField.Search, TextField.NewCollection -> return
         }
     }
 
     fun submitText(field: TextField, value: String) {
+        when (field) {
+            TextField.Search -> {
+                searchQuery = value.trim()
+                dialog = null
+                return
+            }
+            TextField.NewCollection -> {
+                val name = value.trim()
+                val game = pendingCollectionGame
+                dialog = null
+                if (name.isNotEmpty() && game != null && !isInCollection(name, game)) toggleInCollection(name, game)
+                pendingCollectionGame = null
+                return
+            }
+            else -> Unit
+        }
         val c = screenScraper
         val updated = when (field) {
             TextField.SsUser -> c.copy(user = value.trim())
             TextField.SsPassword -> c.copy(password = value)
             TextField.SsDevId -> c.copy(devId = value.trim())
             TextField.SsDevPassword -> c.copy(devPassword = value)
+            TextField.Search, TextField.NewCollection -> c
         }
         screenScraper = updated
         screenScraperStatus = null
@@ -597,8 +838,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** The command a system launches with: the configured one, else the first installed, else the first. */
-    fun selectedCommand(system: String): CommandDef? {
+    fun selectedCommand(system: String, game: Game? = null): CommandDef? {
         val all = commands(system)
+        game?.let { g -> stats(g).emulator?.let { label -> all.firstOrNull { it.label == label } } }?.let { return it }
         val chosen = config.system(system).emulator
         return all.firstOrNull { it.label == chosen }
             ?: all.firstOrNull { launcher.isInstalled(it) }
@@ -609,6 +851,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun chooseEmulator(system: String, command: CommandDef) =
         updateConfig { cfg -> cfg.withSystem(system) { it.copy(emulator = command.label) } }
+
+    /** Emulator for one game; null goes back to the system's choice. */
+    fun chooseGameEmulator(game: Game, command: CommandDef?) = updateStats(game) { it.copy(emulator = command?.label) }
 
     fun redetectEmulators() {
         launcher.clearCache()
@@ -639,7 +884,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun play(system: String, game: Game) {
         val root = rootUri()
-        val command = selectedCommand(system)
+        val command = selectedCommand(system, game)
         val result = when {
             root == null -> LaunchResult.Failed(
                 LaunchProblem("No ROMs folder", "The launcher doesn't know where your games are.", "Pick a folder in Settings › Library."),
@@ -670,6 +915,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 val now = System.currentTimeMillis()
                 session = game.id to now
                 updateStats(game) { it.copy(lastPlayed = now, playCount = it.playCount + 1) }
+                val today = java.time.LocalDate.now().toString()
+                if (today !in stats.playDays) updateStatsFile { it.copy(playDays = it.playDays + today) }
             }
             is LaunchResult.Failed -> {
                 sound(UiSound.Error)
@@ -700,5 +947,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         private const val MAX_SESSION_MS = 12L * 60 * 60 * 1000
         private const val SAVE_EVERY = 20
+        private const val MOST_PLAYED = 50
+        private const val MIN_GENRE_SIZE = 3
+        private const val MAX_GENRES = 8
+        private const val TOP_GAMES = 5
+        val SCREENSAVER_STEPS = listOf(0, 2, 5, 10, 15)
+
+        /** Largest number in "1-4", "2", "1 to 2"… (0 if unknown). */
+        fun maxPlayers(players: String?): Int =
+            players?.let { Regex("""\d+""").findAll(it).mapNotNull { m -> m.value.toIntOrNull() }.maxOrNull() } ?: 0
+
+        /** "Role-playing (RPG)" -> "Role-playing"; "Action / Adventure" -> "Action". */
+        fun mainGenre(genre: String): String =
+            genre.substringBefore(" / ").substringBefore(',').substringBefore(" (").trim()
     }
 }

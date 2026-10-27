@@ -1,5 +1,8 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import androidx.compose.ui.platform.LocalContext
+import android.provider.Settings
+import android.content.Intent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -54,8 +57,8 @@ import java.text.DateFormat
 import java.util.Date
 
 private enum class Page(val title: String) {
-    Library("Library"), Emulators("Emulators"), Scraper("Scraper"), ScreenScraper("ScreenScraper"),
-    Sound("Sound"), About("About")
+    Library("Library"), Emulators("Emulators"), Controls("Controls"), Scraper("Scraper"),
+    ScreenScraper("ScreenScraper"), Sound("Sound"), Stats("Stats"), About("About")
 }
 
 /** One actionable row on a settings page. */
@@ -83,6 +86,8 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
         Page.Scraper -> scraperItems(vm, accent)
         Page.ScreenScraper -> screenScraperItems(vm, accent)
         Page.Sound -> soundItems(vm, accent)
+        Page.Controls -> controlsItems(vm, accent)
+        Page.Stats -> statsItems(vm, accent)
         Page.About -> aboutItems(vm, accent)
     }
     val rowIndex = row.coerceIn(0, (items.size - 1).coerceAtLeast(0))
@@ -203,6 +208,8 @@ private fun pageSubtitle(page: Page) = when (page) {
     Page.Scraper -> "Box art, screenshots, game info and console logos, downloaded from free sources."
     Page.ScreenScraper -> "Sign in for gameplay videos, fanart, descriptions and ratings."
     Page.Sound -> "Clicks and chimes as you move around, and gameplay video sound."
+    Page.Controls -> "Buttons, the screensaver, and making ARCROW your home screen."
+    Page.Stats -> "Your play time, favourites and streaks."
     Page.About -> "Version, config file and credits."
 }
 
@@ -234,7 +241,23 @@ private fun libraryItems(vm: LauncherViewModel, accent: Color, pickFolder: () ->
                 Txt(status, Type.label, Palette.inkSecondary)
             }
         },
-    ) + lib?.unknownFolders.orEmpty().takeIf { it.isNotEmpty() }?.let { unknown ->
+    ) + listOf(
+        Item("hiddengames", onA = { vm.unhideAllGames() }, aLabel = "Unhide all") { focused ->
+            ListRow(focused, accent) {
+                Txt("Hidden games", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                val n = vm.hiddenGameCount()
+                Txt(if (n == 0) "None" else "$n hidden · A to show them again", Type.label, Palette.inkSecondary)
+            }
+        },
+    ) + vm.scannedSystems().map { (name, display) ->
+        Item("show-$name", onA = { vm.toggleSystemHidden(name) }, aLabel = "Show / hide") { focused ->
+            ListRow(focused, accent) {
+                Txt(display, Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                val shown = name !in vm.config.hiddenSystems
+                Txt(if (shown) "Shown" else "Hidden", Type.labelStrong, if (shown) Palette.ok else Palette.inkSecondary)
+            }
+        }
+    } + lib?.unknownFolders.orEmpty().takeIf { it.isNotEmpty() }?.let { unknown ->
         listOf(
             Item("unknown") { _ ->
                 ListRow(false, accent, background = Palette.surface) {
@@ -399,6 +422,79 @@ private fun soundItems(vm: LauncherViewModel, accent: Color): List<Item> {
             }
         },
     )
+}
+
+@Composable
+private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
+    val context = LocalContext.current
+    val cfg = vm.config
+    return listOf(
+        Item("swap", onA = { vm.setSwapButtons(!cfg.swapButtons) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Confirm button", Type.rowTitle, Palette.ink)
+                    Txt("Which face button selects; the opposite one goes back", Type.label, Palette.inkSecondary)
+                }
+                Txt(if (cfg.swapButtons) "Right" else "Bottom", Type.labelStrong, Palette.ink)
+            }
+        },
+        Item("labels", onA = { vm.setButtonLabels(if (cfg.buttonLabels == "playstation") "letters" else "playstation") }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Button labels", Type.rowTitle, Palette.ink)
+                    Txt("What the hints at the bottom show", Type.label, Palette.inkSecondary)
+                }
+                Txt(if (cfg.buttonLabels == "playstation") "✕ ○ □ △" else "A B X Y", Type.labelStrong, Palette.ink)
+            }
+        },
+        Item("screensaver", onA = { vm.cycleScreensaver() }, aLabel = "Change") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Screensaver", Type.rowTitle, Palette.ink)
+                    Txt("Game art drifts by when ARCROW is left alone", Type.label, Palette.inkSecondary)
+                }
+                Txt(if (cfg.screensaverMinutes == 0) "Off" else "After ${cfg.screensaverMinutes} min", Type.labelStrong, Palette.ink)
+            }
+        },
+        Item("home", onA = {
+            runCatching {
+                context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+        }, aLabel = "Open") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Use ARCROW as the home screen", Type.rowTitle, Palette.ink)
+                    Txt("Pick ARCROW in Android's Home app setting; the Home button then opens it", Type.label, Palette.inkSecondary, maxLines = 2)
+                }
+                ChevronIcon(Palette.inkSecondary)
+            }
+        },
+    )
+}
+
+@Composable
+private fun statsItems(vm: LauncherViewModel, accent: Color): List<Item> {
+    val summary = vm.playSummary()
+    fun stat(key: String, label: String, value: String) = Item(key) { _ ->
+        ListRow(false, accent) {
+            Txt(label, Type.rowTitle, Palette.ink, Modifier.weight(1f))
+            Txt(value, Type.labelStrong, Palette.ink)
+        }
+    }
+    return listOf(
+        stat("total", "Total play time", if (summary.totalMs > 0) formatPlaytime(summary.totalMs) else "None yet"),
+        stat("games", "Games played", summary.gamesPlayed.toString()),
+        stat("launches", "Launches", summary.launches.toString()),
+        stat("streak", "Current streak", "${summary.currentStreak} ${if (summary.currentStreak == 1) "day" else "days"}"),
+        stat("best", "Longest streak", "${summary.longestStreak} ${if (summary.longestStreak == 1) "day" else "days"}"),
+    ) + summary.top.mapIndexed { i, (game, s) ->
+        Item("top-$i") { _ ->
+            ListRow(false, accent, background = Palette.surface) {
+                Txt("${i + 1}. ${game.title}", Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                Txt("${formatPlaytime(s.playtimeMs)} · ${timesPlayed(s.playCount)}", Type.label, Palette.inkSecondary)
+            }
+        }
+    }
 }
 
 @Composable
