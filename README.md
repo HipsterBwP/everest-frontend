@@ -49,9 +49,10 @@ and opens Android's setting to make ARCROW the home screen (the Home button then
 
 ## Your own console backdrops
 
-Make a folder called `_art` inside your ROMs folder and put one picture per system in it, named after the
-system's folder or ES-DE name: `snes.jpg`, `ps2.png`, `n64.webp`, `megadrive.jpg`… Rescan from Settings › Library
-and the console screen shows them full screen. Wide 1920×1080 pictures look best; keep the main subject in the
+Name one picture per system after its folder or ES-DE name: `snes.jpg`, `ps2.png`, `n64.webp`, `megadrive.jpg`…
+Then either import them (or a .zip of them) from Settings › Appearance › Your own pictures, or put them in a folder
+called `_art` inside your ROMs folder and rescan from Settings › Library. An `arcrow-art` folder or `arcrow-art.zip`
+in the ROMs folder works too. The console screen shows them full screen. Wide 1920×1080 pictures look best; keep the main subject in the
 right half, since the logo rail and info panel cover the left. Settings › Appearance switches between your
 pictures, the best-selling game's cover and the console on its own, and sets the blur and colour tint.
 

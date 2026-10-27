@@ -1,5 +1,7 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.ui.platform.LocalContext
 import android.provider.Settings
 import android.content.Intent
@@ -73,6 +75,12 @@ private data class Item(
 
 @Composable
 fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
+    val artPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        vm.importArt(uris)
+    }
+    val importArt: () -> Unit = {
+        runCatching { artPicker.launch(arrayOf("image/*", "application/zip", "application/x-zip-compressed")) }
+    }
     var page by rememberSaveable { mutableStateOf(Page.Emulators) }
     var inContent by rememberSaveable { mutableStateOf(false) }
     var row by rememberSaveable { mutableIntStateOf(0) }
@@ -86,7 +94,7 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
         Page.Scraper -> scraperItems(vm, accent)
         Page.ScreenScraper -> screenScraperItems(vm, accent)
         Page.Sound -> soundItems(vm, accent)
-        Page.Appearance -> appearanceItems(vm, accent)
+        Page.Appearance -> appearanceItems(vm, accent, importArt)
         Page.Controls -> controlsItems(vm, accent)
         Page.Stats -> statsItems(vm, accent)
         Page.About -> aboutItems(vm, accent)
@@ -394,7 +402,7 @@ private fun screenScraperItems(vm: LauncherViewModel, accent: Color): List<Item>
 }
 
 @Composable
-private fun appearanceItems(vm: LauncherViewModel, accent: Color): List<Item> {
+private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () -> Unit): List<Item> {
     val c = vm.config
     return listOf(
         Item("backdrop", onA = { vm.cycleBackdrop() }, aLabel = "Change") { focused ->
@@ -420,18 +428,21 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color): List<Item> {
                 )
             }
         },
-        Item("custom") { focused ->
-            ListRow(focused, accent, background = Palette.surface) {
+        Item(
+            "custom", onA = importArt, aLabel = "Import",
+            onX = vm::clearImportedArt, xLabel = "Clear imported",
+        ) { focused ->
+            ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
                     Txt("Your own pictures", Type.rowTitle, Palette.ink)
                     Txt(
-                        "Put images named after each system (snes.jpg, ps2.png…) in an \"_art\" folder in your " +
-                            "ROMs folder, then rescan. Wide 1920×1080 pictures look best.",
+                        "Import pictures or a .zip from Downloads, named after each system (snes.jpg, ps2.png…). " +
+                            "Or put them in an \"_art\" folder in your ROMs folder and rescan.",
                         Type.label, Palette.inkSecondary, maxLines = 3,
                     )
                 }
                 val n = vm.systemCustom.size
-                Txt(if (n == 0) "None" else "$n found", Type.labelStrong, if (n > 0) Palette.ok else Palette.inkSecondary)
+                Txt(if (n == 0) "None" else "$n in use", Type.labelStrong, if (n > 0) Palette.ok else Palette.inkSecondary)
             }
         },
         Item("blur", onA = { vm.cycleBackdropBlur() }, aLabel = "Change") { focused ->

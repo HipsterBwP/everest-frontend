@@ -212,6 +212,31 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setBackdropTint(enabled: Boolean) = updateConfig { it.copy(backdropTint = enabled) }
 
+    /** Imports pictures (or a zip of them) picked from anywhere on the device, e.g. Downloads. */
+    fun importArt(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        val app = getApplication<Application>()
+        viewModelScope.launch {
+            val count = withContext(Dispatchers.IO) { CustomArt.import(app.contentResolver, uris, importedArtDir) }
+            refreshCustomArt()
+            dialog = if (count == 0) {
+                Dialog.Message("No pictures found", "Pick .jpg, .png or .webp pictures, or a .zip with pictures inside.")
+            } else {
+                Dialog.Message(
+                    "Imported $count ${if (count == 1) "picture" else "pictures"}",
+                    "Pictures named after a system (like snes.jpg) now fill its console screen.",
+                )
+            }
+        }
+    }
+
+    fun clearImportedArt() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { importedArtDir.deleteRecursively() }
+            refreshCustomArt()
+        }
+    }
+
     /** Set by the activity, which owns the music player. */
     var music: BackgroundMusic? = null
 
@@ -753,14 +778,22 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun titleArt(game: Game): File? = scraper.file(art[game.id]?.titleShot)
 
-    /** Copies backdrops from the ROMs folder's "_art" folder; matched by system name or folder name. */
+    private val importedArtDir get() = File(getApplication<Application>().filesDir, "custom-art-imported")
+
+    /**
+     * Collects your own backdrops: imported ones, then the ROMs folder's "_art" folder (which wins).
+     * Matched by system name or folder name.
+     */
     private fun refreshCustomArt() {
-        val root = rootUri() ?: return
+        val root = rootUri()
         val app = getApplication<Application>()
         viewModelScope.launch {
             val found = withContext(Dispatchers.IO) {
-                runCatching { CustomArt.sync(app.contentResolver, root, File(app.filesDir, "custom-art")) }.getOrNull()
-            } ?: return@launch
+                val folder = root?.let {
+                    runCatching { CustomArt.sync(app.contentResolver, it, File(app.filesDir, "custom-art")) }.getOrNull()
+                }.orEmpty()
+                CustomArt.imported(importedArtDir) + folder
+            }
             val matched = systems.mapNotNull { s ->
                 (found[s.name] ?: found[s.folderName.lowercase()])?.let { s.name to it }
             }.toMap()

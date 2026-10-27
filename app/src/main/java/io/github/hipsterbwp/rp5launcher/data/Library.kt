@@ -92,7 +92,8 @@ class LibraryScanner(private val resolver: ContentResolver, private val catalog:
     fun scan(rootUri: Uri, onProgress: (systemsDone: Int, systemsTotal: Int) -> Unit = { _, _ -> }): LibraryCache {
         val rootDocId = DocumentsContract.getTreeDocumentId(rootUri)
         val folders = children(rootUri, rootDocId).filter {
-            it.isDir && !it.name.startsWith(".") && it.name.lowercase() !in NON_SYSTEM_FOLDERS
+            it.isDir && !it.name.startsWith(".") && it.name.lowercase() !in NON_SYSTEM_FOLDERS &&
+                !it.name.lowercase().startsWith("arcrow-art")
         }
         val systems = ArrayList<ScannedSystem>()
         val unknown = ArrayList<String>()
