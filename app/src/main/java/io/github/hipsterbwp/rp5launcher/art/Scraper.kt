@@ -313,6 +313,25 @@ class Scraper(context: Context) {
         )
     }
 
+    /**
+     * High-resolution cover of a system's signature game (its best seller), for the console screen.
+     * Returns the stored file name, or null if libretro has no cover for it. Call from Dispatchers.IO.
+     */
+    fun featureArt(system: String, title: String): String? {
+        val target = "feature/$system.webp"
+        if (File(dir, target).exists()) return target
+        val repo = LIBRETRO_NAMES[system]?.replace(' ', '_') ?: return null
+        val names = index(repo, BOXARTS) ?: return null
+        val want = words(title)
+        val name = Matcher(names).best(title, "USA")
+            ?: names.map { it to words(it).intersect(want).size.toFloat() / want.size.coerceAtLeast(1) }
+                .filter { it.second >= FEATURE_MIN_OVERLAP && UNWANTED.none { u -> u in it.first.lowercase() } }
+                .sortedWith(compareByDescending<Pair<String, Float>> { it.second }.thenBy { it.first.length })
+                .firstOrNull()?.first
+            ?: return null
+        return download("$RAW/$repo/master/$BOXARTS/${Http.segment(name)}.png", target, FEATURE_MAX_H)
+    }
+
     private fun words(s: String): Set<String> =
         s.lowercase().replace(TAGS, " ").split(Regex("[^a-z0-9]+")).filter { it.length > 1 && it != "the" }.toSet()
 
@@ -400,18 +419,22 @@ class Scraper(context: Context) {
         private const val FANART_MAX_H = 720
         private const val CRC_MAX_BYTES = 64L * 1024 * 1024
         private const val MAX_CANDIDATES = 12
+        private const val FEATURE_MAX_H = 1080
+        private const val FEATURE_MIN_OVERLAP = 0.6f
         private const val WEBP_QUALITY = 85
         private const val INDEX_TTL_MS = 7L * 24 * 60 * 60 * 1000
 
         private val UNWANTED = listOf("(beta", "(proto", "(demo", "(sample", "(pirate", "(hack", "[b]")
         private val TAGS = Regex("""\s*[(\[][^)\]]*[)\]]""")
         private val THE = Regex("""\bthe\b""")
+        private val DIACRITICS = Regex("""\p{Mn}+""")
 
         /** libretro replaces these characters with "_" in thumbnail file names. */
         private fun sanitize(name: String) = name.replace(Regex("""[&*/:`<>?\\|]"""), "_")
 
         /** Normalized title used for fuzzy matching: no tags, no "the", letters and digits only. */
-        fun key(name: String): String = name.lowercase()
+        fun key(name: String): String = java.text.Normalizer.normalize(name.lowercase(), java.text.Normalizer.Form.NFD)
+            .replace(DIACRITICS, "")
             .replace(TAGS, "")
             .replace("&", "and")
             .replace(THE, "")

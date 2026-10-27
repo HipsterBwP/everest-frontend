@@ -9,6 +9,17 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import java.io.File
+import io.github.hipsterbwp.rp5launcher.ui.theme.rounded
+import io.github.hipsterbwp.rp5launcher.ui.theme.Elevation
+import io.github.hipsterbwp.rp5launcher.ui.theme.Blur
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImagePainter
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -126,12 +137,16 @@ private fun SystemsTab(
 
     Box(Modifier.fillMaxSize().background(bg)) {
         val hero = selected?.let(vm::systemHero)
+        val feature = selected?.let { vm.systemFeature[it.name] }
         val product = selected?.let { vm.systemImages[it.name] }
 
-        // Hero: a game's fanart full-bleed, or the console illustration as a product shot.
-        Crossfade(targetState = hero to product, animationSpec = Motion.colorFade(), label = "hero") { (art, console) ->
+        // Hero, best first: widescreen fanart of one of your games (ScreenScraper), else an HD cover
+        // of the system's best-selling game over a blur of itself, else the console as a product shot.
+        Crossfade(targetState = Triple(hero, feature, product), animationSpec = Motion.colorFade(), label = "hero") { (art, cover, console) ->
             Box(Modifier.fillMaxSize()) {
-                if (art != null) {
+                if (art == null && cover != null) {
+                    FeatureCover(cover, selected?.let { vm.bestSeller(it.name) })
+                } else if (art != null) {
                     ArtImage(art, Modifier.fillMaxSize(), ContentScale.Crop)
                     // Soft shade behind the rail and panel so text stays readable over any art.
                     Box(
@@ -158,7 +173,7 @@ private fun SystemsTab(
         Row(Modifier.fillMaxSize()) {
             LogoRail(vm, systems, if (collections) -1 else index, ::select, ::open)
             if (selected != null) {
-                SystemPanel(vm, selected, showConsole = hero != null)
+                SystemPanel(vm, selected)
             } else {
                 EmptyPanel(
                     if (collections) "Collections" else if (vm.scan != null) "Looking for games…" else "No games found",
@@ -247,7 +262,7 @@ private fun LogoRail(
 
 /** Frosted panel: console illustration, name, counts and a short fact sheet. */
 @Composable
-private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry, showConsole: Boolean) {
+private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry) {
     val info = system.info
     val favorites = system.games.count { vm.stats(it).favorite }
     val facts = vm.systemFacts[system.name].orEmpty().filter { it.first !in SKIP_FACTS }.take(MAX_FACTS)
@@ -259,11 +274,6 @@ private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry, showConsole:
             .glass(Radius.PANEL)
             .padding(Space.SECTION.u),
     ) {
-        val console = vm.systemImages[system.name]
-        if (showConsole && console != null) {
-            ArtImage(console, Modifier.fillMaxWidth().height(Size.CONSOLE_ART_H.u))
-            Spacer(Modifier.height(Space.SECTION_SMALL.u))
-        }
         val eyebrow = listOfNotNull(info.maker, info.year?.toString()).joinToString(" · ").uppercase()
         if (eyebrow.isNotEmpty()) {
             Txt(eyebrow, Type.eyebrow, Palette.inkSecondary)
@@ -290,6 +300,10 @@ private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry, showConsole:
                     Txt(last.title, Type.label, Palette.ink)
                 }
             }
+        }
+        // The console (or its controller) fills the rest of the panel.
+        Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.SECTION_SMALL.u), contentAlignment = Alignment.Center) {
+            vm.systemImages[system.name]?.let { ArtImage(it, Modifier.fillMaxSize()) }
         }
     }
 }
@@ -394,3 +408,54 @@ private fun GamesTab(vm: LauncherViewModel, tab: Int, switchTab: (Int) -> Unit, 
         onPlay = ::play,
     )
 }
+
+/**
+ * Apple-TV-style feature: the best-selling game's cover as a large lifted card, over a blurred,
+ * dimmed copy of itself that fills the screen.
+ */
+@Composable
+private fun FeatureCover(cover: File, title: String?) {
+    Box(Modifier.fillMaxSize()) {
+        ArtImage(cover, Modifier.fillMaxSize().blur(Blur.BACKDROP.u), ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(Palette.black.copy(alpha = Alpha.BROWSER_DIM)))
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(
+                    start = (Size.RAIL_W + Size.SYSTEM_PANEL_W + Space.SECTION * 2).u,
+                    end = Space.SCREEN_H.u,
+                    top = (Space.SCREEN_TOP + Size.STATUS_H + Space.SECTION).u,
+                    bottom = (Size.HINT_BAR + Space.LG).u,
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val painter = rememberAsyncImagePainter(cover)
+            val ratio = (painter.state as? AsyncImagePainter.State.Success)?.painter?.intrinsicSize
+                ?.let { if (it.height > 0) it.width / it.height else null } ?: FEATURE_RATIO
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Image(
+                    painter,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .aspectRatio(ratio)
+                        .shadow(Elevation.LIFTED.u, rounded(Radius.CARD), clip = false)
+                        .clip(rounded(Radius.CARD)),
+                )
+            }
+            if (title != null) {
+                Spacer(Modifier.height(Space.ROW_GAP.u))
+                Column(
+                    Modifier.glass(Radius.PILL).padding(vertical = Space.CHIP_V.u, horizontal = Space.LG.u),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Txt("BEST-SELLING GAME", Type.eyebrow, Palette.inkSecondary)
+                    Txt(title, Type.labelStrong, Palette.ink)
+                }
+            }
+        }
+    }
+}
+
+/** Box-art proportion used until the feature cover has loaded. */
+private const val FEATURE_RATIO = 0.72f

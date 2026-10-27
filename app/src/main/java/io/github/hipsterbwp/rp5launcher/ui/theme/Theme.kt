@@ -385,7 +385,6 @@ object Size {
     const val RAIL_LOGO_SELECTED_H = 50
     const val RAIL_ITEM_GAP = 26
     const val SYSTEM_PANEL_W = 300
-    const val CONSOLE_ART_H = 130
 
     // Game browser: media + info column | cover grid
     const val BROWSER_INFO_W = 410

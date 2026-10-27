@@ -167,6 +167,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Console illustrations and fact sheets per system. */
     val systemImages = mutableStateMapOf<String, File>()
     val systemFacts = mutableStateMapOf<String, List<Pair<String, String>>>()
+    /** HD cover of each system's best-selling game, for the console screen. */
+    val systemFeature = mutableStateMapOf<String, File>()
+    private val featureTried = HashSet<String>()
 
     var screenScraper by mutableStateOf(ScreenScraperAccount.Credentials("", "", "", ""))
         private set
@@ -709,10 +712,31 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 logoStore.fetchMissing(names, force) + systemArtStore.fetchMissing(names, force)
             }
             added.distinct().forEach(::publish)
+            refreshFeatures()
         }
     }
 
     fun fanart(game: Game): File? = scraper.file(art[game.id]?.fanart)
+
+    /** The best-selling game named in a system's fact sheet, without "(… million)" notes. */
+    fun bestSeller(system: String): String? =
+        systemFacts[system]?.firstOrNull { it.first.startsWith("Best-selling") }?.second
+            ?.replace(Regex("""\s*\(.*?\)"""), "")?.trim()?.takeIf { it.isNotEmpty() }
+
+    /** Fetches the best-seller cover for systems that don't have one yet (once per run each). */
+    private fun refreshFeatures() {
+        val wanted = systems.mapNotNull { s -> bestSeller(s.name)?.let { s.name to it } }
+            .filter { (name, _) -> name !in systemFeature && featureTried.add(name) }
+        if (wanted.isEmpty()) return
+        viewModelScope.launch {
+            wanted.forEach { (name, title) ->
+                val file = withContext(Dispatchers.IO) {
+                    runCatching { scraper.featureArt(name, title) }.getOrNull()?.let(scraper::file)
+                }
+                if (file != null) systemFeature[name] = file
+            }
+        }
+    }
 
     fun titleArt(game: Game): File? = scraper.file(art[game.id]?.titleShot)
 

@@ -56,9 +56,11 @@ The original Cartridge mockups still define layout proportions where a screen is
 
 ## Screens
 
-1. **Home / Systems** — left: vertical rail of console logos (Up/Down); next to it a glass panel with the console
-   illustration, maker · year, name, game and favorite counts, a short fact sheet and last played; right: hero
-   fanart from one of that system's games (or the console illustration as a product shot). Top right: tabs
+1. **Home / Systems** — left: vertical rail of console logos (Up/Down); next to it a glass panel with
+   maker · year, name, game and favorite counts, a short fact sheet and last played, with the console (or
+   controller) illustration filling the panel's lower part; right: hero fanart from one of that system's games
+   (ScreenScraper), else an HD cover of the system's best-selling game as a lifted card over a blurred copy of
+   itself with a glass "Best-selling game" caption, else the console illustration as a product shot. Top right: tabs
    (Systems / Favorites / Recent / Collections, L1/R1) and a clock/battery capsule. A opens the system; Start settings.
 2. **Game browser** (a system's games, and the Favorites/Recent tabs) — blurred, dimmed art of the focused game
    fills the screen. Left: gameplay video over its screenshot, then a glass card with system · year, title,
