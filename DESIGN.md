@@ -67,7 +67,8 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
 
 ### Brand
 
-- Name: **Everest Frontend** ("Everest" in running text, "EVEREST" in pixel type).
+- Name: **Everest Frontend**; the app label under the icon is just "Everest" ("Everest" in running text,
+  "EVEREST" in pixel type, "FRONTEND" under it on the loading screen).
 - Logo: the round synthwave mountain badge (sun, snowy peak, lake reflection, neon ring), `brand_logo.webp`.
 - App icon: the badge centred on a night background with a violet glow (adaptive icon: background + badge
   foreground, sized to sit inside every launcher mask); legacy launchers get the round badge. Android's splash

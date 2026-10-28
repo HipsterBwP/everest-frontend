@@ -749,7 +749,7 @@ private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
                     Txt("Use Everest as the home screen", Type.rowTitle, Palette.ink)
-                    Txt("Pick Everest Frontend in Android's Home app setting; the Home button then opens it", Type.label, Palette.inkSecondary, maxLines = 2)
+                    Txt("Pick Everest in Android's Home app setting; the Home button then opens it", Type.label, Palette.inkSecondary, maxLines = 2)
                 }
                 ChevronIcon(Palette.inkSecondary)
             }
