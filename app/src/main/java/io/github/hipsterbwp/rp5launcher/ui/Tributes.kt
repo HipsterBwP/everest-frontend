@@ -1,0 +1,285 @@
+package io.github.hipsterbwp.rp5launcher.ui
+
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size as GeoSize
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.hipsterbwp.rp5launcher.ui.theme.Palette
+import io.github.hipsterbwp.rp5launcher.ui.theme.Size
+import io.github.hipsterbwp.rp5launcher.ui.theme.Space
+import io.github.hipsterbwp.rp5launcher.ui.theme.Type
+import io.github.hipsterbwp.rp5launcher.ui.theme.u
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.sin
+
+/*
+ * Start-up tributes for the rest of the library, each an Everest-branded nod to the console's
+ * power-on screen. [p] runs 0→1 over Motion.TRIBUTE_MS.
+ */
+
+/** 0→1 as [p] goes from [from] to [to]. */
+private fun phase(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
+
+/** Game Boy Advance: the name on white with a light sweep across it, then a purple underline. */
+@Composable
+internal fun GbaTribute(p: Float) {
+    val ink = Color(0xFF2A2AA8)
+    Box(Modifier.fillMaxSize().background(Palette.white), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box {
+                Txt("EVEREST", Type.hero, ink, Modifier.alpha(phase(p, 0f, 0.2f)))
+                // The sweep: a bright band crossing the letters.
+                Canvas(Modifier.matchParentSize()) {
+                    val x = size.width * (phase(p, 0.15f, 0.55f) * 1.6f - 0.3f)
+                    drawRect(
+                        Brush.horizontalGradient(
+                            listOf(Color.Transparent, Palette.white.copy(alpha = 0.9f), Color.Transparent),
+                            startX = x - size.width * 0.15f, endX = x + size.width * 0.15f,
+                        ),
+                    )
+                }
+            }
+            Spacer(Modifier.height(Space.MD.u))
+            Canvas(Modifier.size(Size.TRIBUTE_MARK.u * 2, Space.SM.u)) {
+                drawRect(ink, size = GeoSize(size.width * phase(p, 0.5f, 0.75f), size.height))
+            }
+        }
+    }
+}
+
+/** Game Boy Color: letters drop in one by one, each in its own colour. */
+@Composable
+internal fun GbcTribute(p: Float) {
+    val colors = listOf(0xFFE4002B, 0xFFFF8A00, 0xFFF5C400, 0xFF00A94F, 0xFF0072CE, 0xFF5B2C9F, 0xFFE4007C)
+    Box(Modifier.fillMaxSize().background(Palette.white), contentAlignment = Alignment.Center) {
+        Row {
+            "EVEREST".forEachIndexed { i, c ->
+                val drop = phase(p, i * 0.06f, i * 0.06f + 0.2f)
+                val bounce = (1f - drop) * -60f + if (drop == 1f) 0f else abs(sin(drop * PI.toFloat())) * -8f
+                Txt(c.toString(), Type.hero, Color(colors[i]), Modifier.offset(y = bounce.u).alpha(drop))
+            }
+        }
+    }
+}
+
+/** Mega Drive / Genesis: a chrome-blue name on black with a glint running through it. */
+@Composable
+internal fun MegaDriveTribute(p: Float) {
+    val blue = Color(0xFF1E5BFF)
+    Box(Modifier.fillMaxSize().background(Palette.black), contentAlignment = Alignment.Center) {
+        val reveal = phase(p, 0f, 0.3f)
+        Box(Modifier.graphicsLayer { scaleX = 0.6f + 0.4f * reveal; scaleY = 0.6f + 0.4f * reveal; alpha = reveal }) {
+            Txt("EVEREST", Type.hero, blue, glow = Color(0xFF7FA6FF))
+            Canvas(Modifier.matchParentSize()) {
+                val x = size.width * phase(p, 0.35f, 0.7f)
+                drawLine(Palette.white, Offset(x - 12f, size.height), Offset(x + 12f, 0f), strokeWidth = 6f)
+            }
+        }
+    }
+}
+
+/** Nintendo 3DS: the name in three layers that slide apart into depth. */
+@Composable
+internal fun ThreeDsTribute(p: Float) {
+    val red = Color(0xFFD12230)
+    val depth = FastOutSlowInEasing.transform(phase(p, 0.1f, 0.5f))
+    Box(Modifier.fillMaxSize().background(Palette.white), contentAlignment = Alignment.Center) {
+        Box {
+            Txt("EVEREST 3D", Type.hero, red.copy(alpha = 0.2f), Modifier.offset(x = (depth * 10).u, y = (depth * 10).u))
+            Txt("EVEREST 3D", Type.hero, red.copy(alpha = 0.45f), Modifier.offset(x = (depth * 5).u, y = (depth * 5).u))
+            Txt("EVEREST 3D", Type.hero, red)
+        }
+    }
+}
+
+/** Nintendo 64: four coloured blocks tumble together into a spinning cube, then the name. */
+@Composable
+internal fun N64Tribute(p: Float) {
+    val colors = listOf(Color(0xFFE4002B), Color(0xFF009B48), Color(0xFF0046AD), Color(0xFFFFD100))
+    val gather = FastOutSlowInEasing.transform(phase(p, 0f, 0.5f))
+    Box(Modifier.fillMaxSize().background(Palette.black), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Canvas(Modifier.size(Size.TRIBUTE_MARK.u)) {
+                val s = size.minDimension * 0.28f
+                val spread = size.minDimension * 0.9f * (1f - gather)
+                rotate(360f * p * 1.5f, center) {
+                    colors.forEachIndexed { i, color ->
+                        val dx = if (i % 2 == 0) -1f else 1f
+                        val dy = if (i < 2) -1f else 1f
+                        val c = Offset(center.x + dx * (s / 2 + spread), center.y + dy * (s / 2 + spread))
+                        drawRect(color, Offset(c.x - s / 2, c.y - s / 2), GeoSize(s, s))
+                    }
+                }
+            }
+            Spacer(Modifier.height(Space.SECTION.u))
+            Txt("EVEREST 64", Type.screenTitle, Palette.white, Modifier.alpha(phase(p, 0.55f, 0.75f)))
+        }
+    }
+}
+
+/** Nintendo DS: two stacked screens light up, the name on top, a touch prompt below. */
+@Composable
+internal fun NdsTribute(p: Float) {
+    val grey = Color(0xFF8A8F98)
+    Column(
+        Modifier.fillMaxSize().background(Color(0xFFDADDE2)).padding(Space.XL.u),
+        verticalArrangement = Arrangement.spacedBy(Space.LG.u),
+    ) {
+        listOf("EVEREST", "Touch the screen to continue.").forEachIndexed { i, text ->
+            Box(
+                Modifier.weight(1f).fillMaxWidth().background(Palette.white.copy(alpha = phase(p, i * 0.25f, i * 0.25f + 0.25f))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Txt(text, if (i == 0) Type.hero else Type.hint, grey, Modifier.alpha(phase(p, i * 0.25f + 0.15f, i * 0.25f + 0.4f)))
+            }
+        }
+    }
+}
+
+/** NES: a black title card with a red name and the blinking PUSH START BUTTON. */
+@Composable
+internal fun NesTribute(p: Float) {
+    Box(Modifier.fillMaxSize().background(Palette.black), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Txt("EVEREST", Type.hero, Color(0xFFE40018), Modifier.alpha(phase(p, 0f, 0.15f)))
+            Spacer(Modifier.height(Space.SECTION.u))
+            val blink = if (p > 0.3f && ((p * 10).toInt() % 2 == 0)) 1f else 0f
+            Txt("PUSH START BUTTON", Type.hint, Palette.white, Modifier.alpha(blink))
+            Spacer(Modifier.height(Space.SECTION_LARGE.u))
+            Txt("© EVEREST FRONTEND", Type.hint, Color(0xFFBCBCBC), Modifier.alpha(phase(p, 0.2f, 0.35f)))
+        }
+    }
+}
+
+/** Super Nintendo: four coloured button dots pop in, then the name in italic-ish pixels. */
+@Composable
+internal fun SnesTribute(p: Float) {
+    val dots = listOf(Color(0xFFE4002B), Color(0xFFFFC300), Color(0xFF009B48), Color(0xFF2E3192))
+    Box(Modifier.fillMaxSize().background(Color(0xFFE6E6EB)), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.MD.u)) {
+                dots.forEachIndexed { i, c ->
+                    val pop = phase(p, i * 0.08f, i * 0.08f + 0.15f)
+                    Canvas(Modifier.size(Space.SECTION.u).graphicsLayer { scaleX = pop; scaleY = pop }) { drawCircle(c) }
+                }
+            }
+            Spacer(Modifier.height(Space.SECTION.u))
+            Txt("SUPER EVEREST", Type.screenTitle, Color(0xFF4F43AE), Modifier.alpha(phase(p, 0.4f, 0.6f)).graphicsLayer { rotationZ = -4f })
+        }
+    }
+}
+
+/** Switch: two controller halves slide in and click together, then the name. */
+@Composable
+internal fun SwitchTribute(p: Float) {
+    val red = Color(0xFFFF4554)
+    val blue = Color(0xFF00C3E3)
+    val click = FastOutSlowInEasing.transform(phase(p, 0f, 0.35f))
+    Box(Modifier.fillMaxSize().background(red), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Canvas(Modifier.size(Size.TRIBUTE_MARK.u)) {
+                val w = size.width * 0.32f
+                val h = size.height * 0.8f
+                val gap = size.width * 0.6f * (1f - click)
+                val top = (size.height - h) / 2
+                val r = CornerRadius(w / 2)
+                drawRoundRect(Palette.white, Offset(center.x - w - gap, top), GeoSize(w, h), r, style = Stroke(w * 0.18f))
+                drawRoundRect(Palette.white, Offset(center.x + gap, top), GeoSize(w, h), r)
+                drawCircle(blue, w * 0.18f, Offset(center.x + gap + w / 2, top + h * 0.65f))
+                drawCircle(Palette.white, w * 0.16f, Offset(center.x - w - gap + w / 2, top + h * 0.3f))
+            }
+            Spacer(Modifier.height(Space.SECTION.u))
+            Txt("EVEREST", Type.screenTitle, Palette.white, Modifier.alpha(phase(p, 0.4f, 0.55f)))
+        }
+    }
+}
+
+/** PlayStation 2: towers of glassy blocks rise from a deep-blue void, then the name glows in. */
+@Composable
+internal fun Ps2Tribute(p: Float) {
+    Box(Modifier.fillMaxSize().background(Color(0xFF02041A)), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cols = 14
+            val w = size.width / cols
+            for (i in 0 until cols) {
+                val seed = ((i * 37) % 11) / 11f
+                val h = size.height * (0.15f + 0.5f * seed) * phase(p, seed * 0.2f, seed * 0.2f + 0.5f)
+                drawRect(
+                    Brush.verticalGradient(listOf(Color(0x664A7BFF), Color(0x110A1A60)), startY = size.height - h, endY = size.height),
+                    Offset(i * w + w * 0.15f, size.height - h), GeoSize(w * 0.7f, h),
+                )
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Txt("EVEREST", Type.hero, Palette.white, Modifier.alpha(phase(p, 0.5f, 0.75f)), glow = Color(0xFF4A7BFF))
+            Spacer(Modifier.height(Space.SM.u))
+            Txt("2", Type.screenTitle, Color(0xFF4A7BFF), Modifier.alpha(phase(p, 0.6f, 0.8f)))
+        }
+    }
+}
+
+/** PSP: a flowing ribbon of light across a dark screen, the name on top of it. */
+@Composable
+internal fun PspTribute(p: Float) {
+    Box(Modifier.fillMaxSize().background(Color(0xFF0B0B14)), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            for (k in 0 until 3) {
+                val path = Path()
+                val steps = 60
+                for (i in 0..steps) {
+                    val x = size.width * i / steps
+                    val y = size.height * 0.55f + sin(i / steps.toFloat() * 2 * PI.toFloat() + p * 6f + k) * size.height * (0.06f + k * 0.02f)
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                drawPath(path, Palette.white.copy(alpha = 0.35f - k * 0.08f), style = Stroke(width = 3f + k * 2f))
+            }
+        }
+        Txt("EVEREST", Type.hero, Palette.white, Modifier.alpha(phase(p, 0.25f, 0.5f)))
+    }
+}
+
+/** Wii: white screen, a soft blue ring pulsing out, the name in rounded grey and "Press A". */
+@Composable
+internal fun WiiTribute(p: Float) {
+    val sky = Color(0xFF34BEED)
+    val grey = Color(0xFF8C8C8C)
+    BoxWithConstraints(Modifier.fillMaxSize().background(Palette.white), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            for (k in 0 until 2) {
+                val ring = ((p * 1.5f + k * 0.5f) % 1f)
+                drawCircle(sky.copy(alpha = (1f - ring) * 0.5f), size.minDimension * 0.15f + ring * size.minDimension * 0.35f, center, style = Stroke(4f))
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Txt("everest", Type.hero, grey, Modifier.alpha(phase(p, 0.1f, 0.35f)))
+            Spacer(Modifier.height(Space.SECTION.u))
+            Txt("Press A", Type.hint, sky, Modifier.alpha(phase(p, 0.5f, 0.7f)))
+        }
+    }
+}
+

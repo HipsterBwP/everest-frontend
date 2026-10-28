@@ -1510,7 +1510,10 @@ enum class Unlock(val key: String, val title: String, val cost: Int, val scene: 
 data class RpgStatus(val name: String, val level: Int, val hours: Long, val exp: Float, val gold: Int, val items: Int)
 
 /** Consoles with a start-up tribute. */
-val TRIBUTES = setOf("gb", "psx", "gc", "dreamcast")
+val TRIBUTES = setOf(
+    "gb", "gbc", "gba", "nds", "n3ds", "nes", "famicom", "snes", "sfc", "n64", "gc", "wii", "switch",
+    "psx", "ps2", "psp", "megadrive", "genesis", "dreamcast",
+)
 
 private val KONAMI = listOf(Pad.Up, Pad.Up, Pad.Down, Pad.Down, Pad.Left, Pad.Right, Pad.Left, Pad.Right, Pad.B, Pad.A)
 private const val INITIALS = 3

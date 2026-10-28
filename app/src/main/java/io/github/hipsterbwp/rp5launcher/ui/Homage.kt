@@ -71,7 +71,8 @@ import kotlin.math.sin
 
 /**
  * A nod to a console's power-on screen, Everest-branded: the Game Boy logo scroll and ding, the
- * PlayStation diamond, the GameCube rolling cube and the Dreamcast swirl. Any button skips it.
+ * PlayStation diamond, the GameCube rolling cube, the Dreamcast swirl and the rest in Tributes.kt.
+ * Any button skips it.
  */
 @Composable
 fun TributeIntro(system: String, vm: LauncherViewModel, onDone: () -> Unit) {
@@ -93,7 +94,19 @@ fun TributeIntro(system: String, vm: LauncherViewModel, onDone: () -> Unit) {
         "gb" -> GameBoyTribute(p)
         "psx" -> PlayStationTribute(p)
         "gc" -> GameCubeTribute(p)
-        else -> DreamcastTribute(p)
+        "dreamcast" -> DreamcastTribute(p)
+        "gba" -> GbaTribute(p)
+        "gbc" -> GbcTribute(p)
+        "megadrive", "genesis" -> MegaDriveTribute(p)
+        "n3ds" -> ThreeDsTribute(p)
+        "n64" -> N64Tribute(p)
+        "nds" -> NdsTribute(p)
+        "nes", "famicom" -> NesTribute(p)
+        "snes", "sfc" -> SnesTribute(p)
+        "switch" -> SwitchTribute(p)
+        "ps2" -> Ps2Tribute(p)
+        "psp" -> PspTribute(p)
+        else -> WiiTribute(p)
     }
 }
 
@@ -101,6 +114,18 @@ private fun bootSound(system: String) = when (system) {
     "psx" -> UiSound.BootPs
     "gc" -> UiSound.BootGc
     "dreamcast" -> UiSound.BootDc
+    "gba" -> UiSound.BootGba
+    "gbc" -> UiSound.BootGbc
+    "megadrive", "genesis" -> UiSound.BootMd
+    "n3ds" -> UiSound.BootThreeDs
+    "n64" -> UiSound.BootN64
+    "nds" -> UiSound.BootNds
+    "nes", "famicom" -> UiSound.BootNes
+    "snes", "sfc" -> UiSound.BootSnes
+    "switch" -> UiSound.BootSwitch
+    "ps2" -> UiSound.BootPs2
+    "psp" -> UiSound.BootPsp
+    "wii" -> UiSound.BootWii
     else -> UiSound.BootGb
 }
 

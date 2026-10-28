@@ -6,7 +6,8 @@ import android.media.SoundPool
 import android.os.SystemClock
 import io.github.hipsterbwp.rp5launcher.R
 
-enum class UiSound { Move, Select, Back, Tab, Launch, Error, Achievement, Secret, Challenger, OneUp, BootGb, BootPs, BootGc, BootDc }
+enum class UiSound { Move, Select, Back, Tab, Launch, Error, Achievement, Secret, Challenger, OneUp, BootGb, BootPs, BootGc, BootDc,
+    BootGba, BootGbc, BootMd, BootThreeDs, BootN64, BootNds, BootNes, BootSwitch, BootPs2, BootPsp, BootSnes, BootWii }
 
 /** Short 8-bit navigation sounds (synthesized by tools/music/sfx.py). Toggle and volume live in config. */
 class UiSounds(context: Context) {
@@ -35,6 +36,18 @@ class UiSounds(context: Context) {
         UiSound.BootPs to pool.load(context, R.raw.ui_boot_ps, 1),
         UiSound.BootGc to pool.load(context, R.raw.ui_boot_gc, 1),
         UiSound.BootDc to pool.load(context, R.raw.ui_boot_dc, 1),
+        UiSound.BootGba to pool.load(context, R.raw.ui_boot_gba, 1),
+        UiSound.BootGbc to pool.load(context, R.raw.ui_boot_gbc, 1),
+        UiSound.BootMd to pool.load(context, R.raw.ui_boot_md, 1),
+        UiSound.BootThreeDs to pool.load(context, R.raw.ui_boot_3ds, 1),
+        UiSound.BootN64 to pool.load(context, R.raw.ui_boot_n64, 1),
+        UiSound.BootNds to pool.load(context, R.raw.ui_boot_nds, 1),
+        UiSound.BootNes to pool.load(context, R.raw.ui_boot_nes, 1),
+        UiSound.BootSwitch to pool.load(context, R.raw.ui_boot_switch, 1),
+        UiSound.BootPs2 to pool.load(context, R.raw.ui_boot_ps2, 1),
+        UiSound.BootPsp to pool.load(context, R.raw.ui_boot_psp, 1),
+        UiSound.BootSnes to pool.load(context, R.raw.ui_boot_snes, 1),
+        UiSound.BootWii to pool.load(context, R.raw.ui_boot_wii, 1),
     )
 
     private var lastMoveAt = 0L

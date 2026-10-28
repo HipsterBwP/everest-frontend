@@ -83,7 +83,8 @@ and opens Android's setting to make Everest Frontend the home screen (the Home b
 
 - **Era skins**: game lists dress up as their console — Game Boy dot-matrix green, Virtual Boy red
   scanlines, NES grey, PlayStation grey and blue, Dreamcast orange swirl (Settings › Appearance).
-- **Start-up tributes**: opening Game Boy, PlayStation, GameCube or Dreamcast plays an Everest-branded nod
+- **Start-up tributes**: opening any of your consoles (Game Boy family, DS, 3DS, NES, SNES, N64, GameCube, Wii,
+  Switch, PlayStation, PS2, PSP, Mega Drive, Dreamcast) plays an Everest-branded nod
   to its power-on screen, once a day or every time (Settings › Controls). Any button skips it.
 - **This Day in Gaming History**: a console launch or landmark release from today's date on the title
   screen and in attract mode.

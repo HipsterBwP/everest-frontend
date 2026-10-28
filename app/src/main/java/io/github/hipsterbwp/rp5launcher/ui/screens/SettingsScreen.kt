@@ -772,6 +772,10 @@ private val SOUND_NAMES = mapOf(
     UiSound.Secret to "Secret found", UiSound.Challenger to "New challenger", UiSound.OneUp to "1UP",
     UiSound.BootGb to "Handheld ding", UiSound.BootPs to "Disc console chime", UiSound.BootGc to "Cube jingle",
     UiSound.BootDc to "Swirl chime",
+    UiSound.BootGba to "Handheld sweep", UiSound.BootGbc to "Colour drop", UiSound.BootMd to "16-bit fanfare",
+    UiSound.BootThreeDs to "Depth chime", UiSound.BootN64 to "Block tumble", UiSound.BootNds to "Dual-screen ding",
+    UiSound.BootNes to "Title card", UiSound.BootSnes to "Super chord", UiSound.BootSwitch to "Click",
+    UiSound.BootPs2 to "Tower drone", UiSound.BootPsp to "Light wave", UiSound.BootWii to "Channel chime",
 )
 
 @Composable
@@ -792,7 +796,7 @@ private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
                     Txt("Start-up tributes", Type.rowTitle, Palette.ink)
-                    Txt("A nod to the power-on screen when opening Game Boy, PlayStation, GameCube or Dreamcast", Type.label, Palette.inkSecondary, maxLines = 2)
+                    Txt("A nod to each console's power-on screen when you open it", Type.label, Palette.inkSecondary, maxLines = 2)
                 }
                 Txt(
                     when (cfg.bootTributes) {
