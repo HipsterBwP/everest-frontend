@@ -47,6 +47,8 @@ class ScreenScraperAccount(context: Context) {
 
 /** What ScreenScraper knows about one game. URLs carry the credentials ScreenScraper needs. */
 data class ScreenScraperGame(
+    /** Front box cover (box-2D). */
+    val boxUrl: String?,
     val fanartUrl: String?,
     val videoUrl: String?,
     val screenshotUrl: String?,
@@ -105,6 +107,7 @@ class ScreenScraper(private val creds: ScreenScraperAccount.Credentials) {
             .getOrNull() ?: return null
         val medias = game["medias"]?.jsonArray?.mapNotNull { it as? JsonObject }.orEmpty()
         return ScreenScraperGame(
+            boxUrl = media(medias, "box-2D"),
             fanartUrl = media(medias, "fanart"),
             videoUrl = media(medias, "video-normalized") ?: media(medias, "video"),
             screenshotUrl = media(medias, "ss"),

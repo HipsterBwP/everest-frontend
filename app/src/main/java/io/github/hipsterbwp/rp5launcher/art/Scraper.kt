@@ -169,10 +169,16 @@ class Scraper(context: Context) {
         // Description from Wikipedia unless one is known (ScreenScraper's wins when signed in).
         var description = previous?.description
         var wikiCheckedAt = previous?.wikiCheckedAt ?: 0L
-        if (description == null && (force || wikiCheckedAt == 0L)) {
+        var cover = box
+        // Wikipedia also stands in for the cover when libretro has none (no Switch set, odd ROM names).
+        if ((description == null && (force || wikiCheckedAt == 0L)) || cover == null) {
             try {
-                description = Wikipedia.describe(game.title, platform)
+                val wiki = Wikipedia.lookup(game.title, platform)
+                description = description ?: wiki?.description
                 wikiCheckedAt = System.currentTimeMillis()
+                if (cover == null) {
+                    cover = wiki?.imageUrl?.let { url -> runCatching { download(url, "box/$id.webp", BOX_MAX_H) }.getOrNull() }
+                }
             } catch (e: java.io.IOException) {
                 transient = true
             }
@@ -180,7 +186,7 @@ class Scraper(context: Context) {
         val metaName = boxName ?: snapName ?: base
         fun lookup(field: MetaFields) = meta[field]?.let { m -> m[metaName] ?: m[key(metaName)] ?: m[key(base)] }
         return GameArt(
-            box = box,
+            box = cover,
             snap = snap,
             year = lookup(MetaFields.Year),
             publisher = lookup(MetaFields.Publisher),
@@ -218,6 +224,8 @@ class Scraper(context: Context) {
         fun fetch(url: String?, target: String, maxHeight: Int): String? =
             url?.let { runCatching { download(it, target, maxHeight) }.getOrNull() }
         return base.copy(
+            // ScreenScraper's scan beats a Wikipedia thumbnail; libretro's set is kept when it has one.
+            box = (if (base.matched == null) fetch(found.boxUrl, "box/$id.webp", BOX_MAX_H) else null) ?: base.box,
             fanart = fetch(found.fanartUrl, "fanart/$id.webp", FANART_MAX_H) ?: base.fanart,
             snap = base.snap ?: fetch(found.screenshotUrl, "snap/$id.webp", SNAP_MAX_H),
             video = found.videoUrl ?: base.video,
@@ -341,6 +349,13 @@ class Scraper(context: Context) {
         if (cache.exists() && System.currentTimeMillis() - cache.lastModified() < INDEX_TTL_MS) {
             return cache.readLines()
         }
+        // One call lists every folder of the repo (GitHub allows only 60 calls an hour without a login).
+        indexAll(repo)?.let { all ->
+            for (f in listOf(BOXARTS, SNAPS, TITLES)) {
+                File(cacheDir, "$repo-$f.txt").writeText(all[f].orEmpty().joinToString("\n"))
+            }
+            return all[folder].orEmpty()
+        }
         val names = runCatching {
             val root = tree("$API/$repo/git/trees/HEAD") ?: return@runCatching null
             val sha = root.firstOrNull { it.first == folder }?.second ?: return@runCatching emptyList()
@@ -353,6 +368,17 @@ class Scraper(context: Context) {
         cache.writeText(names.joinToString("\n"))
         return names
     }
+
+    /** Every thumbnail name in [repo] by folder, from one recursive tree call; null if unavailable or cut short. */
+    private fun indexAll(repo: String): Map<String, List<String>>? = runCatching {
+        val body = Http.get("$API/$repo/git/trees/HEAD?recursive=1", "application/vnd.github+json") ?: return null
+        val root = json.parseToJsonElement(body.toString(Charsets.UTF_8)).jsonObject
+        if (root["truncated"]?.jsonPrimitive?.content == "true") return null
+        root["tree"]?.jsonArray.orEmpty()
+            .map { it.jsonObject["path"]!!.jsonPrimitive.content }
+            .filter { it.endsWith(".png") && '/' in it }
+            .groupBy({ it.substringBefore('/') }, { it.substringAfter('/').removeSuffix(".png") })
+    }.getOrNull()
 
     /** (path, sha) entries of a GitHub git tree. */
     private fun tree(url: String): List<Pair<String, String>>? {
