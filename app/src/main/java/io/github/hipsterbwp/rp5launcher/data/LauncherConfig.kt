@@ -45,9 +45,9 @@ data class LauncherConfig(
     val buttonLabels: String = "letters",
     /** Minutes idle before the screensaver; 0 turns it off. */
     val screensaverMinutes: Int = 5,
-    /** Background music while browsing, and its level 1 (low) to 3 (high). */
+    /** Background music while browsing, and its volume in percent (0–100). */
     val music: Boolean = true,
-    val musicVolume: Int = 1,
+    val musicLevel: Int = 30,
     /** Music tracks switched off (built-in names like "neon_drift", or your own files' names). */
     val musicOff: Set<String> = emptySet(),
     /** A track to play on repeat instead of shuffling them all (by default the 8-bit After Hours). */

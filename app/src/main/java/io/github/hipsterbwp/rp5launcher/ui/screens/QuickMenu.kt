@@ -119,7 +119,7 @@ fun QuickMenu(vm: LauncherViewModel, controls: QuickControls) {
             val wifi = remember(tick) { controls.wifiConnected }
             Txt("QUICK MENU", Type.eyebrow, Palette.cyanSoft, glow = Palette.cyan)
             Txt(
-                listOfNotNull(battery?.let { "Battery $it%" }, if (charging) "charging" else null).joinToString(" · ").ifEmpty { "ARCROW" },
+                listOfNotNull(battery?.let { "Battery $it%" }, if (charging) "charging" else null).joinToString(" · ").ifEmpty { "EVEREST" },
                 Type.screenTitleSmall, Palette.ink,
             )
             Spacer(Modifier.height(Space.SM.u))
@@ -136,7 +136,7 @@ fun QuickMenu(vm: LauncherViewModel, controls: QuickControls) {
                             QuickRow.Brightness -> {
                                 Txt("Brightness", Type.rowTitle, Palette.ink)
                                 Meter(brightness)
-                                if (!controls.systemWide) Txt("Only while ARCROW is open · A to allow everywhere", Type.label, Palette.inkSecondary, maxLines = 2)
+                                if (!controls.systemWide) Txt("Only while Everest is open · A to allow everywhere", Type.label, Palette.inkSecondary, maxLines = 2)
                             }
                             QuickRow.Volume -> {
                                 Txt("Volume", Type.rowTitle, Palette.ink)

@@ -54,8 +54,8 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.u
 import kotlin.math.roundToInt
 
 /**
- * ARCROW loading screen: the raven over a striped synthwave sun, ARCROW in sunset letters on the
- * neon grid, a segmented arcade loading bar that follows real start-up steps, and a blinking
+ * Everest loading screen: the mountain badge glowing above the horizon, EVEREST in sunset letters
+ * on the neon grid, a segmented arcade loading bar that follows real start-up steps, and a blinking
  * INSERT COIN.
  */
 @Composable
@@ -84,7 +84,7 @@ fun LoadingScreen(step: LoadingStep) {
     )
 
     Box(Modifier.fillMaxSize().background(Palette.night)) {
-        RetroBackdrop(sun = true)
+        RetroBackdrop()
         Txt("1UP  000000", Type.hint, Palette.pinkSoft, Modifier.align(Alignment.TopStart).padding(Space.SECTION.u), glow = Palette.pink)
         Txt("CREDIT  01", Type.hint, Palette.cyanSoft, Modifier.align(Alignment.TopEnd).padding(Space.SECTION.u), glow = Palette.cyan)
         Column(
@@ -94,7 +94,7 @@ fun LoadingScreen(step: LoadingStep) {
             val glow = Size.SPLASH_LOGO.u
             Image(
                 painterResource(R.drawable.brand_logo),
-                contentDescription = "ARCROW",
+                contentDescription = "Everest Frontend",
                 modifier = Modifier
                     .size(Size.SPLASH_LOGO.u)
                     .drawBehind {
@@ -106,9 +106,9 @@ fun LoadingScreen(step: LoadingStep) {
                 contentScale = ContentScale.Fit,
             )
             Spacer(Modifier.height(Size.SPLASH_TITLE_GAP.u))
-            ChromeTxt("ARCROW", Type.hero)
+            ChromeTxt("Everest", Type.hero)
             Spacer(Modifier.height(Space.SM.u))
-            Txt("RETRO GAME LAUNCHER", Type.hint, Palette.cyanSoft, glow = Palette.cyan)
+            Txt("FRONTEND", Type.hint, Palette.cyanSoft, glow = Palette.cyan)
             Spacer(Modifier.height(Space.LG.u))
             SegmentedBar(progress)
             Spacer(Modifier.height(Space.MD.u))

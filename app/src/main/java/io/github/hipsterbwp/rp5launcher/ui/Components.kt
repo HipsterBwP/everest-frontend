@@ -344,7 +344,7 @@ private fun HintItem(hint: Hint, glyphInk: Color) {
 fun ButtonGlyph(buttons: List<Pad>, ink: Color) {
     val labelFor = LocalButtonLabel.current
     val label = buttons.joinToString(" ") { labelFor(it) }
-    val face = buttons.singleOrNull()?.let(::faceColor)
+    val face = buttons.singleOrNull()?.let { faceColor(it, label) }
     if (face != null) {
         Box(
             modifier = Modifier
@@ -371,7 +371,16 @@ fun ButtonGlyph(buttons: List<Pad>, ink: Color) {
     }
 }
 
-private fun faceColor(button: Pad): Color? = when (button) {
+/** Colour of a face button: by symbol for PlayStation glyphs (as printed on the device), else by letter. */
+private fun faceColor(button: Pad, label: String): Color? = when (label) {
+    "✕" -> Palette.buttonCross
+    "○" -> Palette.buttonCircle
+    "□" -> Palette.buttonSquare
+    "△" -> Palette.buttonTriangle
+    else -> letterColor(button)
+}
+
+private fun letterColor(button: Pad): Color? = when (button) {
     Pad.A -> Palette.buttonA
     Pad.B -> Palette.buttonB
     Pad.X -> Palette.buttonX

@@ -13,7 +13,7 @@ import kotlin.math.roundToInt
 
 /**
  * Device controls for the quick menu. Apps can set brightness system-wide only with the
- * "modify system settings" permission; without it brightness applies while ARCROW is open.
+ * "modify system settings" permission; without it brightness applies while Everest is open.
  * Wi-Fi and Bluetooth can't be switched by apps on Android 10+, so those open Android's panels.
  */
 class QuickControls(private val activity: Activity) {

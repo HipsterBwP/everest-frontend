@@ -1,4 +1,4 @@
-# ARCROW background music
+# Everest Frontend background music
 
 `app/src/main/res/raw/music_*.ogg` are original tracks synthesized by `compose.py` (no samples, no
 third-party rights). To regenerate:

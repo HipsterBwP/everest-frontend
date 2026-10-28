@@ -115,8 +115,13 @@ object Palette {
     val buttonX = Color(0xFF3C8DFF)
     val buttonY = Color(0xFF2BD96B)
     val buttonOther = inkSecondary
+    /** PlayStation-style glyphs take the colours printed on the RP5's face buttons. */
+    val buttonCross = Color(0xFF3C8DFF)
+    val buttonCircle = Color(0xFFFF7A2E)
+    val buttonSquare = Color(0xFFFF3B5C)
+    val buttonTriangle = Color(0xFF2BD96B)
 
-    /** ARCROW brand on the loading screen: the raven's glow, shifted to neon pink. */
+    /** Everest brand on the loading screen: the glow behind the mountain badge. */
     val brandNavy = night
     val brandBlue = pink
     val brandBlueLight = pinkSoft
@@ -451,6 +456,10 @@ object Size {
     /** Pixel battery next to the clock. */
     const val BATTERY_W = 24
     const val BATTERY_H = 12
+    /** Settings sliders: knob, track thickness and the value label. */
+    const val SLIDER_KNOB = 14
+    const val SLIDER_TRACK = 5
+    const val SLIDER_VALUE_W = 40
     /** Quick menu sheet (hold Select). */
     const val QUICK_MENU_W = 340
     /** Top-shade height on full-screen backdrops. */
@@ -463,10 +472,10 @@ object Size {
     const val COVER_H = 196
     const val LOGO_SMALL_H = 30
 
-    // Loading screen (proportions from the retro mockup)
-    const val SPLASH_LOGO = 210
-    const val SPLASH_LOGO_TOP = 55
-    const val SPLASH_TITLE_GAP = 88
+    // Loading screen: the Everest badge above the horizon, the name on the grid
+    const val SPLASH_LOGO = 250
+    const val SPLASH_LOGO_TOP = 40
+    const val SPLASH_TITLE_GAP = 22
     const val SPLASH_BAR_W = 380
     const val SPLASH_BAR_H = 22
     const val SPLASH_SEGMENTS = 20

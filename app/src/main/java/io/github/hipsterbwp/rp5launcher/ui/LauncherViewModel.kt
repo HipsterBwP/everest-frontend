@@ -78,7 +78,7 @@ sealed interface Dialog {
 
 enum class TextField { SsUser, SsPassword, SsDevId, SsDevPassword, RaUser, RaKey, Search, NewCollection }
 
-/** A named list of games: one you made, or one ARCROW builds from your library. */
+/** A named list of games: one you made, or one Everest builds from your library. */
 data class GameCollection(
     val key: String,
     val name: String,
@@ -136,7 +136,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     var ready by mutableStateOf(false)
         private set
-    /** Progress shown on the ARCROW loading screen. */
+    /** Progress shown on the Everest loading screen. */
     var loading by mutableStateOf(LoadingStep(0f, "Loading frontend…"))
         private set
     var config by mutableStateOf(LauncherConfig.defaults)
@@ -211,7 +211,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setMusic(enabled: Boolean) = updateConfig { it.copy(music = enabled) }
 
-    fun cycleMusicVolume() = updateConfig { it.copy(musicVolume = it.musicVolume % 3 + 1) }
+    fun stepMusicLevel(delta: Int) = updateConfig {
+        it.copy(musicLevel = (it.musicLevel + delta * MUSIC_STEP).coerceIn(0, 100))
+    }
 
     /** Switches one track off or back on (switching off the repeating track also ends the repeat). */
     fun toggleTrack(key: String) = updateConfig {
@@ -1276,3 +1278,6 @@ enum class MediaKind(val media: CustomMedia, val dir: String, val noun: String, 
 
 /** Most clips the console screen montage cycles through. */
 private const val MAX_CLIPS = 12
+
+/** Music volume slider step, in percent. */
+private const val MUSIC_STEP = 5

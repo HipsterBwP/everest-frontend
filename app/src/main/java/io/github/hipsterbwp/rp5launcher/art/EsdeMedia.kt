@@ -6,7 +6,7 @@ import android.provider.DocumentsContract
 
 /**
  * Media ES-DE already downloaded: <ES-DE>/downloaded_media/<system>/videos/<rom name>.mp4. You pick
- * the ES-DE folder (or its downloaded_media folder) once; ARCROW reads the files where they are.
+ * the ES-DE folder (or its downloaded_media folder) once; Everest reads the files where they are.
  */
 class EsdeMedia(private val resolver: ContentResolver) {
     private data class Child(val docId: String, val name: String, val isDir: Boolean)

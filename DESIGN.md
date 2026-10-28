@@ -1,4 +1,4 @@
-# DESIGN.md — ARCROW
+# DESIGN.md — Everest Frontend
 
 Design source of truth for the launcher. Every screen and feature must follow this file.
 Visual reference: the original Cartridge mockups (https://claude.ai/artifact/TZq3HWB8GAsEpvCGSR4asb, **B** row) for proportions;
@@ -25,7 +25,8 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
   `#2A0650` drop shadow, for big titles (`ChromeTxt`), the sun and the loading bar.
 - Text: primary `#F6ECFF`, secondary `#BDA6E6` (≥4.5:1 on rows), faint `#7F6AA8` for values. Status: OK `#2BD96B`,
   problem `#FF4D6D`, stars/scores `#FFE45E`.
-- Arcade buttons: A red `#FF3B5C`, B yellow `#FFC93C`, X blue `#3C8DFF`, Y green `#2BD96B`; other keys lavender.
+- Arcade buttons: with PlayStation glyphs, the colours on the RP5's face buttons — ✕ blue `#3C8DFF`, ○ orange-red
+  `#FF7A2E`, □ red `#FF3B5C`, △ green `#2BD96B`; with letters, A red, B yellow, X blue, Y green. Other keys lavender.
 - System colors stay editable per system but are only a light tint on backdrops (`BACKDROP_TINT`).
 - Backdrop art gets a pink-to-cyan colour wash (blend mode Color) and a night-coloured shade behind panels.
 
@@ -66,14 +67,17 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
 
 ### Brand
 
-- App icon: the raven with its glow shifted to neon pink over a synthwave sunset and grid (adaptive icon:
-  scene background + raven foreground). Android's splash shows the raven on night `#0B0420`.
-- Loading screen: raven over the striped sun, ARCROW in sunset pixel letters on the grid, "RETRO GAME
-  LAUNCHER", a 20-block arcade loading bar, status in VT323, blinking INSERT COIN, 1UP / CREDIT corners.
+- Name: **Everest Frontend** ("Everest" in running text, "EVEREST" in pixel type).
+- Logo: the round synthwave mountain badge (sun, snowy peak, lake reflection, neon ring), `brand_logo.webp`.
+- App icon: the badge centred on a night background with a violet glow (adaptive icon: background + badge
+  foreground, sized to sit inside every launcher mask); legacy launchers get the round badge. Android's splash
+  shows the badge on night `#0B0420`.
+- Loading screen: the badge glowing above the horizon, EVEREST in sunset pixel letters on the grid, "FRONTEND",
+  a 20-block arcade loading bar, status in VT323, blinking INSERT COIN, 1UP / CREDIT corners.
 
 ## Screens
 
-1. **Home / Systems** — left: vertical rail of console logos (Up/Down); a "P1 · ARCROW" tag and a pink neon
+1. **Home / Systems** — left: vertical rail of console logos (Up/Down); a "P1 · Everest Frontend" tag and a pink neon
    edge; next to it a neon panel with maker · year (cyan), the name in sunset letters, a scoreboard (GAMES / FAVS /
    PLAYED in VT323), a dashed fact sheet, a pink "▶ CONTINUE?" card (X) for the last-played game, and the console (or controller) illustration filling the panel's lower part; the rail highlights the
    selected logo and dims the rest. Right, centred in the space beside the panel: by default the console's logo
@@ -118,7 +122,7 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
 
 - Kotlin + Jetpack Compose. Design tokens (colors, type, radii, spacing, elevation, blur) live in one theme file mirroring this document; no hard-coded values in screens.
 - Emulator launch intents: reference ES-DE's Android `es_systems.xml` / `es_find_rules.xml` (MIT; keep attribution).
-- Brand: the frontend is **ARCROW**. App icon and loading screen use the crow logo (`res/drawable-nodpi/brand_logo.webp`)
+- Brand: the frontend is **Everest Frontend**. App icon and loading screen use the crow logo (`res/drawable-nodpi/brand_logo.webp`)
   and wordmark (`brand_wordmark.png`) on navy `#050B18` with electric-blue glow `#1E6BFF`. The loading screen shows real
   start-up progress (emulators → settings → systems → artwork) and stays at least 1.4 s, then fades into Home.
 

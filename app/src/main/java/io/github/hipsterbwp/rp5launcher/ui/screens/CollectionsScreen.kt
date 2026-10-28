@@ -343,7 +343,7 @@ fun Screensaver(vm: LauncherViewModel) {
         }
         if (entry == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Txt("ARCROW", Type.hero, Palette.inkSecondary)
+                Txt("EVEREST", Type.hero, Palette.inkSecondary)
             }
         }
     }

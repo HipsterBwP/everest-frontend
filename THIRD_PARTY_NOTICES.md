@@ -51,7 +51,7 @@ Licensed under the SIL Open Font License 1.1; the full texts are in `app/src/mai
 ## Music
 
 `app/src/main/res/raw/music_*.ogg` (Neon Drift, Pixel Garden, After Hours) are original compositions
-synthesized for ARCROW by `tools/music/compose.py`, with no samples or third-party material.
+synthesized for Everest Frontend by `tools/music/compose.py`, with no samples or third-party material.
 
 ## Libraries
 

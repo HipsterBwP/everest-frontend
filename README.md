@@ -1,6 +1,6 @@
-# ARCROW
+# Everest Frontend
 
-ARCROW is a controller-first Android game launcher for the Retroid Pocket 5 (Android 13, 1920×1080), built with
+Everest Frontend is a controller-first Android game launcher for the Retroid Pocket 5 (Android 13, 1920×1080), built with
 Kotlin and Jetpack Compose. The UI follows [DESIGN.md](DESIGN.md) (an Apple-TV-inspired dark style); every design
 token lives in [`ui/theme/Theme.kt`](app/src/main/java/io/github/hipsterbwp/rp5launcher/ui/theme/Theme.kt).
 
@@ -34,7 +34,7 @@ To build locally (needs JDK 17 and the Android SDK): `./gradlew assembleDebug`.
 
 The hint bar always shows what the buttons do right now. **Settings › Controls** swaps the confirm
 button (bottom or right), switches hints to PlayStation symbols (✕ ○ □ △), sets the screensaver delay,
-and opens Android's setting to make ARCROW the home screen (the Home button then returns to it).
+and opens Android's setting to make Everest Frontend the home screen (the Home button then returns to it).
 
 ## Library extras
 

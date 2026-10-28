@@ -1,5 +1,10 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size as GeoSize
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import io.github.hipsterbwp.rp5launcher.ui.RetroBackdrop
 import io.github.hipsterbwp.rp5launcher.ui.ChromeTxt
@@ -75,6 +80,8 @@ private data class Item(
     val aLabel: String? = null,
     val onX: (() -> Unit)? = null,
     val xLabel: String? = null,
+    /** Sliders: Left/Right adjust instead of leaving the page. */
+    val onAdjust: ((Int) -> Unit)? = null,
     val content: @Composable (focused: Boolean) -> Unit,
 )
 
@@ -136,7 +143,9 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
             when (button) {
                 Pad.Up -> { row = (rowIndex - 1).coerceAtLeast(0); true }
                 Pad.Down -> { row = (rowIndex + 1).coerceAtMost(items.size - 1); true }
-                Pad.Left, Pad.B -> { inContent = false; true }
+                Pad.Left -> { focusedItem?.onAdjust?.invoke(-1) ?: run { inContent = false }; true }
+                Pad.Right -> { focusedItem?.onAdjust?.invoke(1); true }
+                Pad.B -> { inContent = false; true }
                 Pad.A -> { focusedItem?.onA?.invoke(); true }
                 Pad.X -> { focusedItem?.onX?.invoke(); true }
                 else -> false
@@ -213,6 +222,7 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
                 add(Hint(Pad.B, "Back", onClick = { vm.back() }))
             } else {
                 focusedItem?.aLabel?.let { add(Hint(Pad.A, it, onClick = focusedItem.onA)) }
+                focusedItem?.onAdjust?.let { adjust -> add(Hint(listOf(Pad.Left, Pad.Right), "Adjust", onClick = { adjust(1) })) }
                 add(Hint(Pad.B, "Back", onClick = { inContent = false }))
                 focusedItem?.xLabel?.let { add(Hint(Pad.X, it, onClick = focusedItem.onX)) }
             }
@@ -239,7 +249,7 @@ private fun pageSubtitle(page: Page) = when (page) {
     Page.RetroAchievements -> "Your achievements, points and progress for each game."
     Page.Sound -> "Menu sounds, background music and gameplay video sound."
     Page.Appearance -> "What fills the console screen behind each system."
-    Page.Controls -> "Buttons, the screensaver, and making ARCROW your home screen."
+    Page.Controls -> "Buttons, the screensaver, and making Everest your home screen."
     Page.Stats -> "Your play time, favourites and streaks."
     Page.About -> "Version, config file and credits."
 }
@@ -655,24 +665,18 @@ private fun soundItems(vm: LauncherViewModel, accent: Color, importSounds: () ->
                     val (count, own) = vm.music?.source ?: (0 to false)
                     Txt(
                         if (own) "$count tracks from your music folder"
-                        else "ARCROW's own tracks · or add MP3s to a \"music\" folder in your ROMs folder",
+                        else "Everest's own tracks · or add MP3s to a \"music\" folder in your ROMs folder",
                         Type.label, Palette.inkSecondary, maxLines = 2,
                     )
                 }
                 Txt(if (vm.config.music) "On" else "Off", Type.labelStrong, if (vm.config.music) Palette.ok else Palette.inkSecondary)
             }
         },
-        Item("musicvolume", onA = { vm.cycleMusicVolume() }, aLabel = "Change") { focused ->
+        Item("musicvolume", onAdjust = vm::stepMusicLevel) { focused ->
             ListRow(focused, accent) {
-                Txt("Music volume", Type.rowTitle, Palette.ink, Modifier.weight(1f))
-                Txt(
-                    when (vm.config.musicVolume) {
-                        1 -> "Low"
-                        3 -> "High"
-                        else -> "Medium"
-                    },
-                    Type.labelStrong, Palette.inkSecondary,
-                )
+                Txt("Music volume", Type.rowTitle, Palette.ink)
+                Slider(vm.config.musicLevel / 100f, Modifier.weight(1f))
+                Txt("${vm.config.musicLevel}%", Type.crt, Palette.cyanSoft, Modifier.width(Size.SLIDER_VALUE_W.u), glow = Palette.cyan)
             }
         },
         Item("skip", onA = { vm.music?.skip() }, aLabel = "Skip") { focused ->
@@ -732,7 +736,7 @@ private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
                     Txt("Screensaver", Type.rowTitle, Palette.ink)
-                    Txt("Game art drifts by when ARCROW is left alone", Type.label, Palette.inkSecondary)
+                    Txt("Game art drifts by when Everest is left alone", Type.label, Palette.inkSecondary)
                 }
                 Txt(if (cfg.screensaverMinutes == 0) "Off" else "After ${cfg.screensaverMinutes} min", Type.labelStrong, Palette.ink)
             }
@@ -744,8 +748,8 @@ private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
         }, aLabel = "Open") { focused ->
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
-                    Txt("Use ARCROW as the home screen", Type.rowTitle, Palette.ink)
-                    Txt("Pick ARCROW in Android's Home app setting; the Home button then opens it", Type.label, Palette.inkSecondary, maxLines = 2)
+                    Txt("Use Everest as the home screen", Type.rowTitle, Palette.ink)
+                    Txt("Pick Everest Frontend in Android's Home app setting; the Home button then opens it", Type.label, Palette.inkSecondary, maxLines = 2)
                 }
                 ChevronIcon(Palette.inkSecondary)
             }
@@ -832,3 +836,26 @@ private fun aboutItems(vm: LauncherViewModel, accent: Color): List<Item> {
 /** Settings sit over a dimmed synthwave scene so long lists stay easy to read. */
 private const val SETTINGS_DIM = 0.6f
 private const val SIDEBAR_FILL = 0.85f
+
+/** Neon slider: a dark track, a pink-to-yellow fill and a glowing knob. Left/Right move it. */
+@Composable
+private fun Slider(value: Float, modifier: Modifier = Modifier) {
+    val knob = Size.SLIDER_KNOB.u
+    val track = Size.SLIDER_TRACK.u
+    Canvas(modifier.height(knob)) {
+        val v = value.coerceIn(0f, 1f)
+        val r = knob.toPx() / 2
+        val y = size.height / 2
+        val left = r
+        val right = size.width - r
+        val t = track.toPx()
+        val x = left + (right - left) * v
+        drawRoundRect(Palette.surface, Offset(left, y - t / 2), GeoSize(right - left, t), CornerRadius(t / 2))
+        drawRoundRect(
+            Brush.horizontalGradient(listOf(Palette.pink, Palette.sun1), startX = left, endX = right),
+            Offset(left, y - t / 2), GeoSize(x - left, t), CornerRadius(t / 2),
+        )
+        drawCircle(Palette.pink.copy(alpha = 0.35f), r * 1.6f, Offset(x, y))
+        drawCircle(Palette.white, r, Offset(x, y))
+    }
+}

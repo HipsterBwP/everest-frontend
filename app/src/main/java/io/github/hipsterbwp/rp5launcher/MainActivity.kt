@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
                 val cfg = vm.config
                 val videoScreen = vm.screen.let { it is Screen.Games || it is Screen.Search || it is Screen.Collection }
                 val duck = if (cfg.videoSound && videoScreen) VIDEO_DUCK else 1f
-                MusicSettings(vm.ready && cfg.music, BackgroundMusic.volume(cfg.musicVolume) * duck, cfg.romsRoot, cfg.musicOff, cfg.musicRepeat)
+                MusicSettings(vm.ready && cfg.music, BackgroundMusic.volume(cfg.musicLevel) * duck, cfg.romsRoot, cfg.musicOff, cfg.musicRepeat)
             }.collect { m -> music.configure(m.on, m.volume, m.root?.let(Uri::parse), m.off, m.repeat) }
         }
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -158,7 +158,7 @@ class MainActivity : ComponentActivity() {
         else -> button
     }
 
-    /** The device's Home button while ARCROW is the home app: back to the console screen. */
+    /** The device's Home button while Everest is the home app: back to the console screen. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.hasCategory(Intent.CATEGORY_HOME)) vm.goHome()

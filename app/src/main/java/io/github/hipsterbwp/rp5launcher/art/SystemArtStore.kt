@@ -65,7 +65,7 @@ class SystemArtStore(context: Context) {
             }
         }
         if (force || !png.exists()) {
-            val controller = render("$SLATE/$system/images/controller.svg", png, rotate = true)
+            val controller = render("$SLATE/$system/images/controller.svg", png, rotate = system !in UPRIGHT_CONTROLLERS)
             val result = if (controller == Fetch.OK) {
                 Fetch.OK
             } else {
@@ -122,8 +122,10 @@ class SystemArtStore(context: Context) {
     companion object {
         private const val SLATE = "https://gitlab.com/es-de/themes/slate-es-de/-/raw/master"
         private const val HEIGHT = 480
-        /** 3: console pictures without their game media. */
-        private const val ART_VERSION = 3
+        /** 3: console pictures without their game media. 4: Wii remote upright. */
+        private const val ART_VERSION = 4
+        /** Controllers Slate already draws upright (the rest it draws turned 90°). */
+        private val UPRIGHT_CONTROLLERS = setOf("wii")
         /** Columns this close together (fraction of the width) belong to the same object. */
         private const val JOIN_GAP = 0.04f
         /** Objects smaller than this share of the biggest one are game media and get cut off. */

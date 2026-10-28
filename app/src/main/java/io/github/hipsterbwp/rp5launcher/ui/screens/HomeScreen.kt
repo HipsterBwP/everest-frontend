@@ -300,7 +300,7 @@ private fun LogoRail(
                 drawLine(Palette.pink, Offset(x, 0f), Offset(x, size.height), edge.toPx() * 2)
             },
     ) {
-        Txt("P1 · ARCROW", Type.badge, Palette.pinkSoft, Modifier.padding(Space.LG.u), glow = Palette.pink)
+        Txt("P1 · EVEREST", Type.badge, Palette.pinkSoft, Modifier.padding(Space.LG.u), glow = Palette.pink)
         val itemHeight = (Size.RAIL_LOGO_SELECTED_H + Size.RAIL_ITEM_GAP).u
         val state = rememberLazyListState()
         LaunchedEffect(index) { if (index >= 0) state.animateScrollToItem(index) }

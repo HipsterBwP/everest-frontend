@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Background music while browsing: ARCROW's own tracks, or the player's MP3/OGG/… files from a
+ * Background music while browsing: Everest's own tracks, or the player's MP3/OGG/… files from a
  * "music" folder in the ROMs folder. Shuffled, looping, faded in and out, and paused while a game
  * runs (the activity pauses then). Tracks can be switched off one by one, or one put on repeat.
  */
@@ -59,7 +59,7 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
     /** All tracks found (on or off), for the Sound settings page. */
     var tracks by mutableStateOf<List<Track>>(emptyList())
         private set
-    /** Whether [tracks] are the player's own files rather than ARCROW's. */
+    /** Whether [tracks] are the player's own files rather than Everest's. */
     var ownTracks by mutableStateOf(false)
         private set
     /** Key of the track playing now. */
@@ -193,11 +193,10 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
         private const val FADE_MS = 700L
         private const val FADE_STEPS = 14
 
-        /** Config volume level (1–3) to player volume: background, never loud. */
-        fun volume(level: Int): Float = when (level) {
-            1 -> 0.18f
-            3 -> 0.55f
-            else -> 0.32f
-        }
+        /** Loudest the music gets at 100%: it stays background, under game videos and sounds. */
+        private const val MAX_VOLUME = 0.7f
+
+        /** Config volume in percent to player volume. */
+        fun volume(percent: Int): Float = percent.coerceIn(0, 100) / 100f * MAX_VOLUME
     }
 }
