@@ -79,6 +79,23 @@ and opens Android's setting to make Everest Frontend the home screen (the Home b
 - **Achievement banners**: new RetroAchievements unlocks pop up as pixel banners after you play.
 - **8-bit sounds** for moving, selecting and going back. And try ↑↑↓↓←→←→ B A on the console screen.
 
+## Homage
+
+- **Era skins**: game lists dress up as their console — Game Boy dot-matrix green, Virtual Boy red
+  scanlines, NES grey, PlayStation grey and blue, Dreamcast orange swirl (Settings › Appearance).
+- **Start-up tributes**: opening Game Boy, PlayStation, GameCube or Dreamcast plays an Everest-branded nod
+  to its power-on screen, once a day or every time (Settings › Controls). Any button skips it.
+- **This Day in Gaming History**: a console launch or landmark release from today's date on the title
+  screen and in attract mode.
+- **Sound Test**: Settings › Sound lists every sound effect (SE 01…) to play, next to the music (BGM 01…).
+- **HERE COMES A NEW CHALLENGER!** when a second controller connects.
+- **CONTINUE? 9… 8…** counts down on the console screen's Continue card.
+- **Status screen**: Settings › Stats opens with an RPG sheet — LV from games beaten, HP from hours played,
+  an EXP bar to your next credit, gold and RetroAchievements points as items.
+- **1UP** when a play session earns credits, and an **end-credits roll** in Settings › About.
+- **Yeti-1**, a pixel yeti, walks along the bottom of the screen: it jumps when a game starts, cheers on
+  achievements and sleeps in attract mode (Settings › Controls).
+
 ## Your own console backdrops
 
 Name one picture per system after its folder or ES-DE name: `snes.jpg`, `ps2.png`, `n64.webp`, `megadrive.jpg`…

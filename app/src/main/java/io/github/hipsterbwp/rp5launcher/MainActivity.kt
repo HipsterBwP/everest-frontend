@@ -1,6 +1,7 @@
 package io.github.hipsterbwp.rp5launcher
 
 import android.content.Intent
+import android.hardware.input.InputManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -44,8 +45,24 @@ class MainActivity : ComponentActivity() {
     private var l2Down = false
     private var r2Down = false
 
+    /** A second controller plugging in: HERE COMES A NEW CHALLENGER! */
+    private val challengers = object : InputManager.InputDeviceListener {
+        override fun onInputDeviceAdded(deviceId: Int) {
+            val device = InputDevice.getDevice(deviceId) ?: return
+            if (isGamepad(device) && gamepadCount() >= 2) vm.newChallenger()
+        }
+        override fun onInputDeviceRemoved(deviceId: Int) = Unit
+        override fun onInputDeviceChanged(deviceId: Int) = Unit
+    }
+
+    private fun isGamepad(device: InputDevice) =
+        !device.isVirtual && device.sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD
+
+    private fun gamepadCount() = InputDevice.getDeviceIds().count { id -> InputDevice.getDevice(id)?.let(::isGamepad) == true }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        getSystemService(InputManager::class.java)?.registerInputDeviceListener(challengers, Handler(Looper.getMainLooper()))
         sounds = UiSounds(this)
         vm.soundPlayer = { sounds.play(it, UiSounds.volume(vm.config.soundVolume)) }
         music = BackgroundMusic(this, lifecycleScope)
@@ -173,6 +190,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        getSystemService(InputManager::class.java)?.unregisterInputDeviceListener(challengers)
         vm.soundPlayer = null
         vm.music = null
         vm.consoleSoundPlayer = null

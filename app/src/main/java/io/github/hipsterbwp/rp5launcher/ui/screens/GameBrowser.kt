@@ -1,5 +1,11 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.ui.theme.Retro
+import io.github.hipsterbwp.rp5launcher.ui.LocalTitleBrush
+import io.github.hipsterbwp.rp5launcher.ui.EraBackdrop
+import io.github.hipsterbwp.rp5launcher.ui.Era
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import io.github.hipsterbwp.rp5launcher.data.Progress
 import io.github.hipsterbwp.rp5launcher.ui.neonGlow
 import io.github.hipsterbwp.rp5launcher.ui.rememberGlowPulse
@@ -122,11 +128,13 @@ fun GameBrowser(
     hints: List<Hint>,
     onSelect: (Int) -> Unit,
     onPlay: (Int) -> Unit,
+    era: Era? = null,
 ) {
     val focused = entries.getOrNull(index)
+    CompositionLocalProvider(LocalTitleBrush provides (era?.title ?: Retro.sunset), LocalEra provides era) {
 
     Box(Modifier.fillMaxSize().background(Palette.page)) {
-        RetroBackdrop()
+        if (era != null) EraBackdrop(era) else RetroBackdrop()
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Palette.night.copy(alpha = Alpha.BROWSER_DIM), Palette.transparent))))
 
         Row(
@@ -151,6 +159,7 @@ fun GameBrowser(
         }
         HintBar(hints, onSystem = true, glyphInk = Palette.inkOnLight)
     }
+    }
 }
 
 @Composable
@@ -162,7 +171,7 @@ private fun InfoColumn(vm: LauncherViewModel, system: SystemEntry, game: Game) {
             .padding(top = Space.SM.u, bottom = Space.LG.u)
             .width(Size.BROWSER_INFO_W.u)
             .fillMaxSize()
-            .neonPanel(Radius.PANEL, edge = Palette.cyan, corner = Palette.pink)
+            .neonPanel(Radius.PANEL, edge = LocalEra.current?.edge ?: Palette.cyan, corner = LocalEra.current?.corner ?: Palette.pink)
             .padding(Space.LG.u),
     ) {
         // Media: gameplay video over its screenshot, in a TV-like inset.
@@ -322,7 +331,7 @@ private fun Cover(file: java.io.File?, title: String, focused: Boolean, favorite
         contentAlignment = Alignment.BottomStart,
     ) {
         if (painter != null && loaded != null) {
-            Image(painter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Image(painter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, colorFilter = LocalEra.current?.covers)
         } else {
             if (painter != null) {
                 // Keeps the request alive until it loads.
@@ -347,6 +356,9 @@ private fun Cover(file: java.io.File?, title: String, focused: Boolean, favorite
         }
     }
 }
+
+/** The era skin of the game list being shown, if any. */
+private val LocalEra = staticCompositionLocalOf<Era?> { null }
 
 /** Unfocused covers sit back a little. */
 private const val COVER_DIM = 0.82f

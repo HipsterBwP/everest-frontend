@@ -20,7 +20,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.alpha
 import kotlinx.coroutines.delay
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import io.github.hipsterbwp.rp5launcher.ui.theme.Space
+import io.github.hipsterbwp.rp5launcher.ui.theme.u
 import androidx.compose.ui.res.stringResource
 import io.github.hipsterbwp.rp5launcher.R
 import io.github.hipsterbwp.rp5launcher.ui.screens.DialogHost
@@ -89,10 +93,17 @@ fun LauncherApp(vm: LauncherViewModel) {
     Box(Modifier.fillMaxSize().background(Palette.night)) {
         if (vm.ready) {
             CompositionLocalProvider(LocalButtonLabel provides labels, LocalSky provides sky) {
-                CrtPower(vm.crt) { LauncherContent(vm, appName, pickFolder) }
+                CrtPower(vm.crt) {
+                    LauncherContent(vm, appName, pickFolder)
+                    if (vm.config.mascot && vm.screen !is Screen.Setup) Mascot(vm.mascotMood)
+                }
+                vm.tribute?.let { system -> TributeIntro(system, vm) { vm.tribute = null } }
+                if (vm.creditsRoll) CreditsRoll(vm.config.initials) { vm.creditsRoll = false }
             }
         }
         ToastHost(vm)
+        OneUpPopup(vm.oneUp)
+        if (vm.challenger) ChallengerFlash()
         if (vm.quickMenu && !vm.screensaver) vm.quickControls?.let { QuickMenu(vm, it) }
         if (vm.screensaver) Screensaver(vm)
         if (loadingAlpha > 0f) {
@@ -109,6 +120,9 @@ fun LauncherApp(vm: LauncherViewModel) {
                     },
                     onBootDone = { bootDone = true },
                 )
+                if (waitingForStart) {
+                    HistoryCard(Modifier.align(Alignment.BottomCenter).padding(bottom = Space.SECTION.u))
+                }
             }
         }
         if (vm.config.crtEffect) CrtOverlay()

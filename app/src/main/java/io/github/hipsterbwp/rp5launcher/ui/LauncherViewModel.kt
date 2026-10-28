@@ -205,6 +205,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (config.navigationSounds) soundPlayer?.invoke(sound)
     }
 
+    /** Sound Test: plays [sound] even when navigation sounds are off. */
+    fun testSound(sound: UiSound) {
+        soundPlayer?.invoke(sound)
+    }
+
     fun setNavigationSounds(enabled: Boolean) = updateConfig { it.copy(navigationSounds = enabled) }
 
     fun cycleSoundVolume() = updateConfig { it.copy(soundVolume = it.soundVolume % 3 + 1) }
@@ -1199,6 +1204,60 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var crt by mutableStateOf<CrtFx?>(null)
         private set
 
+    /** Console whose start-up tribute is playing (Game Boy, PlayStation, GameCube, Dreamcast). */
+    var tribute by mutableStateOf<String?>(null)
+    private val tributesToday = HashSet<String>()
+    private var tributeDay = ""
+
+    /** Opens a console's games, with its start-up tribute first when that's due. */
+    fun openSystem(name: String) {
+        push(Screen.Games(name))
+        if (name !in TRIBUTES) return
+        val today = java.time.LocalDate.now().toString()
+        if (today != tributeDay) { tributesToday.clear(); tributeDay = today }
+        val due = when (config.bootTributes) {
+            "always" -> true
+            "daily" -> tributesToday.add(name)
+            else -> false
+        }
+        if (due) tribute = name
+    }
+
+    fun cycleBootTributes() = updateConfig {
+        it.copy(bootTributes = when (it.bootTributes) { "daily" -> "always"; "always" -> "off"; else -> "daily" })
+    }
+
+    /** "HERE COMES A NEW CHALLENGER!" is showing. */
+    var challenger by mutableStateOf(false)
+
+    fun newChallenger() {
+        challenger = true
+        sound(UiSound.Challenger)
+        viewModelScope.launch {
+            delay(Motion.CHALLENGER_MS)
+            challenger = false
+        }
+    }
+
+    /** Credits just earned, for the 1UP pop-up (0 when none is showing). */
+    var oneUp by mutableStateOf(0)
+        private set
+
+    /** The end-credits roll from Settings › About. */
+    var creditsRoll by mutableStateOf(false)
+
+    /** What Yeti-1 is doing right now. */
+    val mascotMood: Mood
+        get() = when {
+            crt == CrtFx.Off -> Mood.Jump
+            toasts.isNotEmpty() || oneUp > 0 || challenger -> Mood.Cheer
+            else -> Mood.Walk
+        }
+
+    fun setEraSkins(enabled: Boolean) = updateConfig { it.copy(eraSkins = enabled) }
+
+    fun setMascot(enabled: Boolean) = updateConfig { it.copy(mascot = enabled) }
+
     /** Pixel banners (achievements, unlocks, secrets) waiting to be shown, oldest first. */
     val toasts = mutableStateListOf<Toast>()
 
@@ -1234,6 +1293,20 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun credits(): Int {
         val earned = stats.games.values.sumOf { it.playCount + (it.playtimeMs / CREDIT_MS).toInt() }
         return (earned - stats.spentCredits).coerceAtLeast(0)
+    }
+
+    /** Your library as an RPG character sheet for Settings › Stats. */
+    fun rpgStatus(): RpgStatus {
+        val counts = statusCounts()
+        val playtime = stats.games.values.sumOf { it.playtimeMs }
+        return RpgStatus(
+            name = config.initials,
+            level = 1 + (counts[Progress.BEATEN] ?: 0) + (counts[Progress.COMPLETED] ?: 0),
+            hours = playtime / HOUR_MS,
+            exp = (playtime % CREDIT_MS).toFloat() / CREDIT_MS,
+            gold = credits(),
+            items = raSummary?.points ?: 0,
+        )
     }
 
     fun owns(unlock: Unlock): Boolean = unlock.key in stats.unlocks
@@ -1374,6 +1447,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             if (game != null) updateStats(game) { it.copy(playtimeMs = it.playtimeMs + elapsed) }
         }
         val played = session != null
+        val creditsBefore = credits()
         session = null
         // Back from a game: the screen switches back on like a CRT.
         if (played && config.launchEffects) {
@@ -1388,6 +1462,16 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         redetectEmulators()
         // Back from a game: pick up any achievements unlocked in it.
         if (played) refreshRetroAchievements(userInitiated = false)
+        // Earned credits while playing: 1UP!
+        val gained = credits() - creditsBefore
+        if (played && gained > 0) {
+            oneUp = gained
+            sound(UiSound.OneUp)
+            viewModelScope.launch {
+                delay(Motion.ONE_UP_MS)
+                oneUp = 0
+            }
+        }
         // Back from granting "Install unknown apps": carry on with the update.
         (update as? UpdateState.NeedsPermission)?.let { if (updater.canInstall()) installUpdate() }
     }
@@ -1422,11 +1506,18 @@ enum class Unlock(val key: String, val title: String, val cost: Int, val scene: 
     Gold("theme_gold", "Golden theme", 25, null),
 }
 
+/** Character sheet: LV from games beaten, HP from hours played, EXP towards the next credit. */
+data class RpgStatus(val name: String, val level: Int, val hours: Long, val exp: Float, val gold: Int, val items: Int)
+
+/** Consoles with a start-up tribute. */
+val TRIBUTES = setOf("gb", "psx", "gc", "dreamcast")
+
 private val KONAMI = listOf(Pad.Up, Pad.Up, Pad.Down, Pad.Down, Pad.Left, Pad.Right, Pad.Left, Pad.Right, Pad.B, Pad.A)
 private const val INITIALS = 3
 private const val HIGH_SCORES = 10
 /** One credit per this much play time. */
 private const val CREDIT_MS = 10L * 60 * 1000
+private const val HOUR_MS = 60L * 60 * 1000
 /** Spreads consecutive days across the library (a large prime). */
 private const val DAILY_MIX = 7919L
 

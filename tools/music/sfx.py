@@ -51,4 +51,16 @@ if __name__ == "__main__":
     scale = seq(*[pulse(hz(m), 0.075, 0.125) for m in (72, 74, 76, 77, 79, 81, 83, 84)], pulse(hz(96), 0.45, 0.25, 5))
     bass = tri(hz(48), len(scale) / SR, 1.5)
     write(out, "ui_secret", scale + 0.6 * bass, 0.32)
+    # Boot tributes (original sounds in the spirit of each console's start-up).
+    write(out, "ui_boot_gb", seq(np.zeros(int(0.05 * SR)), pulse(hz(84), 0.07, 0.5), pulse(hz(96), 0.9, 0.5, 4)), 0.3)
+    pad = sum(tri(hz(m), 1.6, 1.2) for m in (48, 55, 60, 64))
+    shimmer = seq(np.zeros(int(0.5 * SR)), sum(pulse(hz(m), 1.1, 0.125, 3) for m in (79, 84, 88)))
+    write(out, "ui_boot_ps", pad + 0.25 * np.pad(shimmer, (0, max(0, len(pad) - len(shimmer))))[:len(pad)], 0.3)
+    write(out, "ui_boot_gc", seq(*[pulse(hz(m), 0.09, 0.25) for m in (72, 79, 76, 84)], pulse(hz(88), 0.7, 0.25, 4)), 0.3)
+    write(out, "ui_boot_dc", seq(*[tri(hz(m), 0.12) for m in (64, 69, 71, 76)], tri(hz(81), 1.0, 2.5)) + 0, 0.32)
+    # Here comes a new challenger: alarm-like two-tone stabs.
+    stab = seq(pulse(hz(81), 0.09, 0.5), pulse(hz(76), 0.09, 0.5))
+    write(out, "ui_challenger", seq(stab, stab, stab, pulse(hz(88), 0.5, 0.5, 4)), 0.32)
+    # 1UP: quick rising chime.
+    write(out, "ui_1up", seq(*[pulse(hz(m), 0.06, 0.25) for m in (79, 83, 86)], pulse(hz(91), 0.3, 0.25, 6)), 0.3)
     print("ok")

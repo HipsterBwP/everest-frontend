@@ -83,6 +83,16 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
 - Sounds: 8-bit pulse-wave blips (`tools/music/sfx.py`), coin for launch, arpeggio jingles for achievements
   and secrets.
 
+### Homage
+
+- Era skins (`ui/Era.kt`) swap the game list's title brush, panel edges, cover tint and backdrop per
+  console era via `LocalTitleBrush`; everything else stays arcade.
+- Start-up tributes, the challenger flash, 1UP, the credits roll and gaming history live in
+  `ui/Homage.kt`. Tributes are Everest-branded nods, never copies of console logos or sounds.
+- Yeti-1 (`ui/Mascot.kt`) is 16×16 string sprites drawn at `Size.YETI_PIXEL`, with an auto outline;
+  moods: Walk, Jump (CRT off), Cheer (banners, 1UP, challenger), Sleep (attract mode).
+- New sounds come from `tools/music/sfx.py`; history facts from `assets/history.json` ("MM-DD" keys).
+
 ### Brand
 
 - Name: **Everest Frontend**; the app label under the icon is just "Everest" ("Everest" in running text,

@@ -50,6 +50,10 @@ import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
 import io.github.hipsterbwp.rp5launcher.ui.MediaKind
 import io.github.hipsterbwp.rp5launcher.ui.Unlock
 import io.github.hipsterbwp.rp5launcher.ui.ListRow
+import androidx.compose.ui.Alignment
+import io.github.hipsterbwp.rp5launcher.ui.neonPanel
+import io.github.hipsterbwp.rp5launcher.ui.RpgStatus
+import io.github.hipsterbwp.rp5launcher.ui.UiSound
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadInput
 import io.github.hipsterbwp.rp5launcher.ui.TextField
@@ -521,6 +525,9 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
                 )
             }
         },
+        toggle("era", "Era skins", "Game lists dress up as their console: Game Boy green, Virtual Boy red, NES, PlayStation, Dreamcast", c.eraSkins, accent) {
+            vm.setEraSkins(!c.eraSkins)
+        },
         Item(
             "custom", onA = importArt, aLabel = "Import",
             onX = { vm.clearImported(MediaKind.Art) }, xLabel = "Clear imported",
@@ -622,7 +629,7 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
 /** One row per music track: A switches it off or on, X plays it on repeat. */
 private fun trackItems(vm: LauncherViewModel, accent: Color): List<Item> {
     val music = vm.music ?: return emptyList()
-    return music.tracks.map { track ->
+    return music.tracks.mapIndexed { i, track ->
         Item(
             "track-${track.key}",
             onA = { vm.toggleTrack(track.key) }, aLabel = "On/Off",
@@ -632,7 +639,7 @@ private fun trackItems(vm: LauncherViewModel, accent: Color): List<Item> {
             val repeating = vm.config.musicRepeat == track.key
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
-                    Txt(track.title, Type.rowTitle, if (off) Palette.inkSecondary else Palette.ink)
+                    Txt("BGM ${(i + 1).toString().padStart(2, '0')} · ${track.title}", Type.rowTitle, if (off) Palette.inkSecondary else Palette.ink)
                     Txt(
                         when {
                             music.nowPlaying == track.key && vm.config.music -> "Playing now"
@@ -742,8 +749,30 @@ private fun soundItems(vm: LauncherViewModel, accent: Color, importSounds: () ->
                 )
             }
         },
-    )
+        Item("soundtest") { _ ->
+            ListRow(false, accent, background = Palette.surface) {
+                Txt("SOUND TEST", Type.hint, Palette.sun1, Modifier.weight(1f), glow = Palette.sun2)
+                Txt("Ⓐ plays · BGM above, X repeats", Type.label, Palette.inkSecondary)
+            }
+        },
+    ) + UiSound.entries.mapIndexed { i, sound ->
+        Item("se-${sound.name}", onA = { vm.testSound(sound) }, aLabel = "Play") { focused ->
+            ListRow(focused, accent) {
+                Txt("SE ${(i + 1).toString().padStart(2, '0')}", Type.crt, Palette.cyanSoft, Modifier.width(Size.SE_NUM_W.u), glow = Palette.cyan)
+                Txt(SOUND_NAMES[sound] ?: sound.name, Type.rowTitle, Palette.ink, Modifier.weight(1f))
+                ChevronIcon(Palette.inkSecondary)
+            }
+        }
+    }
 }
+
+private val SOUND_NAMES = mapOf(
+    UiSound.Move to "Cursor", UiSound.Select to "Select", UiSound.Back to "Cancel", UiSound.Tab to "Page turn",
+    UiSound.Launch to "Insert coin", UiSound.Error to "Buzzer", UiSound.Achievement to "Achievement",
+    UiSound.Secret to "Secret found", UiSound.Challenger to "New challenger", UiSound.OneUp to "1UP",
+    UiSound.BootGb to "Handheld ding", UiSound.BootPs to "Disc console chime", UiSound.BootGc to "Cube jingle",
+    UiSound.BootDc to "Swirl chime",
+)
 
 @Composable
 private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
@@ -758,6 +787,25 @@ private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
         },
         toggle("pressstart", "Press Start screen", "The loading screen waits for Start before the console screen", cfg.pressStart, accent) {
             vm.setPressStart(!cfg.pressStart)
+        },
+        Item("tributes", onA = { vm.cycleBootTributes() }, aLabel = "Change") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Start-up tributes", Type.rowTitle, Palette.ink)
+                    Txt("A nod to the power-on screen when opening Game Boy, PlayStation, GameCube or Dreamcast", Type.label, Palette.inkSecondary, maxLines = 2)
+                }
+                Txt(
+                    when (cfg.bootTributes) {
+                        "always" -> "Every time"
+                        "off" -> "Off"
+                        else -> "Once a day"
+                    },
+                    Type.labelStrong, Palette.ink,
+                )
+            }
+        },
+        toggle("mascot", "Yeti-1", "The pixel mascot walking along the bottom of the screen", cfg.mascot, accent) {
+            vm.setMascot(!cfg.mascot)
         },
         Item("initials", onA = { vm.editInitials() }, aLabel = "Edit") { focused ->
             ListRow(focused, accent) {
@@ -820,7 +868,9 @@ private fun statsItems(vm: LauncherViewModel, accent: Color): List<Item> {
             Txt(value, Type.labelStrong, Palette.ink)
         }
     }
+    val rpg = vm.rpgStatus()
     return listOf(
+        Item("rpg") { _ -> RpgSheet(rpg) },
         stat("total", "Total play time", if (summary.totalMs > 0) formatPlaytime(summary.totalMs) else "None yet"),
         stat("games", "Games played", summary.gamesPlayed.toString()),
         stat("launches", "Launches", summary.launches.toString()),
@@ -879,12 +929,51 @@ private fun aboutItems(vm: LauncherViewModel, accent: Color): List<Item> {
         Item("font") { _ ->
             ListRow(false, accent, background = Palette.surface) {
                 Txt(
-                    "Inter by The Inter Project Authors (SIL Open Font License 1.1).",
+                    "Press Start 2P, VT323 and Chakra Petch (SIL Open Font License 1.1).",
                     Type.label, Palette.inkBody, maxLines = 2,
                 )
             }
         },
+        Item("credits", onA = { vm.creditsRoll = true }, aLabel = "Roll") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Credits", Type.rowTitle, Palette.ink)
+                    Txt("Roll the end credits", Type.label, Palette.inkSecondary)
+                }
+                ChevronIcon(Palette.inkSecondary)
+            }
+        },
     )
+}
+
+/** Stats as an RPG status screen: name, level, HP, an EXP bar to the next credit, gold and items. */
+@Composable
+private fun RpgSheet(rpg: RpgStatus) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .neonPanel(Radius.CARD, edge = Palette.sun1, corner = Palette.cyan, fill = Palette.glassStrong)
+            .padding(Space.LG.u),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Txt(rpg.name, Type.screenTitle, Palette.sun1, Modifier.weight(1f), glow = Palette.sun2)
+            Txt("LV ${rpg.level}", Type.screenTitleSmall, Palette.ink)
+        }
+        Spacer(Modifier.height(Space.MD.u))
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.SECTION.u)) {
+            Txt("HP ${rpg.hours}", Type.crt, Palette.ok)
+            Txt("GOLD ${rpg.gold}G", Type.crt, Palette.sun1)
+            Txt("ITEMS ${rpg.items}", Type.crt, Palette.cyanSoft)
+        }
+        Spacer(Modifier.height(Space.MD.u))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Txt("EXP", Type.hint, Palette.inkSecondary)
+            Spacer(Modifier.width(Space.MD.u))
+            Slider(rpg.exp, Modifier.weight(1f))
+            Spacer(Modifier.width(Space.MD.u))
+            Txt("NEXT CREDIT", Type.badge, Palette.inkSecondary)
+        }
+    }
 }
 
 /** Settings sit over a dimmed synthwave scene so long lists stay easy to read. */

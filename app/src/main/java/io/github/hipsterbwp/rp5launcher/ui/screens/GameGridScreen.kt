@@ -1,5 +1,6 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.ui.Era
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -107,5 +108,6 @@ fun GameGridScreen(vm: LauncherViewModel, systemName: String) {
         hints = hints,
         onSelect = ::select,
         onPlay = ::play,
+        era = if (vm.config.eraSkins) Era.forSystem(systemName) else null,
     )
 }

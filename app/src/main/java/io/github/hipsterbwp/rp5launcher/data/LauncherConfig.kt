@@ -83,6 +83,12 @@ data class LauncherConfig(
     val bootSequence: Boolean = true,
     /** The loading screen waits for Start ("PRESS START") before showing the console screen. */
     val pressStart: Boolean = true,
+    /** Game lists dress up in their console's era (Game Boy green, Virtual Boy red, NES, PlayStation, Dreamcast). */
+    val eraSkins: Boolean = true,
+    /** Start-up tribute when opening a console: "off", "daily" (first time each day) or "always". */
+    val bootTributes: String = "daily",
+    /** Yeti-1, the pixel mascot walking along the hint bar. */
+    val mascot: Boolean = true,
     /** Your three-letter initials for the high-score table. */
     val initials: String = "AAA",
 ) {

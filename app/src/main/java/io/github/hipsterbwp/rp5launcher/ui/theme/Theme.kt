@@ -440,6 +440,9 @@ object Space {
 }
 
 object Size {
+    /** Start-up tribute emblem, and the gaming-history card's width. */
+    const val TRIBUTE_MARK = 120
+    const val HISTORY_W = 380
     const val HINT_BAR = 48
     const val GLYPH = 24
     const val SYSTEM_TILE = 92
@@ -490,6 +493,8 @@ object Size {
     const val SLIDER_KNOB = 14
     const val SLIDER_TRACK = 5
     const val SLIDER_VALUE_W = 40
+    /** "SE 01" column in the Sound Test. */
+    const val SE_NUM_W = 56
     /** Attract mode high-score table and its rank column. */
     const val HIGH_SCORES_W = 520
     const val RANK_W = 36
@@ -498,6 +503,11 @@ object Size {
     /** Boot check cursor. */
     const val BOOT_CURSOR_W = 10
     const val BOOT_CURSOR_H = 16
+    /** Era skins: dot-matrix / scanline spacing. */
+    const val ERA_DOT = 3
+    /** Yeti-1: size of one sprite pixel, and how far it sinks into the hint bar. */
+    const val YETI_PIXEL = 2
+    const val YETI_SINK = 4
     /** Pixel banner (achievements, unlocks). */
     const val TOAST_W = 420
     /** Quick menu sheet (hold Select). */
@@ -602,6 +612,17 @@ object Motion {
     /** Arcade BIOS check on the loading screen: one line every BOOT_LINE_MS, then a short hold. */
     const val BOOT_LINE_MS = 120
     const val BOOT_HOLD_MS = 350
+    /** Yeti-1 walks across the screen and back in YETI_STROLL_MS; one step takes YETI_STEP_MS. */
+    const val YETI_STROLL_MS = 40_000
+    const val YETI_STEP_MS = 420
+    /** Start-up tribute length, the challenger alert, the 1UP pop-up. */
+    const val TRIBUTE_MS = 2_200
+    const val CHALLENGER_MS = 2_400L
+    const val ONE_UP_MS = 2_000L
+    /** CONTINUE? 9… 8… one number per tick. */
+    const val CONTINUE_TICK_MS = 1_000L
+    /** End credits scroll speed: units per second. */
+    const val CREDITS_SPEED = 28f
     /** Pixel banners stay up this long. */
     const val TOAST_MS = 3_500L
     /** One full turn of the console logo sign. */

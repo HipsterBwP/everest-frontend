@@ -106,7 +106,7 @@ fun ChromeTxt(text: String, style: TextStyle, modifier: Modifier = Modifier, max
     BasicText(
         text = text.uppercase(),
         modifier = modifier,
-        style = style.copy(brush = Retro.sunset, shadow = Shadow(Palette.chromeShadow, Offset(0f, drop), 0f)),
+        style = style.copy(brush = LocalTitleBrush.current, shadow = Shadow(Palette.chromeShadow, Offset(0f, drop), 0f)),
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
     )

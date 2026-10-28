@@ -33,6 +33,9 @@ import androidx.compose.ui.layout.ContentScale
 import io.github.hipsterbwp.rp5launcher.ui.ArtImage
 import io.github.hipsterbwp.rp5launcher.ui.ChromeTxt
 import io.github.hipsterbwp.rp5launcher.ui.GameVideo
+import io.github.hipsterbwp.rp5launcher.ui.HistoryCard
+import io.github.hipsterbwp.rp5launcher.ui.Mascot
+import io.github.hipsterbwp.rp5launcher.ui.Mood
 import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
 import io.github.hipsterbwp.rp5launcher.ui.Txt
 import io.github.hipsterbwp.rp5launcher.ui.glass
@@ -116,6 +119,15 @@ fun Screensaver(vm: LauncherViewModel) {
             }
         } else {
             ChromeTxt("EVEREST", Type.hero, Modifier.align(Alignment.Center))
+        }
+
+        if (!showScores) HistoryCard(Modifier.align(Alignment.TopCenter).padding(top = Space.SECTION.u))
+        if (vm.config.mascot) {
+            Mascot(Mood.Sleep)
+            Txt(
+                "z Z", Type.hint, Palette.inkSecondary,
+                Modifier.align(Alignment.BottomEnd).padding(end = Space.XL.u, bottom = Size.HINT_BAR.u + Space.SECTION_LARGE.u).alpha(blink),
+            )
         }
 
         Txt(

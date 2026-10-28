@@ -58,6 +58,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -142,7 +143,7 @@ private fun SystemsTab(
         vm.homeSystemIndex = i.coerceIn(0, (systems.size - 1).coerceAtLeast(0))
     }
     fun open() {
-        selected?.let { vm.push(Screen.Games(it.name)) }
+        selected?.let { vm.openSystem(it.name) }
     }
     val last = selected?.let(vm::lastPlayed)
     // Startup sound once the selection settles, so scrolling past consoles stays quiet.
@@ -393,6 +394,8 @@ private fun LogoRail(
     }
 }
 
+private const val CONTINUE_FROM = 9
+
 /** Neon panel: maker · year, the name in sunset letters, a scoreboard, facts, Continue and the console. */
 @Composable
 private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry, neon: Color) {
@@ -441,6 +444,14 @@ private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry, neon: Color)
             }
         }
         vm.lastPlayed(system)?.let { last ->
+            // Arcade continue screen: counts down from 9 each time you land on the console.
+            var count by remember(system.name) { mutableIntStateOf(CONTINUE_FROM) }
+            LaunchedEffect(system.name) {
+                while (count > 0) {
+                    delay(Motion.CONTINUE_TICK_MS)
+                    count--
+                }
+            }
             Spacer(Modifier.height(Space.ROW_GAP.u))
             val radius = Radius.CARD.u
             val edge = Size.NEON_EDGE.u
@@ -460,7 +471,7 @@ private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry, neon: Color)
                     ArtImage(it, Modifier.height(Size.CONTINUE_ART_H.u).width(Size.CONTINUE_ART_H.u))
                 }
                 Column(Modifier.weight(1f)) {
-                    Txt("▶ CONTINUE?", Type.badge, Palette.pinkSoft, glow = Palette.pink)
+                    Txt("▶ CONTINUE? $count", Type.badge, Palette.pinkSoft, glow = Palette.pink)
                     Spacer(Modifier.height(Space.SM.u))
                     Txt(last.title, Type.labelStrong, Palette.ink, maxLines = 1)
                 }
