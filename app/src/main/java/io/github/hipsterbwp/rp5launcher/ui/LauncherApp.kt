@@ -62,7 +62,10 @@ fun LauncherApp(vm: LauncherViewModel) {
         delay(Motion.SPLASH_MIN_MS)
         minTimeUp = true
     }
-    val showLoading = !vm.ready || !minTimeUp
+    // Title screen: once loaded, wait for Start (if that's on) before showing the console screen.
+    var started by remember { mutableStateOf(false) }
+    val waitingForStart = vm.ready && minTimeUp && vm.config.pressStart && !started
+    val showLoading = !vm.ready || !minTimeUp || waitingForStart
     val loadingAlpha by animateFloatAsState(
         if (showLoading) 1f else 0f, tween(Motion.SPLASH_FADE_MS), label = "loading-fade",
     )
@@ -76,7 +79,7 @@ fun LauncherApp(vm: LauncherViewModel) {
     LaunchedEffect(idleMinutes, vm.lastInputAt) {
         if (idleMinutes <= 0) return@LaunchedEffect
         delay(idleMinutes * 60_000L)
-        if (vm.screen !is Screen.Setup && !vm.textInputActive) vm.screensaver = true
+        if (vm.screen !is Screen.Setup && !vm.textInputActive && !showLoading) vm.screensaver = true
     }
 
     val theme = if (vm.config.theme == "gold") NeonTheme.Gold else NeonTheme.Neon
@@ -99,6 +102,11 @@ fun LauncherApp(vm: LauncherViewModel) {
                     boot = vm.config.bootSequence,
                     games = vm.systems.sumOf { it.games.size }.takeIf { it > 0 },
                     credits = vm.credits(),
+                    waitingForStart = waitingForStart,
+                    onStart = {
+                        vm.sound(UiSound.Launch)
+                        started = true
+                    },
                     onBootDone = { bootDone = true },
                 )
             }

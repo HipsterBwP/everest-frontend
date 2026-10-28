@@ -69,6 +69,7 @@ and opens Android's setting to make Everest Frontend the home screen (the Home b
 - **Insert-coin launch**: a coin sound and a CRT switch-off before a game starts, a switch-on when you come
   back (Settings › Controls).
 - **Boot check**: an arcade BIOS check before the logo; any button skips it (Settings › Controls).
+- **Press Start**: once loaded, the title screen waits for Start before the console screen (Settings › Controls).
 - **Attract mode**: the screensaver plays gameplay videos from your library with INSERT COIN blinking, and
   a high-score table of your most-played games under your initials (Settings › Controls › Your initials).
 - **Credits**: one per game you start and per 10 minutes played. Spend them in Settings › Appearance on

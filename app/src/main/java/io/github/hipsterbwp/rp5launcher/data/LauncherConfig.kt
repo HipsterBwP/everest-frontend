@@ -81,6 +81,8 @@ data class LauncherConfig(
     val launchEffects: Boolean = true,
     /** Arcade BIOS check before the logo on the loading screen. */
     val bootSequence: Boolean = true,
+    /** The loading screen waits for Start ("PRESS START") before showing the console screen. */
+    val pressStart: Boolean = true,
     /** Your three-letter initials for the high-score table. */
     val initials: String = "AAA",
 ) {

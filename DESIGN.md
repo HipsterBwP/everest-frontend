@@ -75,6 +75,8 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
 - Launch: coin sound, then `CrtPower` squashes the picture to a white line and a dot (CRT_OFF_MS) before the
   emulator opens; switch-on runs it backwards on return.
 - Boot check: VT323 lines on black, one every BOOT_LINE_MS, cyan "OK"s, blinking block cursor.
+- Title screen: once loaded, the loading screen shows READY and a blinking PRESS START (screen-title size)
+  and only Start (or a tap) goes in, with the coin sound (Settings › Controls › Press Start screen).
 - Pixel banners (`ToastHost`): neon panel at the top with a gold edge, ★, pixel eyebrow, title and detail.
 - Attract mode: gameplay video or Ken Burns art, EVEREST / CREDIT corners, caption, blinking INSERT COIN; every
   fourth slide a high-score table (rank colours gold, cyan, pink; initials and 6-digit score in VT323).

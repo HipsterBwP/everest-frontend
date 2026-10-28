@@ -1,5 +1,7 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.ui.tap
+import io.github.hipsterbwp.rp5launcher.ui.Pad
 import androidx.compose.animation.core.Easing
 import kotlinx.coroutines.delay
 import io.github.hipsterbwp.rp5launcher.ui.PadInput
@@ -63,10 +65,18 @@ import kotlin.math.roundToInt
 /**
  * Everest loading screen: the mountain badge glowing above the horizon, EVEREST in sunset letters
  * on the neon grid, a segmented arcade loading bar that follows real start-up steps, and a blinking
- * INSERT COIN.
+ * INSERT COIN — then, once loaded, a blinking PRESS START that waits for the Start button.
  */
 @Composable
-fun LoadingScreen(step: LoadingStep, boot: Boolean, games: Int?, credits: Int, onBootDone: () -> Unit) {
+fun LoadingScreen(
+    step: LoadingStep,
+    boot: Boolean,
+    games: Int?,
+    credits: Int,
+    waitingForStart: Boolean,
+    onStart: () -> Unit,
+    onBootDone: () -> Unit,
+) {
     // First an arcade BIOS check (skippable with any button), then the logo screen.
     var booting by remember { mutableStateOf(boot) }
     LaunchedEffect(booting) { if (!booting) onBootDone() }
@@ -126,9 +136,21 @@ fun LoadingScreen(step: LoadingStep, boot: Boolean, games: Int?, credits: Int, o
             Spacer(Modifier.height(Space.LG.u))
             SegmentedBar(progress)
             Spacer(Modifier.height(Space.MD.u))
-            Txt("${step.message.uppercase()} ${(progress * 100).roundToInt()}%", Type.crtSmall, Palette.inkSecondary)
+            Txt(
+                if (waitingForStart) "READY" else "${step.message.uppercase()} ${(progress * 100).roundToInt()}%",
+                Type.crtSmall, if (waitingForStart) Palette.cyanSoft else Palette.inkSecondary,
+            )
             Spacer(Modifier.height(Space.GAP.u))
-            Txt("INSERT COIN", Type.buttonSmall, Palette.sun1, Modifier.alpha(blink), glow = Palette.sun2)
+            if (waitingForStart) {
+                // Title screen: only Start (or a tap) goes in.
+                PadInput { button, _ ->
+                    if (button == Pad.Start) onStart()
+                    true
+                }
+                Txt("PRESS START", Type.screenTitle, Palette.sun1, Modifier.alpha(blink).tap(onStart), glow = Palette.sun2)
+            } else {
+                Txt("INSERT COIN", Type.buttonSmall, Palette.sun1, Modifier.alpha(blink), glow = Palette.sun2)
+            }
         }
     }
 }

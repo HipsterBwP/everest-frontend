@@ -756,6 +756,9 @@ private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
         toggle("boot", "Boot check", "Arcade BIOS lines before the logo when Everest starts", cfg.bootSequence, accent) {
             vm.setBootSequence(!cfg.bootSequence)
         },
+        toggle("pressstart", "Press Start screen", "The loading screen waits for Start before the console screen", cfg.pressStart, accent) {
+            vm.setPressStart(!cfg.pressStart)
+        },
         Item("initials", onA = { vm.editInitials() }, aLabel = "Edit") { focused ->
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {

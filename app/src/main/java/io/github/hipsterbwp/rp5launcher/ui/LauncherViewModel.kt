@@ -247,6 +247,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setBootSequence(enabled: Boolean) = updateConfig { it.copy(bootSequence = enabled) }
 
+    fun setPressStart(enabled: Boolean) = updateConfig { it.copy(pressStart = enabled) }
+
     /** Imports files (or a zip of them) picked from anywhere on the device, e.g. Downloads. */
     fun importMedia(kind: MediaKind, uris: List<Uri>) {
         if (uris.isEmpty()) return
