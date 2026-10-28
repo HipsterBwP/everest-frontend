@@ -79,7 +79,8 @@ fun TributeIntro(system: String, vm: LauncherViewModel, onDone: () -> Unit) {
     val t = remember(system) { Animatable(0f) }
     LaunchedEffect(system) {
         if (system != "gb") vm.sound(bootSound(system))
-        t.animateTo(1f, tween(Motion.TRIBUTE_MS, easing = LinearEasing))
+        val length = if (system == "n64") Motion.TRIBUTE_LONG_MS else Motion.TRIBUTE_MS
+        t.animateTo(1f, tween(length, easing = LinearEasing))
         onDone()
     }
     // The Game Boy dings when the logo lands, not at power-on.

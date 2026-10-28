@@ -442,6 +442,8 @@ object Space {
 object Size {
     /** Start-up tribute emblem, and the gaming-history card's width. */
     const val TRIBUTE_MARK = 120
+    /** The N64 tribute's spinning "E", sized to sit with the hero letters. */
+    const val TRIBUTE_E = 72
     const val HISTORY_W = 380
     const val HINT_BAR = 48
     const val GLYPH = 24
@@ -617,6 +619,8 @@ object Motion {
     const val YETI_STEP_MS = 420
     /** Start-up tribute length, the challenger alert, the 1UP pop-up. */
     const val TRIBUTE_MS = 2_200
+    /** The N64 tribute spins the E in and then drops six letters, so it runs longer. */
+    const val TRIBUTE_LONG_MS = 3_400
     const val CHALLENGER_MS = 2_400L
     const val ONE_UP_MS = 2_000L
     /** CONTINUE? 9… 8… one number per tick. */

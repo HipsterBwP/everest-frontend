@@ -26,7 +26,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import io.github.hipsterbwp.rp5launcher.ui.theme.Palette
 import io.github.hipsterbwp.rp5launcher.ui.theme.Size
@@ -35,6 +34,7 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.Type
 import io.github.hipsterbwp.rp5launcher.ui.theme.u
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.sin
 
 /*
@@ -117,27 +117,117 @@ internal fun ThreeDsTribute(p: Float) {
     }
 }
 
-/** Nintendo 64: four coloured blocks tumble together into a spinning cube, then the name. */
+/**
+ * Nintendo 64: a chunky 3D "E" in four colours spins in towards you and settles facing front, then
+ * V-E-R-E-S-T drop in beside it one by one to spell EVEREST.
+ */
 @Composable
 internal fun N64Tribute(p: Float) {
-    val colors = listOf(Color(0xFFE4002B), Color(0xFF009B48), Color(0xFF0046AD), Color(0xFFFFD100))
-    val gather = FastOutSlowInEasing.transform(phase(p, 0f, 0.5f))
+    val spin = FastOutSlowInEasing.transform(phase(p, 0f, 0.5f))
     Box(Modifier.fillMaxSize().background(Palette.black), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Canvas(Modifier.size(Size.TRIBUTE_MARK.u)) {
-                val s = size.minDimension * 0.28f
-                val spread = size.minDimension * 0.9f * (1f - gather)
-                rotate(360f * p * 1.5f, center) {
-                    colors.forEachIndexed { i, color ->
-                        val dx = if (i % 2 == 0) -1f else 1f
-                        val dy = if (i < 2) -1f else 1f
-                        val c = Offset(center.x + dx * (s / 2 + spread), center.y + dy * (s / 2 + spread))
-                        drawRect(color, Offset(c.x - s / 2, c.y - s / 2), GeoSize(s, s))
-                    }
-                }
+        Row(verticalAlignment = Alignment.Bottom) {
+            Canvas(
+                Modifier
+                    .size(Size.TRIBUTE_E.u)
+                    .graphicsLayer {
+                        val grow = 0.15f + 0.85f * spin
+                        scaleX = grow
+                        scaleY = grow
+                    },
+            ) {
+                // Two and a half turns that slow to a stop almost facing you, tilted enough to show its depth.
+                drawBlockE(yaw = (1f - spin) * 5f * PI.toFloat() - E_REST_YAW, pitch = 0.18f * (1f - spin) + E_REST_PITCH)
             }
-            Spacer(Modifier.height(Space.SECTION.u))
-            Txt("EVEREST 64", Type.screenTitle, Palette.white, Modifier.alpha(phase(p, 0.55f, 0.75f)))
+            Spacer(Modifier.size(Space.MD.u))
+            "VEREST".forEachIndexed { i, c ->
+                val start = 0.5f + i * 0.06f
+                val fall = phase(p, start, start + 0.12f)
+                // Drops from above, lands with a little bounce.
+                val y = if (fall < 1f) -(1f - fall * fall) * N64_DROP else -abs(sin(phase(p, start + 0.12f, start + 0.2f) * PI.toFloat())) * N64_BOUNCE
+                Txt(
+                    c.toString(), Type.hero, N64_COLORS[(i + 1) % N64_COLORS.size],
+                    Modifier.offset(y = y.u).alpha(if (p < start) 0f else 1f),
+                )
+            }
+        }
+    }
+}
+
+private val N64_COLORS = listOf(Color(0xFF0046AD), Color(0xFFE4002B), Color(0xFF009B48), Color(0xFFFFD100))
+private const val N64_DROP = 220f
+private const val N64_BOUNCE = 8f
+
+/** The "E" as four extruded blocks on a 4×5 grid: spine, top, middle and bottom arms. */
+private val E_BLOCKS = listOf(
+    floatArrayOf(0f, 0f, 1.2f, 5f) to N64_COLORS[0],
+    floatArrayOf(1.2f, 0f, 4f, 1.2f) to N64_COLORS[1],
+    floatArrayOf(1.2f, 1.9f, 3.4f, 3.1f) to N64_COLORS[2],
+    floatArrayOf(1.2f, 3.8f, 4f, 5f) to N64_COLORS[3],
+)
+private const val E_DEPTH = 1.3f
+private const val E_REST_YAW = 0.35f
+private const val E_REST_PITCH = 0.22f
+
+/** Draws the block "E" rotated by [yaw] (around the vertical axis) and [pitch], with simple perspective. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBlockE(yaw: Float, pitch: Float) {
+    val unit = size.minDimension / 6f
+    val cy = cos(yaw)
+    val sy = sin(yaw)
+    val cp = cos(pitch)
+    val sp = sin(pitch)
+    val camera = 14f
+    data class P(val x: Float, val y: Float, val z: Float)
+    fun turn(x: Float, y: Float, z: Float): P {
+        // Centre the E on the origin, then yaw, then pitch.
+        val px = x - 2f
+        val py = y - 2.5f
+        val pz = z - E_DEPTH / 2
+        val x1 = px * cy + pz * sy
+        val z1 = -px * sy + pz * cy
+        val y2 = py * cp - z1 * sp
+        val z2 = py * sp + z1 * cp
+        return P(x1, y2, z2)
+    }
+    fun screen(q: P): Offset {
+        val k = camera / (camera - q.z)
+        return Offset(center.x + q.x * unit * k, center.y + q.y * unit * k)
+    }
+    class Face(val pts: List<P>, val color: Color)
+    // Each block: only the faces turned towards the camera, then blocks drawn farthest first.
+    val blocks = E_BLOCKS.map { (r, color) ->
+        val (x0, y0, x1, y1) = r.toList()
+        val c = Array(8) { i ->
+            turn(if (i and 1 == 0) x0 else x1, if (i and 2 == 0) y0 else y1, if (i and 4 == 0) E_DEPTH else 0f)
+        }
+        val centre = P(c.map { it.x }.average().toFloat(), c.map { it.y }.average().toFloat(), c.map { it.z }.average().toFloat())
+        val dark = Color(color.red * 0.55f, color.green * 0.55f, color.blue * 0.55f)
+        val mid = Color(color.red * 0.75f, color.green * 0.75f, color.blue * 0.75f)
+        val faces = listOf(
+            intArrayOf(0, 1, 3, 2) to color, // front
+            intArrayOf(4, 5, 7, 6) to dark, // back
+            intArrayOf(0, 1, 5, 4) to mid, // top
+            intArrayOf(2, 3, 7, 6) to dark, // bottom
+            intArrayOf(0, 2, 6, 4) to mid, // left
+            intArrayOf(1, 3, 7, 5) to mid, // right
+        ).mapNotNull { (idx, shade) ->
+            val pts = idx.map { c[it] }
+            val fx = pts.sumOf { it.x.toDouble() }.toFloat() / 4
+            val fy = pts.sumOf { it.y.toDouble() }.toFloat() / 4
+            val fz = pts.sumOf { it.z.toDouble() }.toFloat() / 4
+            // Box faces point away from the block's centre; keep the ones facing the camera.
+            val facing = (fx - centre.x) * -fx + (fy - centre.y) * -fy + (fz - centre.z) * (camera - fz)
+            if (facing > 0) Face(pts, shade) else null
+        }
+        centre.z to faces
+    }
+    for ((_, faces) in blocks.sortedBy { it.first }) {
+        for (f in faces) {
+            val path = Path().apply {
+                f.pts.map(::screen).forEachIndexed { i, o -> if (i == 0) moveTo(o.x, o.y) else lineTo(o.x, o.y) }
+                close()
+            }
+            drawPath(path, f.color)
+            drawPath(path, Palette.black.copy(alpha = 0.35f), style = Stroke(1.5f))
         }
     }
 }
