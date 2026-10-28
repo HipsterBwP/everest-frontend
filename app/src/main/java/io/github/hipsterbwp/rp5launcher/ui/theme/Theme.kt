@@ -445,12 +445,9 @@ object Size {
     const val CONTINUE_ART_H = 44
     /** Spinning 3D logo sign on the console screen: face height, extrusion depth and glow. */
     const val SIGN_H = 150
-    /** Top of the sign, so it hovers above the horizon with its reflection on the grid. */
-    const val SIGN_TOP = 120
     const val SIGN_DEPTH = 22
     const val SIGN_EDGE = 1
     const val SIGN_GLOW = 22
-    const val SIGN_REFLECTION_H = 70
     /** Pixel battery next to the clock. */
     const val BATTERY_W = 24
     const val BATTERY_H = 12

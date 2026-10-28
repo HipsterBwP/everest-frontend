@@ -191,9 +191,10 @@ private fun SystemsTab(
                             .padding(
                                 start = (Size.RAIL_W + Size.SYSTEM_PANEL_W + Space.SECTION_LARGE).u,
                                 end = Space.SCREEN_H.u,
-                                top = Size.SIGN_TOP.u,
+                                top = (Space.SCREEN_TOP + Size.STATUS_H).u,
+                                bottom = Size.HINT_BAR.u,
                             ),
-                        contentAlignment = Alignment.TopCenter,
+                        contentAlignment = Alignment.Center,
                     ) {
                         LogoSign(logo, Modifier.fillMaxWidth(SIGN_WIDTH))
                     }

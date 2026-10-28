@@ -494,7 +494,7 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
                             "logo" -> "The console's logo as a spinning 3D neon sign"
                             "cover" -> "The best-selling game's cover, over a blur of itself"
                             "console" -> "The console on its own"
-                            else -> "Your own pictures first, then game fanart, then the spinning 3D logo"
+                            else -> "Your own pictures first (add them below), then game fanart, then the 3D logo"
                         },
                         Type.label, Palette.inkSecondary, maxLines = 2,
                     )
@@ -504,7 +504,7 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
                         "logo" -> "3D logo"
                         "cover" -> "Best-seller"
                         "console" -> "Console"
-                        else -> "Automatic"
+                        else -> "Your pictures"
                     },
                     Type.labelStrong, Palette.inkSecondary,
                 )

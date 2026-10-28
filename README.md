@@ -49,8 +49,8 @@ and opens Android's setting to make ARCROW the home screen (the Home button then
 - **Hiding**: hide a game from its Options; unhide, and show or hide whole systems, in Settings › Library.
   BIOS files are skipped, and discs/tracks listed by an `.m3u`, `.cue` or `.gdi` appear once.
 - **Stats**: Settings › Stats shows total play time, most played games and day streaks.
-- **Background music**: three original tracks play softly while you browse and pause while a game
-  runs. Put your own MP3/OGG/FLAC files in a `music` folder inside the ROMs folder to play those
+- **Background music**: an 8-bit arcade arrangement of "After Hours" plays on repeat while you browse
+  (switch Settings › Sound back to shuffle for all four original tracks) and pauses while a game runs. Put your own MP3/OGG/FLAC files in a `music` folder inside the ROMs folder to play those
   instead. On/off, volume and next track are in Settings › Sound, where each track can be switched
   off (A) or put on repeat (X).
 - **Console startup sounds**: name sound files after each system (`snes.ogg`, `ps2.mp3`…) and import

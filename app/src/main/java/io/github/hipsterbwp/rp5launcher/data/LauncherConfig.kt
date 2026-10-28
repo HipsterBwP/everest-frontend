@@ -50,8 +50,8 @@ data class LauncherConfig(
     val musicVolume: Int = 1,
     /** Music tracks switched off (built-in names like "neon_drift", or your own files' names). */
     val musicOff: Set<String> = emptySet(),
-    /** A track to play on repeat instead of shuffling them all. */
-    val musicRepeat: String? = null,
+    /** A track to play on repeat instead of shuffling them all (by default the 8-bit After Hours). */
+    val musicRepeat: String? = "after_hours_8bit",
     /** Play your console startup sounds (from the "_sounds" folder) when you land on a console. */
     val consoleSounds: Boolean = true,
     /** ES-DE's folder (or its downloaded_media folder), for the gameplay videos ES-DE downloaded. */
@@ -59,10 +59,10 @@ data class LauncherConfig(
     /** Play a montage of gameplay videos on the console screen after a few seconds. */
     val consoleVideos: Boolean = true,
     /**
-     * Console screen backdrop: "auto" (your own art from the "_art" folder, then game fanart, then the
-     * spinning 3D logo), "logo" (always the 3D logo), "cover" (best-selling game's cover) or "console".
+     * Console screen backdrop: "logo" (the spinning 3D logo, the default), "auto" (your own art from the
+     * "_art" folder, then game fanart, then the 3D logo), "cover" (best-selling game's cover) or "console".
      */
-    val backdrop: String = "auto",
+    val backdrop: String = "logo",
     /** Blur behind the best-selling game's cover: 0 off, 1 soft, 2 strong. */
     val backdropBlur: Int = 2,
     /** Tint console backdrops with the system's colour. */

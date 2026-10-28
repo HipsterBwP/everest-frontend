@@ -187,6 +187,7 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
             Triple("neon_drift", "Neon Drift", R.raw.music_neon_drift),
             Triple("pixel_garden", "Pixel Garden", R.raw.music_pixel_garden),
             Triple("after_hours", "After Hours", R.raw.music_after_hours),
+            Triple("after_hours_8bit", "After Hours (8-bit)", R.raw.music_after_hours_8bit),
         )
         private const val DUCK = 0.3f
         private const val FADE_MS = 700L

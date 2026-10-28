@@ -269,9 +269,98 @@ def after_hours():
     return t.render(bed, reverb=(3.2, 3000), wet=0.35)
 
 
+def pulse(f, n, duty):
+    """Naive NES-style pulse wave, softened just enough above Nyquist to avoid harsh aliasing."""
+    t = np.arange(n) / SR
+    return lowpass(np.where((f * t) % 1 < duty, 1.0, -1.0), 9000)
+
+
+def chip_noise(n, rate=12000, decay=40.0, seed=0):
+    """Noise channel: random levels held at [rate] Hz (a coarser rate sounds lower and grittier)."""
+    r = np.random.default_rng(seed)
+    hold = max(int(SR / rate), 1)
+    levels = r.choice([-1.0, 1.0], size=n // hold + 1)
+    t = np.arange(n) / SR
+    return np.repeat(levels, hold)[:n] * np.exp(-t * decay)
+
+
+def after_hours_8bit():
+    """"After Hours" as an arcade chiptune: same D major changes (Dmaj7 – Bm7 – Gmaj7 – A6) and its
+    high answer phrase, at 112 BPM on two pulse channels, a triangle bass and noise drums."""
+    t = Track(112, 32)
+    prog = [(50, "M7"), (47, "m7"), (43, "M7"), (45, "6")]
+    eighth = t.beat / 2
+    sixteenth = t.beat / 4
+    # Lead phrases over each chord, in eighths (0 = rest). Built from the chord tones an octave up,
+    # ending each bar on the original's "answer" note (the chord's top tone).
+    phrase_a = {
+        0: [74, 0, 78, 81, 0, 78, 81, 85],
+        1: [83, 0, 81, 78, 0, 74, 78, 81],
+        2: [79, 0, 78, 74, 0, 71, 74, 78],
+        3: [76, 0, 73, 69, 73, 76, 78, 0],
+    }
+    phrase_b = {
+        0: [86, 85, 81, 78, 81, 0, 85, 0],
+        1: [83, 81, 78, 74, 78, 0, 81, 0],
+        2: [83, 79, 78, 74, 71, 74, 78, 0],
+        3: [81, 78, 76, 73, 76, 78, 81, 81],
+    }
+    for bar in range(32):
+        root, kind = prog[bar % 4]
+        start = bar * t.bar
+        tones = chord_tones(root + 12, kind)
+        # Triangle bass: octave-bouncing eighths.
+        for b in range(8):
+            m = root - 12 + (12 if b % 2 else 0)
+            n = int(eighth * SR * 0.9)
+            t.add(tri(hz(m), n) * adsr(n, 0.002, 0.05, 0.8, 0.02), start + b * eighth, 0.42)
+        # Pulse 2: fast 12.5% arpeggio up and down the chord.
+        if bar >= 2:
+            order = tones + tones[-2:0:-1]
+            for s in range(16):
+                m = order[s % len(order)] + 12
+                n = int(sixteenth * SR * 0.7)
+                t.add(pulse(hz(m), n, 0.125) * adsr(n, 0.001, 0.04, 0.4, 0.01), start + s * sixteenth, 0.07, pan=-0.3)
+        # Pulse 1: the lead (A, A, B, A sections), with a quiet echo three sixteenths later.
+        if bar >= 4:
+            section = (bar - 4) // 8
+            phrase = (phrase_b if section == 1 else phrase_a)[bar % 4]
+            for s, m in enumerate(phrase):
+                if not m:
+                    continue
+                held = 2 if s + 1 < len(phrase) and phrase[s + 1] == 0 else 1
+                n = int(eighth * held * SR * 0.92)
+                v = pulse(hz(m), n, 0.25) * adsr(n, 0.002, 0.08, 0.7, 0.03)
+                vib = 1 + 0.004 * np.sin(2 * np.pi * 6 * np.arange(n) / SR) * np.clip(np.arange(n) / (0.15 * SR), 0, 1)
+                at = start + s * eighth
+                t.add(v * vib, at, 0.12, pan=0.15)
+                t.add(v * vib, at + 3 * sixteenth, 0.04, pan=-0.4)
+        # Noise drums: kick blip on 1 and 3, snare on 2 and 4, closed hats on the off-beats.
+        if bar >= 4:
+            for beat in range(4):
+                at = start + beat * t.beat
+                if beat in (0, 2):
+                    n = int(0.12 * SR)
+                    tt = np.arange(n) / SR
+                    f = 160 * np.exp(-tt * 28) + 45
+                    blip = np.sign(np.sin(2 * np.pi * np.cumsum(f) / SR)) * np.exp(-tt * 22)
+                    t.add(lowpass(blip, 3000), at, 0.32)
+                if beat in (1, 3):
+                    t.add(chip_noise(int(0.16 * SR), 9000, 20, seed=bar * 4 + beat), at, 0.16)
+                t.add(chip_noise(int(0.04 * SR), 24000, 90, seed=99), at + eighth, 0.05)
+                if bar % 4 == 3 and beat == 3:  # fill
+                    for k in range(4):
+                        t.add(chip_noise(int(0.05 * SR), 7000, 50, seed=k), at + k * sixteenth, 0.1)
+    # Chiptune stays dry: just a short room so it doesn't sound boxed in.
+    return t.render(np.zeros_like(t.dry), reverb=(0.6, 6000), wet=0.08)
+
+
 if __name__ == "__main__":
     out = sys.argv[1]
-    for name, fn in [("neon_drift", neon_drift), ("pixel_garden", pixel_garden), ("after_hours", after_hours)]:
+    only = set(sys.argv[2:])
+    tracks = [("neon_drift", neon_drift), ("pixel_garden", pixel_garden), ("after_hours", after_hours),
+              ("after_hours_8bit", after_hours_8bit)]
+    for name, fn in [(n, f) for n, f in tracks if not only or n in only]:
         audio = fn()
         sf.write(f"{out}/{name}.wav", audio, SR)
         print(name, f"{len(audio) / SR:.1f}s")

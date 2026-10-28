@@ -76,11 +76,12 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
 1. **Home / Systems** — left: vertical rail of console logos (Up/Down); a "P1 · ARCROW" tag and a pink neon
    edge; next to it a neon panel with maker · year (cyan), the name in sunset letters, a scoreboard (GAMES / FAVS /
    PLAYED in VT323), a dashed fact sheet, a pink "▶ CONTINUE?" card (X) for the last-played game, and the console (or controller) illustration filling the panel's lower part; the rail highlights the
-   selected logo and dims the rest. Right, filling the whole screen: your own picture from the ROMs folder's
-   `_art` folder, else hero fanart from one of that system's games (ScreenScraper), else the console's logo as
-   a spinning 3D neon sign (`LogoSign`: sunset face, cyan rim, pink-to-violet extrusion that slides as it turns,
-   breathing pink glow, reflection on the grid; it turns like a coin so it never reads mirrored). Settings ›
-   Appearance can force the logo, the best-selling game's cover, or the console illustration. Full-screen art gets a shade on the left (tinted with the system color unless tinting is off) and
+   selected logo and dims the rest. Right, centred in the space beside the panel: by default the console's logo
+   as a spinning 3D neon sign (`LogoSign`: sunset face, cyan rim, pink-to-violet extrusion that slides as it
+   turns, breathing pink glow; it turns like a coin so it never reads mirrored). Settings › Appearance can switch
+   to "Your pictures" (your own picture from the `_art` folder full screen, else fanart, else the sign), the
+   best-selling game's cover, or the console illustration. The panel's console picture shows just the console or
+   controller: game media beside it (discs, cartridges, cards) is cut off when the picture is rendered. Full-screen art gets a shade on the left (tinted with the system color unless tinting is off) and
    along the top. After MONTAGE_DELAY on a console, muted gameplay clips of its games play full screen
    over the backdrop (same shades) with a glass "Now showing" caption. A console's startup sound (if the
    player added one) plays once the selection settles. With no art at all, the synthwave backdrop shows.

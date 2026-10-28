@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -17,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -30,7 +28,6 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.Motion
 import io.github.hipsterbwp.rp5launcher.ui.theme.Palette
 import io.github.hipsterbwp.rp5launcher.ui.theme.Retro
 import io.github.hipsterbwp.rp5launcher.ui.theme.Size
-import io.github.hipsterbwp.rp5launcher.ui.theme.Space
 import io.github.hipsterbwp.rp5launcher.ui.theme.u
 import java.io.File
 import kotlin.math.abs
@@ -39,7 +36,7 @@ import kotlin.math.sin
 
 /**
  * A console's logo as a spinning 3D arcade sign: sunset-gradient face with a cyan top edge, a thick
- * pink-to-violet extrusion behind it, a pulsing pink glow and a faint reflection on the grid floor.
+ * pink-to-violet extrusion behind it and a pulsing pink glow.
  * It turns like a coin, so the face never shows mirrored; the extrusion layers slide sideways as it
  * turns, which is what makes it read as solid.
  */
@@ -99,21 +96,6 @@ fun LogoSign(logo: File, modifier: Modifier = Modifier) {
                 contentScale = ContentScale.Fit,
             )
         }
-        Spacer(Modifier.height(Space.SECTION.u))
-        // Reflection on the floor: upside down, pink, fading out.
-        Image(
-            painter, null,
-            Modifier
-                .fillMaxWidth()
-                .height(Size.SIGN_REFLECTION_H.u)
-                .turn(0f)
-                .graphicsLayer { scaleY = -1f; alpha = REFLECTION_ALPHA; compositingStrategy = CompositingStrategy.Offscreen }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(Brush.verticalGradient(listOf(Palette.transparent, Palette.black)), blendMode = BlendMode.DstIn)
-                },
-            colorFilter = ColorFilter.tint(Palette.pinkSoft), contentScale = ContentScale.Fit,
-        )
     }
 }
 
@@ -124,4 +106,3 @@ private const val EDGE_ON = 0.04f
 /** The extrusion also drops a little, like 3D lettering lit from above. */
 private const val DROP = 0.6f
 private const val GLOW_ALPHA = 0.85f
-private const val REFLECTION_ALPHA = 0.22f

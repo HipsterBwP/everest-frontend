@@ -111,7 +111,8 @@ class SystemArtStore(context: Context) {
             // Slate draws controllers turned 90° clockwise; turn them back.
             Bitmap.createBitmap(bitmap, 0, 0, width, height, Matrix().apply { postRotate(-90f) }, true)
         } else {
-            bitmap
+            // Console pictures show the game media (disc, cartridge, card) beside the console: keep the console.
+            withoutGameMedia(bitmap)
         }
         val tmp = File(out.parentFile, out.name + ".tmp")
         tmp.outputStream().use { upright.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -121,7 +122,53 @@ class SystemArtStore(context: Context) {
     companion object {
         private const val SLATE = "https://gitlab.com/es-de/themes/slate-es-de/-/raw/master"
         private const val HEIGHT = 480
-        private const val ART_VERSION = 2
+        /** 3: console pictures without their game media. */
+        private const val ART_VERSION = 3
+        /** Columns this close together (fraction of the width) belong to the same object. */
+        private const val JOIN_GAP = 0.04f
+        /** Objects smaller than this share of the biggest one are game media and get cut off. */
+        private const val KEEP_SHARE = 0.5f
+        private const val OPAQUE = 24
+
+        /**
+         * Splits a picture into side-by-side objects (separated by empty columns) and keeps the biggest,
+         * plus anything nearly as big; then trims the empty space around it.
+         */
+        internal fun withoutGameMedia(src: Bitmap): Bitmap {
+            val w = src.width
+            val h = src.height
+            val pixels = IntArray(w * h).also { src.getPixels(it, 0, w, 0, 0, w, h) }
+            val columns = IntArray(w) { x -> (0 until h).count { y -> (pixels[y * w + x] ushr 24) > OPAQUE } }
+            // Runs of non-empty columns, joining runs split by only a hairline gap.
+            val runs = ArrayList<IntArray>() // [start, end, area]
+            val join = (w * JOIN_GAP).toInt()
+            var x = 0
+            while (x < w) {
+                if (columns[x] == 0) { x++; continue }
+                var end = x
+                var area = 0
+                while (end < w && columns[end] > 0) area += columns[end++]
+                val last = runs.lastOrNull()
+                if (last != null && x - last[1] <= join) {
+                    last[1] = end; last[2] += area
+                } else {
+                    runs += intArrayOf(x, end, area)
+                }
+                x = end
+            }
+            if (runs.size < 2) return src
+            val biggest = runs.maxOf { it[2] }
+            val kept = runs.filter { it[2] >= biggest * KEEP_SHARE }
+            val left = kept.minOf { it[0] }
+            val right = kept.maxOf { it[1] }
+            var top = h
+            var bottom = 0
+            for (y in 0 until h) for (cx in left until right) {
+                if ((pixels[y * w + cx] ushr 24) > OPAQUE) { top = minOf(top, y); bottom = maxOf(bottom, y + 1); }
+            }
+            if (bottom <= top) return src
+            return Bitmap.createBitmap(src, left, top, right - left, bottom - top)
+        }
         private const val MARKER = "slate/2"
         private const val RETRY_MS = 7L * 24 * 60 * 60 * 1000
     }
