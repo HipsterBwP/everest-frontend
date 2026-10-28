@@ -1,5 +1,6 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.ui.neonPanel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -109,17 +110,17 @@ fun QuickMenu(vm: LauncherViewModel, controls: QuickControls) {
                 .width(Size.QUICK_MENU_W.u)
                 .fillMaxHeight()
                 .padding(top = Space.SCREEN_TOP.u, bottom = (Size.HINT_BAR + Space.LG).u, end = Space.SCREEN_H.u)
-                .glass(Radius.PANEL)
+                .neonPanel(Radius.PANEL, fill = Palette.glassStrong)
                 .padding(Space.SECTION.u),
             verticalArrangement = Arrangement.spacedBy(Space.LIST_GAP.u),
         ) {
             val (battery, charging) = remember(tick) { controls.battery }
             val volume = remember(tick) { controls.volume }
             val wifi = remember(tick) { controls.wifiConnected }
-            Txt("QUICK MENU", Type.eyebrow, Palette.inkSecondary)
+            Txt("QUICK MENU", Type.eyebrow, Palette.cyanSoft, glow = Palette.cyan)
             Txt(
                 listOfNotNull(battery?.let { "Battery $it%" }, if (charging) "charging" else null).joinToString(" · ").ifEmpty { "ARCROW" },
-                Type.section, Palette.ink,
+                Type.screenTitleSmall, Palette.ink,
             )
             Spacer(Modifier.height(Space.SM.u))
             rows.forEachIndexed { i, r ->

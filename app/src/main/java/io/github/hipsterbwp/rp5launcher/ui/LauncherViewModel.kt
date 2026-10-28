@@ -233,6 +233,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setBackdropTint(enabled: Boolean) = updateConfig { it.copy(backdropTint = enabled) }
 
+    fun setCrtEffect(enabled: Boolean) = updateConfig { it.copy(crtEffect = enabled) }
+
     /** Imports files (or a zip of them) picked from anywhere on the device, e.g. Downloads. */
     fun importMedia(kind: MediaKind, uris: List<Uri>) {
         if (uris.isEmpty()) return

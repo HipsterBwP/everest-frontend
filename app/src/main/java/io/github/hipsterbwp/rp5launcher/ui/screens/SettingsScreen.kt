@@ -1,5 +1,8 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import androidx.compose.foundation.border
+import io.github.hipsterbwp.rp5launcher.ui.RetroBackdrop
+import io.github.hipsterbwp.rp5launcher.ui.ChromeTxt
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.ui.platform.LocalContext
@@ -142,31 +145,35 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
     }
 
     Box(Modifier.fillMaxSize().background(Palette.page)) {
+        RetroBackdrop()
+        Box(Modifier.fillMaxSize().background(Palette.night.copy(alpha = SETTINGS_DIM)))
         Row(Modifier.fillMaxSize()) {
-            // Sidebar in the system color.
+            // Sidebar: a dark strip with a neon edge, the page list as an arcade menu.
             Column(
                 Modifier
                     .width(Size.SETTINGS_SIDEBAR.u)
                     .fillMaxHeight()
-                    .background(Palette.sidebar)
+                    .background(Palette.sidebar.copy(alpha = SIDEBAR_FILL))
+                    .border(Size.HAIRLINE.u, Palette.glassEdge)
                     .padding(top = Space.SETTINGS_TOP.u, start = Space.SIDEBAR_H.u, end = Space.SIDEBAR_H.u),
                 verticalArrangement = Arrangement.spacedBy(Space.LIST_GAP.u),
             ) {
-                Txt("Settings", Type.screenTitle, Palette.white, Modifier.padding(start = Space.ROW_GAP.u, bottom = Space.TILE_GAP.u))
+                ChromeTxt("Settings", Type.screenTitle, Modifier.padding(start = Space.ROW_GAP.u, bottom = Space.TILE_GAP.u))
                 Page.entries.forEach { p ->
                     val selected = p == page
                     Box(
                         Modifier
                             .fillMaxWidth()
                             .clip(rounded(Radius.CARD_SMALL))
-                            .background(if (selected) accent else Palette.transparent)
+                            .background(if (selected) Palette.pink else Palette.transparent)
                             .tap { page = p; row = 0; inContent = false }
                             .padding(vertical = Space.ROW_V.u, horizontal = Space.ROW_H.u),
                     ) {
                         Txt(
-                            p.title,
+                            p.title.uppercase(),
                             if (selected) Type.navItemSelected else Type.navItem,
                             if (selected) Palette.white else Palette.inkSecondary,
+                            glow = if (selected) Palette.chromeShadow else null,
                         )
                     }
                 }
@@ -178,7 +185,7 @@ fun SettingsScreen(vm: LauncherViewModel, pickFolder: () -> Unit) {
                     .fillMaxHeight()
                     .padding(top = Space.SETTINGS_TOP.u, start = Space.SCREEN_H.u, end = Space.SCREEN_H.u),
             ) {
-                Txt(page.title, Type.screenTitleSmall, Palette.ink)
+                ChromeTxt(page.title, Type.screenTitleSmall)
                 Spacer(Modifier.height(Space.SM.u))
                 Txt(pageSubtitle(page), Type.bodySmall, Palette.inkSecondary, maxLines = 2)
 
@@ -543,6 +550,15 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
                 Txt(if (c.consoleVideos) "On" else "Off", Type.labelStrong, if (c.consoleVideos) Palette.ok else Palette.inkSecondary)
             }
         },
+        Item("crt", onA = { vm.setCrtEffect(!c.crtEffect) }, aLabel = "Toggle") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("CRT scanlines", Type.rowTitle, Palette.ink)
+                    Txt("Faint scanlines and darker corners, like an arcade screen", Type.label, Palette.inkSecondary)
+                }
+                Txt(if (c.crtEffect) "On" else "Off", Type.labelStrong, if (c.crtEffect) Palette.ok else Palette.inkSecondary)
+            }
+        },
         Item("tint", onA = { vm.setBackdropTint(!c.backdropTint) }, aLabel = "Toggle") { focused ->
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
@@ -810,3 +826,7 @@ private fun aboutItems(vm: LauncherViewModel, accent: Color): List<Item> {
         },
     )
 }
+
+/** Settings sit over a dimmed synthwave scene so long lists stay easy to read. */
+private const val SETTINGS_DIM = 0.6f
+private const val SIDEBAR_FILL = 0.85f

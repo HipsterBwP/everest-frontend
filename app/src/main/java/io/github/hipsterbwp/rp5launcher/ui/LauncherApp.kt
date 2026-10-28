@@ -75,7 +75,7 @@ fun LauncherApp(vm: LauncherViewModel) {
         if (vm.screen !is Screen.Setup && !vm.textInputActive) vm.screensaver = true
     }
 
-    Box(Modifier.fillMaxSize().background(Palette.brandNavy)) {
+    Box(Modifier.fillMaxSize().background(Palette.night)) {
         if (vm.ready) {
             CompositionLocalProvider(LocalButtonLabel provides labels) {
                 LauncherContent(vm, appName, pickFolder)
@@ -86,6 +86,7 @@ fun LauncherApp(vm: LauncherViewModel) {
         if (loadingAlpha > 0f) {
             Box(Modifier.fillMaxSize().alpha(loadingAlpha)) { LoadingScreen(vm.loading) }
         }
+        if (vm.config.crtEffect) CrtOverlay()
     }
 }
 

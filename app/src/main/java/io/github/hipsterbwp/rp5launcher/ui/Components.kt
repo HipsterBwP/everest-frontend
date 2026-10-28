@@ -39,6 +39,13 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size as GeoSize
 import androidx.compose.ui.graphics.Color
+import io.github.hipsterbwp.rp5launcher.ui.theme.Retro
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -65,7 +72,7 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.u
 // Text
 // ---------------------------------------------------------------------------------------------
 
-/** Single entry point for text: always truncates gracefully instead of clipping. */
+/** Single entry point for text: always truncates gracefully instead of clipping. [glow] adds a neon halo. */
 @Composable
 fun Txt(
     text: String,
@@ -73,11 +80,26 @@ fun Txt(
     color: Color,
     modifier: Modifier = Modifier,
     maxLines: Int = 1,
+    glow: Color? = null,
 ) {
+    val blur = with(LocalDensity.current) { Size.TEXT_GLOW.u.toPx() }
     BasicText(
         text = text,
         modifier = modifier,
-        style = style.copy(color = color),
+        style = style.copy(color = color, shadow = glow?.let { Shadow(it, Offset.Zero, blur) }),
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/** Big title in the sunset gradient with a hard purple drop shadow, like an arcade marquee. */
+@Composable
+fun ChromeTxt(text: String, style: TextStyle, modifier: Modifier = Modifier, maxLines: Int = 1) {
+    val drop = with(LocalDensity.current) { Size.CHROME_DROP.u.toPx() }
+    BasicText(
+        text = text.uppercase(),
+        modifier = modifier,
+        style = style.copy(brush = Retro.sunset, shadow = Shadow(Palette.chromeShadow, Offset(0f, drop), 0f)),
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
     )
@@ -127,12 +149,61 @@ fun GameplayBackdrop(snap: File?, scrim: Color, scrimAlpha: Float) {
 // Glass and depth
 // ---------------------------------------------------------------------------------------------
 
-/** Frosted-glass surface: translucent dark fill with a hairline edge. Put blurred art behind it. */
+/** Dark violet surface with a thin neon edge (pills, captions, small panels). */
 @Composable
 fun Modifier.glass(radius: Int, fill: Color = Palette.glass): Modifier {
     val shape = rounded(radius)
     return clip(shape).background(fill).border(Size.HAIRLINE.u, Palette.glassEdge, shape)
 }
+
+/**
+ * Main panels: dark fill, glowing neon [edge] and two corner brackets in [corner] (top-left and
+ * bottom-right), like the frames in arcade menus. The glow and brackets draw outside the bounds.
+ */
+@Composable
+fun Modifier.neonPanel(
+    radius: Int,
+    edge: Color = Palette.pink,
+    corner: Color = Palette.cyan,
+    fill: Color = Palette.glass,
+): Modifier {
+    val r = radius.u
+    val width = Size.NEON_EDGE.u
+    val bracket = Size.NEON_BRACKET.u
+    val bracketWidth = Size.NEON_BRACKET_W.u
+    val offset = Size.NEON_BRACKET_OFFSET.u
+    return drawBehind {
+        val cr = CornerRadius(r.toPx())
+        neonGlow(edge, cr, width.toPx())
+        drawRoundRect(fill, cornerRadius = cr)
+    }.drawWithContent {
+        drawContent()
+        val w = width.toPx()
+        drawRoundRect(edge, Offset(w / 2, w / 2), GeoSize(size.width - w, size.height - w), CornerRadius(r.toPx()), Stroke(w))
+        val o = offset.toPx()
+        val len = bracket.toPx()
+        val rad = r.toPx().coerceAtMost(len * 0.6f)
+        val brackets = Path().apply {
+            moveTo(-o, -o + len); lineTo(-o, -o + rad); quadraticTo(-o, -o, -o + rad, -o); lineTo(-o + len, -o)
+            val x = size.width + o
+            val y = size.height + o
+            moveTo(x, y - len); lineTo(x, y - rad); quadraticTo(x, y, x - rad, y); lineTo(x - len, y)
+        }
+        val bw = bracketWidth.toPx()
+        drawPath(brackets, corner.copy(alpha = GLOW_ALPHA), style = Stroke(bw * 3, cap = StrokeCap.Round))
+        drawPath(brackets, corner, style = Stroke(bw, cap = StrokeCap.Round))
+    }
+}
+
+/** Soft neon halo around a rounded rect: a few widening translucent strokes. */
+fun DrawScope.neonGlow(color: Color, cornerRadius: CornerRadius, width: Float) {
+    for (i in GLOW_STEPS downTo 1) {
+        drawRoundRect(color.copy(alpha = GLOW_ALPHA / i), cornerRadius = cornerRadius, style = Stroke(width + i * width * 2))
+    }
+}
+
+private const val GLOW_STEPS = 3
+private const val GLOW_ALPHA = 0.35f
 
 /** 1-unit light line along the top edge, like a glass toolbar. */
 @Composable
@@ -176,11 +247,11 @@ fun Modifier.focusRing(alpha: Float, color: Color, width: Dp, offset: Dp, radius
         )
     }
 
-/** Focus ring for light screens: 3 px system-color outline. */
+/** Focus ring: neon pink outline (the retro theme highlights everything the same way). */
 @Composable
-fun Modifier.lightFocus(focused: Boolean, accent: Color, radius: Int): Modifier {
+fun Modifier.lightFocus(focused: Boolean, @Suppress("UNUSED_PARAMETER") accent: Color, radius: Int): Modifier {
     val alpha by animateFloatAsState(if (focused) 1f else 0f, Motion.focus(), label = "ring")
-    return focusRing(alpha, accent, Size.FOCUS_RING_LIGHT.u, Size.FOCUS_OFFSET.u, radius.u)
+    return focusRing(alpha, Palette.pink, Size.FOCUS_RING_LIGHT.u, Size.FOCUS_OFFSET.u, radius.u)
 }
 
 /** Touch is a bonus: tap without ripples (no shadows/gradients per DESIGN.md). */
@@ -213,8 +284,7 @@ fun BoxScope.HintBar(hints: List<Hint>, onSystem: Boolean, glyphInk: Color) {
             .align(Alignment.BottomStart)
             .fillMaxWidth()
             .height(Size.HINT_BAR.u)
-            .background(if (onSystem) Palette.hintBarOnSystem else Palette.hintBarLight)
-            .hairlineTop()
+            .background(Brush.verticalGradient(listOf(Palette.transparent, Palette.night.copy(alpha = HINT_FADE))))
             .padding(horizontal = Space.SCREEN_H.u),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.HINT_GAP.u),
@@ -233,29 +303,55 @@ private fun HintItem(hint: Hint, glyphInk: Color) {
         horizontalArrangement = Arrangement.spacedBy(Space.GAP.u),
     ) {
         ButtonGlyph(hint.buttons, glyphInk)
-        Txt(hint.label, Type.label, Palette.white)
+        Txt(hint.label.uppercase(), Type.hint, Palette.ink)
     }
 }
 
-/** 24 px white circle for face buttons; rounded rect for shoulder/START/SELECT. */
+/**
+ * Arcade buttons: candy-coloured round buttons for A/B/X/Y (red, yellow, blue, green) with a soft
+ * glow, and a lavender key cap for shoulder buttons, START and SELECT.
+ */
 @Composable
 fun ButtonGlyph(buttons: List<Pad>, ink: Color) {
     val labelFor = LocalButtonLabel.current
     val label = buttons.joinToString(" ") { labelFor(it) }
-    val round = buttons.size == 1 && label.length == 1
-    Box(
-        modifier = Modifier
-            .then(
-                if (round) Modifier.size(Size.GLYPH.u).clip(rounded(Radius.PILL))
-                else Modifier.height(Size.GLYPH.u).clip(rounded(Radius.GLYPH_RECT))
-            )
-            .background(Palette.white)
-            .padding(horizontal = if (round) 0.u else Space.GLYPH_RECT_H.u),
-        contentAlignment = Alignment.Center,
-    ) {
-        Txt(label, if (round) Type.glyph else Type.glyphWide, ink)
+    val face = buttons.singleOrNull()?.let(::faceColor)
+    if (face != null) {
+        Box(
+            modifier = Modifier
+                .size(Size.GLYPH.u)
+                .drawBehind {
+                    drawCircle(face.copy(alpha = GLOW_ALPHA), radius = size.minDimension * 0.72f)
+                    drawCircle(Brush.verticalGradient(listOf(lerp(face, Palette.white, 0.35f), face, lerp(face, Palette.black, 0.3f))))
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Txt(label, Type.glyph, Palette.white, glow = Palette.black)
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .height(Size.GLYPH.u)
+                .clip(rounded(Radius.GLYPH_RECT))
+                .background(Brush.verticalGradient(listOf(Palette.buttonOther, lerp(Palette.buttonOther, Palette.black, 0.3f))))
+                .padding(horizontal = Space.GLYPH_RECT_H.u),
+            contentAlignment = Alignment.Center,
+        ) {
+            Txt(label, Type.glyphWide, ink)
+        }
     }
 }
+
+private fun faceColor(button: Pad): Color? = when (button) {
+    Pad.A -> Palette.buttonA
+    Pad.B -> Palette.buttonB
+    Pad.X -> Palette.buttonX
+    Pad.Y -> Palette.buttonY
+    else -> null
+}
+
+private const val HINT_FADE = 0.92f
+private const val PILL_EDGE = 0.45f
 
 // ---------------------------------------------------------------------------------------------
 // Small pieces
@@ -273,11 +369,12 @@ fun Pill(
 ) {
     Box(
         modifier = modifier
-            .clip(rounded(Radius.PILL))
+            .clip(rounded(Radius.GLYPH_RECT))
             .background(background)
+            .border(Size.HAIRLINE.u, ink.copy(alpha = PILL_EDGE), rounded(Radius.GLYPH_RECT))
             .padding(vertical = padV.u, horizontal = padH.u),
     ) {
-        Txt(text, style, ink)
+        Txt(text.uppercase(), style, ink)
     }
 }
 
@@ -295,29 +392,44 @@ fun SystemBadge(shortName: String, color: Color) {
     }
 }
 
-/** White row card on light screens with a system-color focus outline. */
+/**
+ * List row like an arcade menu entry: dark card; when focused, a pink fade with a glowing pink edge
+ * and a yellow ▶ cursor in front.
+ */
 @Composable
 fun ListRow(
     focused: Boolean,
-    accent: Color,
+    @Suppress("UNUSED_PARAMETER") accent: Color,
     modifier: Modifier = Modifier,
     background: Color = Palette.card,
     padV: Int = Space.ROW_V,
     onClick: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val shape = rounded(Radius.CARD_SMALL)
+    val edge = Size.NEON_EDGE.u
+    val radius = Radius.CARD_SMALL.u
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .lightFocus(focused, accent, Radius.CARD_SMALL)
-            .clip(rounded(Radius.CARD_SMALL))
+            .then(
+                if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx() / 2) }
+                else Modifier
+            )
+            .clip(shape)
             .background(background)
+            .then(if (focused) Modifier.background(Retro.focusFill).border(edge, Palette.pink, shape) else Modifier)
             .then(if (onClick != null) Modifier.tap(onClick) else Modifier)
             .heightIn(min = Size.BADGE.u)
             .padding(vertical = padV.u, horizontal = Space.ROW_H.u),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.ROW_GAP.u),
-    ) { content() }
+    ) {
+        Box(Modifier.width(Size.CURSOR_W.u)) {
+            if (focused) Txt("▶", Type.menu, Palette.sun1, glow = Palette.sun2)
+        }
+        content()
+    }
 }
 
 /** Filled pill button in the system color. */
@@ -336,15 +448,15 @@ fun PrimaryButton(
         modifier = Modifier
             .lightFocus(focused, accent, height / 2)
             .height(height.u)
-            .clip(rounded(Radius.PILL))
-            .background(accent)
+            .clip(rounded(Radius.CARD_SMALL))
+            .background(Brush.verticalGradient(listOf(Palette.pinkSoft, Palette.pink)))
             .tap(onClick)
             .padding(horizontal = padH.u),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.BUTTON_GAP.u),
     ) {
         leading?.invoke()
-        Txt(text, style, Palette.white)
+        Txt(text.uppercase(), style, Palette.white, glow = Palette.chromeShadow)
     }
 }
 

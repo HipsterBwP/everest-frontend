@@ -10,55 +10,71 @@ the visual style below supersedes their colors, type and focus treatment.
 - Mockups are drawn at 960×540 (half resolution). Treat 1 mockup px ≈ 1 dp-like unit and scale ×2 to device pixels.
 - Controller-first. Every action must be reachable with D-pad, A/B/X/Y, L1/R1, L2/R2, Start, Select. Touch is a bonus, never required.
 
-## Visual style: Apple-TV-inspired dark ("Cartridge" retired Oct 2026)
+## Visual style: retro arcade / synthwave (Apple-TV style retired Oct 2026)
 
-Dark, calm, content-first, in the spirit of tvOS: game art does the talking, chrome is frosted glass.
-The original Cartridge mockups still define layout proportions where a screen isn't described below.
+A neon arcade at night: deep purple sky, hot pink and cyan neon, sunset-gradient titles in a pixel
+font, a perspective grid floor, arcade-button hints and faint CRT scanlines. Game art still does the
+talking; the chrome is neon-framed panels over it. Layout proportions are unchanged.
 
 ### Color
 
-- Pages are near-black (`#000000`); grouped cards `#1C1C1E`, chips/secondary rows `#2C2C2E`, sidebars `#111113`.
-- Text: primary `#FFFFFF`, secondary `#A1A1A8` (≥4.5:1 on cards), body `#D9D9DE`; text on white `#1C1C1E`.
-- Accent: Apple system blue `#0A84FF` on settings-style screens. Status: OK `#30D158`, problem `#FF6961`, stars `#FFD60A`.
-- **System color is now an accent**, not a page fill: console screen background when there's no hero art,
-  the details panel, badges. Defaults (SNES `#2E2370`, NES `#B3261E`, GB `#3E6B1F`, GBA `#3949AB`,
-  N64 `#1E7353`, PS1 `#4D4D57`, PS2 `#1F4BA5`, PSP `#1A1A1A`) stay editable per system in the config file.
-- Glass: `rgba(22,22,24,0.62)` (strong: 0.80) with a 1 px `rgba(255,255,255,0.12)` edge, always over blurred
-  or dimmed art. Soft shade gradients are allowed only to keep text readable over art.
-- All text must meet 4.5:1 contrast (3:1 for text ≥24 px).
+- Night `#0B0420` (pages), deep `#160935`, violet `#2A0E5C`; list rows `#170A36`, chips `#24104A`, sidebars `#0E0526`.
+- Neon: pink `#FF2A9D` (soft `#FF6FC3`) for focus, frames and accents; cyan `#2DE2E6` (soft `#9FF7F8`) for
+  labels, corner brackets and the selected console.
+- Sunset gradient, top to bottom: `#FFE45E` → `#FF9A3D` → `#FF3C8E` → `#C32AFF` → `#6A2CFF`, with a hard
+  `#2A0650` drop shadow, for big titles (`ChromeTxt`), the sun and the loading bar.
+- Text: primary `#F6ECFF`, secondary `#BDA6E6` (≥4.5:1 on rows), faint `#7F6AA8` for values. Status: OK `#2BD96B`,
+  problem `#FF4D6D`, stars/scores `#FFE45E`.
+- Arcade buttons: A red `#FF3B5C`, B yellow `#FFC93C`, X blue `#3C8DFF`, Y green `#2BD96B`; other keys lavender.
+- System colors stay editable per system but are only a light tint on backdrops (`BACKDROP_TINT`).
+- Backdrop art gets a pink-to-cyan colour wash (blend mode Color) and a night-coloured shade behind panels.
 
 ### Type
 
-- Font: **Inter** (SIL OFL, bundled), the closest freely licensed match to Apple's San Francisco.
-- Weights: 400 body, 600 labels, 700 headings.
-- Scale (mockup px): hero 60 / page title 44 / section 30 / screen title 22–30 / body 14–15 / label 12–13 / micro 10–11.
-- Headings: tracking −0.015 to −0.025 em, line-height ~1.02. Eyebrow labels: 12 px caps, +0.08 em.
+- **Press Start 2P** (pixel): titles, tabs, menus, hints, small caps labels. Always upper case. Crispest at
+  multiples of 4 device px; sizes run smaller than before because the face is wide (page 20, section 18,
+  menu 9, labels 7, badges 5–6 units).
+- **Chakra Petch** (400/600/700): body text, descriptions, list-row titles and values.
+- **VT323**: CRT numbers — clock, scoreboard counts, loading status.
+- Eyebrow labels: pixel 7 units, +0.12 em, cyan with a soft glow.
 
-### Shape, depth and spacing
+### Shape, depth and glow
 
-- Radii: pills 999; cards 14–16; panels 22–28.
-- Screen padding: 40 horizontal, ~26–36 top. Gaps: 6–8 in lists, 14 between cards, 18–28 between sections.
-- Depth: soft shadows under media and lifted covers (10 → 24 units), blur (26 units) on backdrop art.
+- Radii: rows 14, cards 16, panels 22; pixel tags and key caps 8.
+- Main panels (`neonPanel`): dark violet fill, 1.5-unit pink edge with a soft glow, cyan corner brackets
+  top-left and bottom-right. Small surfaces (`glass`) use a thin pink edge without glow.
+- Backgrounds without art use `RetroBackdrop`: stars, pink horizon haze, cyan-edged mountains, pink grid
+  floor (the loading screen adds the striped sun). Settings and setup dim it.
+- `CrtOverlay` over everything: 2-px scanlines every 4 px and a vignette (Settings › Appearance › CRT scanlines).
 
 ### Focus / selection
 
-- Covers: tvOS lift — scale ≈1.08, deeper shadow, 3 px white edge, drawn above neighbours.
-- Logo rail: the selected logo is centered, larger and fully opaque; others fade to 45%.
-- Lists on dark screens: 3 px accent outline offset 4 px.
+- Lists and menus: pink fade with a glowing pink edge and a yellow ▶ cursor in front.
+- Covers: lift (≈1.08) with a glowing pink edge; unfocused covers dim to 82%.
+- Logo rail: the selected console sits in a cyan neon box with a pink ▶; others fade to 30%.
+- Tabs: a pink-edged strip, the selected tab filled pink.
 - Focus moves animate (spring, ~150–200 ms). Nothing ever jumps.
 
 ### Controller hint bar
 
-- Always present at the bottom, 48 px tall, full width, frosted glass with a hairline top edge.
-- Each hint = button glyph (24 px white circle, or rounded rect for L1/R1, L2/R2, START, SELECT) + label.
+- Always present at the bottom, 48 units tall, fading from transparent to night.
+- Each hint = arcade button (24-unit candy-coloured circle with a glow, or a lavender key cap for L1/R1,
+  L2/R2, START, SELECT) + pixel-font label.
 - Left-aligned primary actions; Start/Select hints right-aligned.
 - Hints reflect what the buttons actually do on the current screen. B always means Back.
 
+### Brand
+
+- App icon: the raven with its glow shifted to neon pink over a synthwave sunset and grid (adaptive icon:
+  scene background + raven foreground). Android's splash shows the raven on night `#0B0420`.
+- Loading screen: raven over the striped sun, ARCROW in sunset pixel letters on the grid, "RETRO GAME
+  LAUNCHER", a 20-block arcade loading bar, status in VT323, blinking INSERT COIN, 1UP / CREDIT corners.
+
 ## Screens
 
-1. **Home / Systems** — left: vertical rail of console logos (Up/Down); next to it a glass panel with
-   maker · year, name, game and favorite counts, a short fact sheet, a Continue card (X) for the last-played
-   game, and the console (or controller) illustration filling the panel's lower part; the rail highlights the
+1. **Home / Systems** — left: vertical rail of console logos (Up/Down); a "P1 · ARCROW" tag and a pink neon
+   edge; next to it a neon panel with maker · year (cyan), the name in sunset letters, a scoreboard (GAMES / FAVS /
+   PLAYED in VT323), a dashed fact sheet, a pink "▶ CONTINUE?" card (X) for the last-played game, and the console (or controller) illustration filling the panel's lower part; the rail highlights the
    selected logo and dims the rest. Right, filling the whole screen: your own picture from the ROMs folder's
    `_art` folder, else hero fanart from one of that system's games (ScreenScraper), else an HD cover of the
    system's best-selling game as a lifted card over a blurred copy of itself with a glass "Best-selling game"
@@ -66,23 +82,24 @@ The original Cartridge mockups still define layout proportions where a screen is
    console). Full-screen art gets a shade on the left (tinted with the system color unless tinting is off) and
    along the top. After MONTAGE_DELAY on a console, muted gameplay clips of its games play full screen
    over the backdrop (same shades) with a glass "Now showing" caption. A console's startup sound (if the
-   player added one) plays once the selection settles. Top right: tabs
-   (Systems / Favorites / Recent / Collections, L1/R1) and a clock/battery capsule. A opens the system; Start settings.
-2. **Game browser** (a system's games, and the Favorites/Recent tabs) — blurred, dimmed art of the focused game
-   fills the screen. Left: gameplay video over its screenshot, then a glass card with system · year, title,
-   rating stars, genre/players pills and description. Right: logo or title, count, filter pills, and a 3-column
-   cover grid. **A plays immediately**; X options; Y favorite; L1/R1 filter; L2/R2 jump by letter; B back.
-3. **Options** (was Game details) — system-color panel with box art over the screenshot; title, publisher · year,
-   Play, stats, emulator. A play; B back; X change emulator; Y favorite.
+   player added one) plays once the selection settles. With no art at all, the synthwave backdrop shows.
+   Top right: tabs (Systems / Favorites / Recent / Collections, L1/R1), a cyan VT323 clock and a pixel battery. A opens the system; Start settings.
+2. **Game browser** (a system's games, and the Favorites/Recent tabs) — the synthwave backdrop. Left: a cyan
+   neon panel with gameplay video over its screenshot, system · year, the title in sunset letters, credits and
+   play time, chips (achievements, progress, players, favorite) and description. Right: logo or title, count,
+   filter tabs, and a 3-column cover grid with favorite stars and progress tags. **A plays immediately**; X options; Y favorite; L1/R1 filter; L2/R2 jump by letter; B back.
+3. **Options** (was Game details) — blurred art under a violet-to-night radial shade; the box art turned towards
+   a neon "— 1 PLAYER START —" menu with the title in sunset letters, credits, chips and pixel-font entries. A play; B back; X change emulator; Y favorite.
 4. **First-run setup (3 steps)** — 1) pick ROMs folder; 2) detected systems with matched emulators, missing ones
    flagged with a fix; 3) download art. Target: install → playing in under 2 minutes.
-5. **Settings** — dark sidebar (Library, Emulators, Scraper, ScreenScraper, Sound, About), grouped rows.
+5. **Settings** — dimmed synthwave backdrop; dark sidebar with the pages as a pixel menu (selected in pink);
+   rows as arcade menu entries.
 6. **Collections tab** — glass list of collections (yours first, then smart ones) beside the selected
    collection's title, count and a strip of covers; A opens it in the game browser.
 7. **Search** — Y on Home; on-screen keyboard, results in the game browser (Y edits the search).
 8. **Screensaver** — after the configured idle time: random game art full-screen with a slow zoom and a
    glass caption; any button wakes it without doing anything else.
-9. Options (3) is an action list: Play (system-color row), Favorite, Emulator for this game, Emulator for
+9. Options (3) is an action list: Play (larger pixel type), Favorite, Progress, Emulator for this game, Emulator for
    all games of the system, Add to collection, Fix artwork match, Hide. Up/Down, A, B.
 
 ## Quality bar

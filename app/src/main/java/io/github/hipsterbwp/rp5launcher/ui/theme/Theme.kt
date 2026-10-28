@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -26,8 +27,9 @@ import io.github.hipsterbwp.rp5launcher.R
 /**
  * Every design token from DESIGN.md lives here. Screens never hard-code colors, sizes or type.
  *
- * Direction: an Apple-TV-like dark UI. Near-black pages, grouped dark cards, frosted-glass panels
- * over game art, system color as an accent, Inter type (the free cousin of San Francisco).
+ * Direction: retro arcade / synthwave. A deep purple night, hot pink and cyan neon frames, sunset
+ * gradient titles in a pixel font (Press Start 2P), readable body text in Chakra Petch, CRT numbers
+ * in VT323, arcade-button hints and faint scanlines over everything.
  *
  * Sizes are in mockup px ("units"). The mockups are 960×540, so one unit is 1/960 of the
  * screen width: 2 device px on the RP5's 1920×1080 panel, whatever display density is set.
@@ -42,30 +44,48 @@ object Palette {
     val black = Color(0xFF000000)
     val transparent = Color(0x00000000)
 
-    /** Page background: details, setup, settings (Apple dark "system background"). */
-    val page = Color(0xFF000000)
-    /** Chips and secondary rows (Apple "tertiary grouped background"). */
-    val surface = Color(0xFF2C2C2E)
-    /** Grouped list cards and sidebars (Apple "secondary grouped background"). */
-    val card = Color(0xFF1C1C1E)
-    val sidebar = Color(0xFF111113)
+    // Synthwave base colors
+    val night = Color(0xFF0B0420)
+    val deep = Color(0xFF160935)
+    val violet = Color(0xFF2A0E5C)
+    val pink = Color(0xFFFF2A9D)
+    val pinkSoft = Color(0xFFFF6FC3)
+    val cyan = Color(0xFF2DE2E6)
+    val cyanSoft = Color(0xFF9FF7F8)
+    /** Sunset gradient stops, top to bottom (titles, the sun, the loading bar). */
+    val sun1 = Color(0xFFFFE45E)
+    val sun2 = Color(0xFFFF9A3D)
+    val sun3 = Color(0xFFFF3C8E)
+    val sun4 = Color(0xFFC32AFF)
+    val sun5 = Color(0xFF6A2CFF)
+    /** Hard drop shadow under sunset titles. */
+    val chromeShadow = Color(0xFF2A0650)
+
+    /** Page background: details, setup, settings. */
+    val page = night
+    /** Chips and secondary rows. */
+    val surface = Color(0xFF24104A)
+    /** List rows and sidebars. */
+    val card = Color(0xFF170A36)
+    val sidebar = Color(0xFF0E0526)
 
     /** Text on dark. Secondary keeps 4.5:1 on [card]. */
-    val ink = Color(0xFFFFFFFF)
-    val inkSecondary = Color(0xFFA1A1A8)
-    val inkBody = Color(0xFFD9D9DE)
-    /** Text on white (focused cards, button glyphs). */
-    val inkOnLight = Color(0xFF1C1C1E)
+    val ink = Color(0xFFF6ECFF)
+    val inkSecondary = Color(0xFFBDA6E6)
+    val inkBody = Color(0xFFE2D6F5)
+    val inkFaint = Color(0xFF7F6AA8)
+    /** Text on light fills (button glyphs, status badges). */
+    val inkOnLight = night
 
-    /** Apple system blue, for controls that aren't tied to a system. */
-    val accent = Color(0xFF0A84FF)
+    /** Controls that aren't tied to a system. */
+    val accent = pink
 
-    /** Frosted glass: translucent dark fill plus a hairline edge, drawn over blurred art. */
-    val glass = Color(0x9E161618) // ~62%
-    val glassStrong = Color(0xCC161618) // 80%
-    val glassEdge = Color(0x1FFFFFFF) // 12%
+    /** Panels: dark violet fill with a neon edge, drawn over art. */
+    val glass = Color(0xCC0E0522)
+    val glassStrong = Color(0xE60E0522)
+    val glassEdge = Color(0x80FF2A9D)
     /** Darkens art under text (top and bottom of full-screen backdrops). */
-    val shade = Color(0x8C000000) // 55%
+    val shade = Color(0x8C0B0420)
 
     val hintBarLight = glassStrong
     val hintBarOnSystem = glass
@@ -81,24 +101,40 @@ object Palette {
     val focusRingOnSystem = Color(0x59FFFFFF) // 0.35
     val focusRingOnSystemCard = Color(0x73FFFFFF) // 0.45
 
-    /** Modal scrim behind dialogs (translucency, not a shadow). */
-    val scrim = Color(0x99000000)
+    /** Modal scrim behind dialogs. */
+    val scrim = Color(0xB30B0420)
 
-    /** Apple dark-mode green/red, both readable on [card]. */
-    val ok = Color(0xFF30D158)
-    val problem = Color(0xFFFF6961)
+    val ok = Color(0xFF2BD96B)
+    val problem = Color(0xFFFF4D6D)
     /** Rating stars. */
-    val star = Color(0xFFFFD60A)
+    val star = sun1
 
-    /** ARCROW brand: navy ground, electric blue glow (from the logo). */
-    val brandNavy = Color(0xFF050B18)
-    val brandBlue = Color(0xFF1E6BFF)
-    val brandBlueLight = Color(0xFF4FA8FF)
-    val brandGlow = Color(0x801E6BFF)
-    val brandTrack = Color(0x332F7BFF)
-    val brandEdge = Color(0xB32F7BFF)
-    val brandText = Color(0xFFC9D6EE)
+    /** Arcade buttons in the hint bar (like the candy buttons on a cabinet). */
+    val buttonA = Color(0xFFFF3B5C)
+    val buttonB = Color(0xFFFFC93C)
+    val buttonX = Color(0xFF3C8DFF)
+    val buttonY = Color(0xFF2BD96B)
+    val buttonOther = inkSecondary
+
+    /** ARCROW brand on the loading screen: the raven's glow, shifted to neon pink. */
+    val brandNavy = night
+    val brandBlue = pink
+    val brandBlueLight = pinkSoft
+    val brandGlow = Color(0x80FF2A9D)
+    val brandTrack = Color(0x33FF2A9D)
+    val brandEdge = Color(0xB3FF2A9D)
+    val brandText = inkSecondary
     val brandSheen = Color(0x8CFFFFFF)
+}
+
+/** Gradients shared across screens. */
+object Retro {
+    /** Sunset fill for titles and the sun. */
+    val sunset = Brush.verticalGradient(listOf(Palette.sun1, Palette.sun2, Palette.sun3, Palette.sun4, Palette.sun5))
+    /** Focused row: pink fading to nothing, left to right. */
+    val focusFill = Brush.horizontalGradient(listOf(Palette.pink.copy(alpha = 0.35f), Palette.pink.copy(alpha = 0.05f)))
+    /** Colour wash over backdrop art (blend mode Color): pink top-left to cyan bottom-right. */
+    val duotone = Brush.linearGradient(listOf(Palette.pink.copy(alpha = 0.22f), Palette.cyan.copy(alpha = 0.14f)))
 }
 
 /** Default system colors (DESIGN.md table). Keys are ES-DE system names. Overridable in config. */
@@ -175,12 +211,18 @@ val Number.us: TextUnit
 // Type
 // ---------------------------------------------------------------------------------------------
 
-/** Inter (SIL OFL), static instances tuned for text (400/600) and display (700) sizes. */
+/** Press Start 2P (SIL OFL): titles, menus, tabs and labels. Crispest at multiples of 4 px. */
+val PixelFont = FontFamily(Font(R.font.pressstart2p_regular, FontWeight.W400))
+
+/** Chakra Petch (SIL OFL): body text, descriptions and list rows. */
 val AppFont = FontFamily(
-    Font(R.font.inter_regular, FontWeight.W400),
-    Font(R.font.inter_semibold, FontWeight.W600),
-    Font(R.font.inter_bold, FontWeight.W700),
+    Font(R.font.chakrapetch_regular, FontWeight.W400),
+    Font(R.font.chakrapetch_semibold, FontWeight.W600),
+    Font(R.font.chakrapetch_bold, FontWeight.W700),
 )
+
+/** VT323 (SIL OFL): CRT-style numbers (clock, scores, counts). */
+val CrtFont = FontFamily(Font(R.font.vt323_regular, FontWeight.W400))
 
 object Weight {
     val body = FontWeight.W400
@@ -188,31 +230,37 @@ object Weight {
     val heading = FontWeight.W700
 }
 
-/** Type scale in mockup px. */
+/** Type scale in mockup px. Pixel-font sizes are smaller: Press Start 2P is wide and tall. */
 object TypeScale {
-    const val HERO = 60
-    const val PAGE_TITLE = 44
-    const val SETUP_TITLE = 38
-    const val SECTION = 30
-    const val SCREEN_TITLE = 30
-    const val SCREEN_TITLE_SMALL = 22
-    const val STAT = 22
-    const val TILE_SELECTED = 26
-    const val TILE = 20
-    const val BRAND = 18
-    const val BUTTON = 17
     const val BODY = 15
     const val BODY_SMALL = 14
     const val LABEL = 13
     const val LABEL_SMALL = 12
     const val MICRO = 11
-    const val MICRO_SMALL = 10
 
-    const val HEADING_TRACKING = -0.025f
-    const val TITLE_TRACKING = -0.015f
-    const val HEADING_LINE_HEIGHT = 1.02f
+    // Press Start 2P
+    const val PIXEL_HERO = 40
+    const val PIXEL_PAGE = 20
+    const val PIXEL_SECTION = 18
+    const val PIXEL_SETUP = 16
+    const val PIXEL_SCREEN = 14
+    const val PIXEL_TILE_SELECTED = 12
+    const val PIXEL_LARGE = 10
+    const val PIXEL_MENU = 9
+    const val PIXEL_BUTTON = 8
+    const val PIXEL_LABEL = 7
+    const val PIXEL_SMALL = 6
+    const val PIXEL_MICRO = 5
+
+    // VT323
+    const val CRT_LARGE = 24
+    const val CRT = 20
+    const val CRT_SMALL = 15
+
+    const val PIXEL_LINE_HEIGHT = 1.35f
     const val CAPS_TRACKING = 0.08f
-    const val BODY_LINE_HEIGHT = 1.5f
+    const val EYEBROW_TRACKING = 0.12f
+    const val BODY_LINE_HEIGHT = 1.45f
     const val CARD_TITLE_LINE_HEIGHT = 1.15f
 }
 
@@ -225,8 +273,9 @@ fun textStyle(
     weight: FontWeight,
     tracking: Float = 0f,
     lineHeight: Float? = null,
+    family: FontFamily = AppFont,
 ): TextStyle = TextStyle(
-    fontFamily = AppFont,
+    fontFamily = family,
     fontSize = size.us,
     fontWeight = weight,
     letterSpacing = tracking.em,
@@ -235,48 +284,55 @@ fun textStyle(
     platformStyle = PlatformTextStyle(includeFontPadding = false),
 )
 
+@Composable
+@ReadOnlyComposable
+private fun pixel(size: Int, tracking: Float = 0f) =
+    textStyle(size, FontWeight.W400, tracking, TypeScale.PIXEL_LINE_HEIGHT, PixelFont)
+
+@Composable
+@ReadOnlyComposable
+private fun crt(size: Int) = textStyle(size, FontWeight.W400, family = CrtFont)
+
 object Type {
-    val hero @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.HERO, Weight.heading, TypeScale.HEADING_TRACKING, TypeScale.HEADING_LINE_HEIGHT)
-    val pageTitle @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.PAGE_TITLE, Weight.heading, TypeScale.HEADING_TRACKING, TypeScale.HEADING_LINE_HEIGHT)
-    val setupTitle @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.SETUP_TITLE, Weight.heading, TypeScale.HEADING_TRACKING, TypeScale.HEADING_LINE_HEIGHT)
-    val section @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.SECTION, Weight.heading, TypeScale.TITLE_TRACKING, TypeScale.HEADING_LINE_HEIGHT)
-    val screenTitle @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.SCREEN_TITLE, Weight.heading, TypeScale.TITLE_TRACKING, TypeScale.HEADING_LINE_HEIGHT)
-    val screenTitleSmall @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.SCREEN_TITLE_SMALL, Weight.heading)
-    val stat @Composable @ReadOnlyComposable get() = textStyle(TypeScale.STAT, Weight.heading)
-    val tileSelected @Composable @ReadOnlyComposable get() = textStyle(TypeScale.TILE_SELECTED, Weight.heading)
-    val tile @Composable @ReadOnlyComposable get() = textStyle(TypeScale.TILE, Weight.heading)
-    val brand @Composable @ReadOnlyComposable get() = textStyle(TypeScale.BRAND, Weight.heading)
-    val button @Composable @ReadOnlyComposable get() = textStyle(TypeScale.BUTTON, Weight.heading)
-    val buttonSmall @Composable @ReadOnlyComposable get() = textStyle(TypeScale.BODY, Weight.heading)
+    val hero @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_HERO)
+    val pageTitle @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_PAGE)
+    val setupTitle @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_SETUP)
+    val section @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_SECTION)
+    val screenTitle @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_SCREEN)
+    val screenTitleSmall @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_LARGE)
+    val stat @Composable @ReadOnlyComposable get() = crt(TypeScale.CRT_LARGE)
+    val tileSelected @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_TILE_SELECTED)
+    val tile @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_MENU)
+    val brand @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_MENU)
+    val button @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_MENU)
+    val buttonSmall @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_BUTTON)
     val body @Composable @ReadOnlyComposable get() =
         textStyle(TypeScale.BODY, Weight.body, lineHeight = TypeScale.BODY_LINE_HEIGHT)
     val bodySmall @Composable @ReadOnlyComposable get() =
         textStyle(TypeScale.BODY_SMALL, Weight.body, lineHeight = TypeScale.BODY_LINE_HEIGHT)
-    val rowTitle @Composable @ReadOnlyComposable get() = textStyle(TypeScale.BODY_SMALL, Weight.heading)
-    val navItem @Composable @ReadOnlyComposable get() = textStyle(TypeScale.BODY, Weight.label)
-    val navItemSelected @Composable @ReadOnlyComposable get() = textStyle(TypeScale.BODY, Weight.heading)
-    val tab @Composable @ReadOnlyComposable get() = textStyle(TypeScale.BODY_SMALL, Weight.label)
+    val rowTitle @Composable @ReadOnlyComposable get() = textStyle(TypeScale.BODY_SMALL, Weight.label)
+    /** Arcade menu entries ("PLAY", "PROGRESS"). */
+    val menu @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_MENU)
+    val navItem @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_LABEL)
+    val navItemSelected @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_LABEL)
+    val tab @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_LABEL)
+    val hint @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_LABEL)
     val label @Composable @ReadOnlyComposable get() = textStyle(TypeScale.LABEL, Weight.label)
     val labelStrong @Composable @ReadOnlyComposable get() = textStyle(TypeScale.LABEL, Weight.heading)
     val cardTitle @Composable @ReadOnlyComposable get() =
         textStyle(TypeScale.LABEL, Weight.heading, lineHeight = TypeScale.CARD_TITLE_LINE_HEIGHT)
     val caption @Composable @ReadOnlyComposable get() = textStyle(TypeScale.LABEL_SMALL, Weight.body)
-    val pill @Composable @ReadOnlyComposable get() = textStyle(TypeScale.LABEL_SMALL, Weight.heading)
-    val glyph @Composable @ReadOnlyComposable get() = textStyle(TypeScale.LABEL_SMALL, Weight.heading)
-    val glyphWide @Composable @ReadOnlyComposable get() = textStyle(TypeScale.MICRO, Weight.heading)
+    val pill @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_SMALL)
+    val glyph @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_LABEL)
+    val glyphWide @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_MICRO)
     val micro @Composable @ReadOnlyComposable get() = textStyle(TypeScale.MICRO, Weight.label)
-    val caps @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.MICRO, Weight.heading, TypeScale.CAPS_TRACKING)
-    val badge @Composable @ReadOnlyComposable get() = textStyle(TypeScale.MICRO_SMALL, Weight.heading)
-    /** Small caps label above a title ("PLAYSTATION 2 · 2000"). */
-    val eyebrow @Composable @ReadOnlyComposable get() =
-        textStyle(TypeScale.LABEL_SMALL, Weight.label, TypeScale.CAPS_TRACKING)
+    val caps @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_SMALL, TypeScale.CAPS_TRACKING)
+    val badge @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_MICRO)
+    /** Small label above a title ("SONY · 2000"), in neon cyan. */
+    val eyebrow @Composable @ReadOnlyComposable get() = pixel(TypeScale.PIXEL_LABEL, TypeScale.EYEBROW_TRACKING)
+    /** CRT numbers: clock, scores. */
+    val crt @Composable @ReadOnlyComposable get() = crt(TypeScale.CRT)
+    val crtSmall @Composable @ReadOnlyComposable get() = crt(TypeScale.CRT_SMALL)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -387,6 +443,9 @@ object Size {
     const val SYSTEM_PANEL_W = 300
     /** Box art thumbnail on the panel's Continue card. */
     const val CONTINUE_ART_H = 44
+    /** Pixel battery next to the clock. */
+    const val BATTERY_W = 24
+    const val BATTERY_H = 12
     /** Quick menu sheet (hold Select). */
     const val QUICK_MENU_W = 340
     /** Top-shade height on full-screen backdrops. */
@@ -399,15 +458,27 @@ object Size {
     const val COVER_H = 196
     const val LOGO_SMALL_H = 30
 
-    // Loading screen (proportions from the ARCROW mockup)
-    const val SPLASH_LOGO = 300
-    const val SPLASH_GLOW = 520
-    const val SPLASH_WORDMARK_W = 420
-    const val SPLASH_BAR_W = 360
-    const val SPLASH_BAR_H = 12
-    const val SPLASH_BAR_EDGE = 1
+    // Loading screen (proportions from the retro mockup)
+    const val SPLASH_LOGO = 210
+    const val SPLASH_LOGO_TOP = 55
+    const val SPLASH_TITLE_GAP = 88
+    const val SPLASH_BAR_W = 380
+    const val SPLASH_BAR_H = 22
+    const val SPLASH_SEGMENTS = 20
     const val STATUS_H = 26
     const val PREVIEW_COVER_W = 140
+
+    // Neon frames
+    const val NEON_EDGE = 1.5
+    const val NEON_BRACKET = 22
+    const val NEON_BRACKET_W = 2
+    const val NEON_BRACKET_OFFSET = 6
+    const val TEXT_GLOW = 5
+    const val CHROME_DROP = 2
+    /** Grid floor and star size on the synthwave backdrop. */
+    const val GRID_LINE = 1
+    /** Space for the ▶ cursor in front of list rows. */
+    const val CURSOR_W = 9
 
     const val FOCUS_RING = 4
     const val FOCUS_RING_CARD = 3
@@ -471,7 +542,8 @@ object Motion {
     const val SPLASH_BAR_MS = 350
     /** The bar's minimum fill time (kept under SPLASH_MIN_MS so it reaches the end on screen). */
     const val SPLASH_FILL_MS = 1200
-    const val SPLASH_SHEEN_MS = 1100
+    /** INSERT COIN blink: on and off for this long each. */
+    const val BLINK_MS = 600
     /** Screensaver: time per picture and the cross-fade between pictures. */
     const val SCREENSAVER_SLIDE_MS = 9000L
     const val SCREENSAVER_FADE_MS = 1500

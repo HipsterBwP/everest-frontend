@@ -1,5 +1,6 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.ui.RetroBackdrop
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -116,6 +117,8 @@ fun SetupScreen(vm: LauncherViewModel, step: Int, appName: String, pickFolder: (
     }
 
     Box(Modifier.fillMaxSize().background(Palette.page)) {
+        RetroBackdrop()
+        Box(Modifier.fillMaxSize().background(Palette.night.copy(alpha = SETUP_DIM)))
         Row(Modifier.fillMaxSize()) {
             SetupPanel(step, accent, appName)
             Column(
@@ -353,3 +356,5 @@ private fun ArtStep(vm: LauncherViewModel, accent: Color, onDownload: () -> Unit
         }
     }
 }
+
+private const val SETUP_DIM = 0.55f

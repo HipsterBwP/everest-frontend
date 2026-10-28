@@ -67,6 +67,8 @@ data class LauncherConfig(
     val backdropBlur: Int = 2,
     /** Tint console backdrops with the system's colour. */
     val backdropTint: Boolean = true,
+    /** CRT finish: faint scanlines and darker corners over the whole screen. */
+    val crtEffect: Boolean = true,
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 

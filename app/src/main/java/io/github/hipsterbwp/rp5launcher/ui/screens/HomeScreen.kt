@@ -1,5 +1,20 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.ui.theme.Retro
+import io.github.hipsterbwp.rp5launcher.ui.neonPanel
+import io.github.hipsterbwp.rp5launcher.ui.neonGlow
+import io.github.hipsterbwp.rp5launcher.ui.RetroBackdrop
+import io.github.hipsterbwp.rp5launcher.ui.ChromeTxt
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.geometry.Size as GeoSize
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
@@ -117,7 +132,6 @@ private fun SystemsTab(
     val collections = tab == TAB_COLLECTIONS
     val index = vm.homeSystemIndex.coerceIn(0, (systems.size - 1).coerceAtLeast(0))
     val selected = systems.getOrNull(index)?.takeIf { !collections }
-    val bg by animateColorAsState(selected?.color ?: SystemColors.neutral, Motion.colorFade(), label = "home-bg")
 
     fun select(i: Int) {
         vm.homeSystemIndex = i.coerceIn(0, (systems.size - 1).coerceAtLeast(0))
@@ -150,7 +164,8 @@ private fun SystemsTab(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(bg)) {
+    Box(Modifier.fillMaxSize().background(Palette.night)) {
+        RetroBackdrop()
         val backdrop = vm.config.backdrop
         // Hero, best first (in "auto"): your own picture from the "_art" folder, widescreen fanart of
         // one of your games, an HD cover of the best-selling game over a blur of itself, the console.
@@ -158,9 +173,9 @@ private fun SystemsTab(
         val feature = selected?.takeIf { backdrop != "console" }?.let { vm.systemFeature[it.name] }
         val product = selected?.let { vm.systemImages[it.name] }
         val shade = if (vm.config.backdropTint && selected != null) {
-            lerp(Palette.black, selected.color, Alpha.BACKDROP_TINT)
+            lerp(Palette.night, selected.color, Alpha.BACKDROP_TINT)
         } else {
-            Palette.black
+            Palette.night
         }
 
         Crossfade(targetState = Triple(hero, feature, product), animationSpec = Motion.colorFade(), label = "hero") { (art, cover, console) ->
@@ -169,6 +184,10 @@ private fun SystemsTab(
                     FeatureCover(cover, selected?.let { vm.bestSeller(it.name) }, vm.config.backdropBlur, shade)
                 } else if (art != null) {
                     ArtImage(art, Modifier.fillMaxSize(), ContentScale.Crop)
+                    // Synthwave colour wash (pink to cyan) when tinting is on.
+                    if (vm.config.backdropTint) {
+                        Canvas(Modifier.fillMaxSize()) { drawRect(Retro.duotone, blendMode = BlendMode.Color) }
+                    }
                     // Soft shade behind the rail and panel, and along the top under the tabs and clock,
                     // so text stays readable over any art.
                     Box(
@@ -250,12 +269,20 @@ private fun LogoRail(
     select: (Int) -> Unit,
     open: () -> Unit,
 ) {
+    val edge = Size.NEON_EDGE.u
     BoxWithConstraints(
         Modifier
             .width(Size.RAIL_W.u)
             .fillMaxHeight()
-            .background(Palette.shade),
+            .background(Brush.horizontalGradient(listOf(Palette.night.copy(alpha = RAIL_FILL), Palette.deep.copy(alpha = RAIL_FILL_EDGE))))
+            .drawBehind {
+                // Neon edge on the right, with a soft glow.
+                val x = size.width
+                drawLine(Palette.pink.copy(alpha = 0.3f), Offset(x, 0f), Offset(x, size.height), edge.toPx() * 6)
+                drawLine(Palette.pink, Offset(x, 0f), Offset(x, size.height), edge.toPx() * 2)
+            },
     ) {
+        Txt("P1 · ARCROW", Type.badge, Palette.pinkSoft, Modifier.padding(Space.LG.u), glow = Palette.pink)
         val itemHeight = (Size.RAIL_LOGO_SELECTED_H + Size.RAIL_ITEM_GAP).u
         val state = rememberLazyListState()
         LaunchedEffect(index) { if (index >= 0) state.animateScrollToItem(index) }
@@ -272,20 +299,29 @@ private fun LogoRail(
                     if (focused) Size.RAIL_LOGO_SELECTED_H.u else Size.RAIL_LOGO_H.u, Motion.focus(), label = "rail-h",
                 )
                 val alpha by animateFloatAsState(if (focused) 1f else Focus.RAIL_DIM, Motion.focus(), label = "rail-a")
-                val highlight by animateFloatAsState(
-                    if (focused) Alpha.RAIL_SELECTION else 0f, Motion.focus(), label = "rail-hl",
-                )
+                val highlight by animateFloatAsState(if (focused) 1f else 0f, Motion.focus(), label = "rail-hl")
+                val radius = Radius.CARD.u
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height(itemHeight)
-                        .padding(horizontal = Space.SM.u, vertical = Space.SM.u)
-                        .background(Palette.white.copy(alpha = highlight), rounded(Radius.CARD))
+                        .padding(start = Space.LG.u, end = Space.MD.u, top = Space.SM.u, bottom = Space.SM.u)
+                        .drawBehind {
+                            // Selected console: cyan neon box.
+                            if (highlight <= 0f) return@drawBehind
+                            val cr = CornerRadius(radius.toPx())
+                            neonGlow(Palette.cyan.copy(alpha = highlight), cr, edge.toPx())
+                            drawRoundRect(Palette.cyan.copy(alpha = 0.08f * highlight), cornerRadius = cr)
+                            drawRoundRect(Palette.cyan.copy(alpha = highlight), cornerRadius = cr, style = Stroke(edge.toPx() * 1.5f))
+                        }
                         .padding(horizontal = Space.SECTION_SMALL.u - Space.SM.u)
                         .alpha(alpha)
                         .tap { if (focused) open() else select(i) },
                     contentAlignment = Alignment.Center,
                 ) {
+                    if (focused) {
+                        Txt("▶", Type.tileSelected, Palette.pink, Modifier.align(Alignment.CenterStart).offset(x = -Space.LG.u), glow = Palette.pink)
+                    }
                     val logo = vm.logos[system.name]
                     if (logo != null) {
                         ArtImage(logo, Modifier.fillMaxWidth().height(height), tint = Palette.white)
@@ -298,7 +334,7 @@ private fun LogoRail(
     }
 }
 
-/** Frosted panel: console illustration, name, counts and a short fact sheet. */
+/** Neon panel: maker · year, the name in sunset letters, a scoreboard, facts, Continue and the console. */
 @Composable
 private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry) {
     val info = system.info
@@ -309,36 +345,53 @@ private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry) {
             .width(Size.SYSTEM_PANEL_W.u)
             .fillMaxHeight()
             .padding(start = Space.SECTION.u, top = Space.SCREEN_TOP.u, bottom = (Size.HINT_BAR + Space.LG).u)
-            .glass(Radius.PANEL)
+            .neonPanel(Radius.PANEL)
             .padding(Space.SECTION.u),
     ) {
         val eyebrow = listOfNotNull(info.maker, info.year?.toString()).joinToString(" · ").uppercase()
         if (eyebrow.isNotEmpty()) {
-            Txt(eyebrow, Type.eyebrow, Palette.inkSecondary)
-            Spacer(Modifier.height(Space.SM.u))
+            Txt(eyebrow, Type.eyebrow, Palette.cyanSoft, glow = Palette.cyan)
+            Spacer(Modifier.height(Space.GAP.u))
         }
-        Txt(info.displayName, Type.section, Palette.ink, maxLines = 2)
-        Spacer(Modifier.height(Space.GAP.u))
-        val n = system.games.size
-        Txt(
-            "$n ${if (n == 1) "game" else "games"} · $favorites ${if (favorites == 1) "favorite" else "favorites"}",
-            Type.label, Palette.inkSecondary,
-        )
-        Spacer(Modifier.height(Space.SECTION_SMALL.u))
-        Column(verticalArrangement = Arrangement.spacedBy(Space.ROW_GAP.u)) {
-            facts.forEach { (label, value) ->
-                Column {
-                    Txt(label, Type.caption, Palette.inkSecondary)
-                    Txt(value, Type.label, Palette.ink, maxLines = 2)
-                }
+        ChromeTxt(info.displayName, Type.section, maxLines = 2)
+        Spacer(Modifier.height(Space.MD.u))
+        // Scoreboard.
+        val played = system.games.sumOf { vm.stats(it).playtimeMs }
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.SECTION.u)) {
+            Score("GAMES", system.games.size.toString().padStart(3, '0'))
+            Score("FAVS", favorites.toString().padStart(3, '0'))
+            Score(
+                "PLAYED",
+                when {
+                    played >= HOUR_MS -> "${played / HOUR_MS}H"
+                    played > 0 -> "${played / MINUTE_MS}M"
+                    else -> "--"
+                },
+            )
+        }
+        Spacer(Modifier.height(Space.ROW_GAP.u))
+        facts.forEach { (label, value) ->
+            Row(
+                Modifier.fillMaxWidth().dashedBottom().padding(vertical = Space.TAG_V.u),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Space.GAP.u),
+            ) {
+                Txt(label.uppercase(), Type.badge, Palette.inkSecondary, Modifier.weight(1f, fill = false))
+                Spacer(Modifier.weight(1f))
+                Txt(value, Type.labelStrong, Palette.ink, Modifier.weight(2f, fill = false), maxLines = 1)
             }
         }
         vm.lastPlayed(system)?.let { last ->
-            Spacer(Modifier.height(Space.SECTION_SMALL.u))
+            Spacer(Modifier.height(Space.ROW_GAP.u))
+            val radius = Radius.CARD.u
+            val edge = Size.NEON_EDGE.u
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Palette.white.copy(alpha = Alpha.RAIL_SELECTION), rounded(Radius.CARD))
+                    .drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx() / 2) }
+                    .clip(rounded(Radius.CARD))
+                    .background(Palette.pink.copy(alpha = CONTINUE_FILL))
+                    .border(edge, Palette.pink, rounded(Radius.CARD))
                     .tap { vm.play(system.name, last) }
                     .padding(Space.MD.u),
                 verticalAlignment = Alignment.CenterVertically,
@@ -348,7 +401,8 @@ private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry) {
                     ArtImage(it, Modifier.height(Size.CONTINUE_ART_H.u).width(Size.CONTINUE_ART_H.u))
                 }
                 Column(Modifier.weight(1f)) {
-                    Txt("CONTINUE", Type.eyebrow, Palette.inkSecondary)
+                    Txt("▶ CONTINUE?", Type.badge, Palette.pinkSoft, glow = Palette.pink)
+                    Spacer(Modifier.height(Space.SM.u))
                     Txt(last.title, Type.labelStrong, Palette.ink, maxLines = 1)
                 }
                 ButtonGlyph(listOf(Pad.X), Palette.inkOnLight)
@@ -368,11 +422,11 @@ private fun EmptyPanel(title: String, body: String) {
             .width(Size.SYSTEM_PANEL_W.u)
             .fillMaxHeight()
             .padding(start = Space.SECTION.u, top = Space.SCREEN_TOP.u, bottom = (Size.HINT_BAR + Space.LG).u)
-            .glass(Radius.PANEL)
+            .neonPanel(Radius.PANEL)
             .padding(Space.SECTION.u),
         verticalArrangement = Arrangement.Center,
     ) {
-        Txt(title, Type.section, Palette.ink, maxLines = 2)
+        ChromeTxt(title, Type.section, maxLines = 2)
         Spacer(Modifier.height(Space.MD.u))
         Txt(body, Type.bodySmall, Palette.inkSecondary, maxLines = 5)
     }
@@ -395,16 +449,57 @@ internal fun StatusPill() {
             delay(STATUS_REFRESH_MS)
         }
     }
-    Row(
-        Modifier.glass(Radius.PILL).padding(vertical = Space.CHIP_V.u, horizontal = Space.CHIP_H.u),
-        horizontalArrangement = Arrangement.spacedBy(Space.GAP.u),
-    ) {
-        Txt(DateFormat.getTimeFormat(context).format(now), Type.tab, Palette.ink)
-        battery?.let { Txt("$it%", Type.tab, Palette.inkSecondary) }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.MD.u)) {
+        Txt(DateFormat.getTimeFormat(context).format(now).uppercase(), Type.crt, Palette.cyanSoft, glow = Palette.cyan)
+        battery?.let { Battery(it) }
+    }
+}
+
+/** Pixel battery: outline, nub and a fill to the level (pink when low). */
+@Composable
+private fun Battery(level: Int) {
+    val stroke = Size.NEON_EDGE.u
+    val color = if (level <= LOW_BATTERY) Palette.pink else Palette.cyanSoft
+    Canvas(Modifier.width(Size.BATTERY_W.u).height(Size.BATTERY_H.u)) {
+        val s = stroke.toPx()
+        val nub = size.width * 0.08f
+        val body = GeoSize(size.width - nub, size.height)
+        drawRoundRect(color, Offset(s / 2, s / 2), GeoSize(body.width - s, body.height - s), CornerRadius(s), Stroke(s))
+        drawRect(color, Offset(body.width, size.height * 0.3f), GeoSize(nub, size.height * 0.4f))
+        val inset = s * 2
+        drawRect(color, Offset(inset, inset), GeoSize((body.width - inset * 2) * level / 100f, body.height - inset * 2))
+    }
+}
+
+/** Scoreboard entry: cyan label over a big yellow CRT number. */
+@Composable
+private fun Score(label: String, value: String) {
+    Column {
+        Txt(label, Type.badge, Palette.cyanSoft, glow = Palette.cyan)
+        Txt(value, Type.stat, Palette.sun1, glow = Palette.sun2)
+    }
+}
+
+/** Dashed divider under a fact row. */
+@Composable
+private fun Modifier.dashedBottom(): Modifier {
+    val line = Size.HAIRLINE.u
+    val dash = Space.SM.u
+    return drawBehind {
+        drawLine(
+            Palette.inkFaint, Offset(0f, size.height), Offset(size.width, size.height), line.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash.toPx(), dash.toPx())),
+        )
     }
 }
 
 private const val STATUS_REFRESH_MS = 30_000L
+private const val LOW_BATTERY = 15
+private const val HOUR_MS = 3_600_000L
+private const val MINUTE_MS = 60_000L
+private const val RAIL_FILL = 0.95f
+private const val RAIL_FILL_EDGE = 0.85f
+private const val CONTINUE_FILL = 0.12f
 
 // ---------------------------------------------------------------------------------------------
 // Favorites / Recent: the game browser across all systems

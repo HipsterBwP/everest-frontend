@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+ system splash: the ARCROW icon on navy, handing over to the in-app loading screen. -->
+    <!-- Android 12+ system splash: the pink-glow raven on the synthwave night, handing over to the in-app loading screen. -->
     <style name="Theme.Launcher" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/window</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

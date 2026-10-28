@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ARCROW navy: window background before Compose draws, and the icon/splash background. -->
-    <color name="window">#050B18</color>
-    <color name="icon_background">#050B18</color>
+    <!-- Synthwave night: window background before Compose draws, and the splash background. -->
+    <color name="window">#0B0420</color>
 </resources>

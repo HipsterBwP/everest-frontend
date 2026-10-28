@@ -1,5 +1,14 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.data.Progress
+import io.github.hipsterbwp.rp5launcher.ui.neonGlow
+import io.github.hipsterbwp.rp5launcher.ui.neonPanel
+import io.github.hipsterbwp.rp5launcher.ui.ChromeTxt
+import io.github.hipsterbwp.rp5launcher.ui.RetroBackdrop
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
@@ -97,9 +106,9 @@ fun browserMove(button: Pad, repeat: Int, index: Int, count: Int, columns: Int, 
 }
 
 /**
- * Game browser in the style of the reference themes, Apple-ized: blurred art of the focused game
- * fills the screen; on the left its gameplay video (or screenshot) and a glass info card; on the
- * right a grid of covers where the focused one lifts toward you.
+ * Game browser, arcade style: the synthwave grid behind everything; on the left a neon-framed card
+ * with the focused game's gameplay video (or screenshots) and its info; on the right a grid of
+ * covers where the focused one lifts toward you with a pink glow.
  */
 @Composable
 fun GameBrowser(
@@ -114,14 +123,10 @@ fun GameBrowser(
     onPlay: (Int) -> Unit,
 ) {
     val focused = entries.getOrNull(index)
-    val game = focused?.second
-    val backdrop = game?.let { vm.fanart(it) ?: vm.snapArt(it) ?: vm.boxArt(it) }
 
     Box(Modifier.fillMaxSize().background(Palette.page)) {
-        Crossfade(targetState = backdrop, animationSpec = Motion.colorFade(), label = "browser-backdrop") { file ->
-            ArtImage(file, Modifier.fillMaxSize().blur(Blur.BACKDROP.u), ContentScale.Crop)
-        }
-        Box(Modifier.fillMaxSize().background(Palette.black.copy(alpha = Alpha.BROWSER_DIM)))
+        RetroBackdrop()
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Palette.night.copy(alpha = Alpha.BROWSER_DIM), Palette.transparent))))
 
         Row(
             Modifier
@@ -150,15 +155,23 @@ fun GameBrowser(
 @Composable
 private fun InfoColumn(vm: LauncherViewModel, system: SystemEntry, game: Game) {
     val info = vm.artFor(game)
-    Column(Modifier.width(Size.BROWSER_INFO_W.u).fillMaxSize()) {
-        // Media: gameplay video over its screenshot, like a trailer card.
+    val stats = vm.stats(game)
+    Column(
+        Modifier
+            .padding(top = Space.SM.u, bottom = Space.LG.u)
+            .width(Size.BROWSER_INFO_W.u)
+            .fillMaxSize()
+            .neonPanel(Radius.PANEL, edge = Palette.cyan, corner = Palette.pink)
+            .padding(Space.LG.u),
+    ) {
+        // Media: gameplay video over its screenshot, in a TV-like inset.
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(Size.MEDIA_H.u)
-                .shadow(Elevation.MEDIA.u, rounded(Radius.CARD), clip = false)
                 .clip(rounded(Radius.CARD))
-                .background(Palette.card),
+                .background(Palette.night)
+                .border(Size.NEON_EDGE.u, Palette.violet, rounded(Radius.CARD)),
         ) {
             val frames = listOfNotNull(vm.snapArt(game), vm.titleArt(game), vm.fanart(game))
             if (frames.isNotEmpty()) {
@@ -173,29 +186,35 @@ private fun InfoColumn(vm: LauncherViewModel, system: SystemEntry, game: Game) {
             LaunchedEffect(system.name) { vm.loadEsdeVideos(system.name) }
             GameVideo(vm.videoFor(system.name, game), vm.config.videoSound, Modifier.fillMaxSize())
         }
-        Spacer(Modifier.height(Space.TILE_GAP.u))
+        Spacer(Modifier.height(Space.LG.u))
 
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .glass(Radius.CARD)
-                .padding(Space.LG.u),
-        ) {
+        Column(Modifier.fillMaxWidth()) {
             val eyebrow = listOfNotNull(system.info.displayName, info?.year).joinToString(" · ").uppercase()
-            Txt(eyebrow, Type.eyebrow, Palette.inkSecondary)
-            Spacer(Modifier.height(Space.SM.u))
-            Txt(game.title, Type.screenTitle, Palette.ink, maxLines = 1)
+            Txt(eyebrow, Type.eyebrow, Palette.cyanSoft, glow = Palette.cyan)
+            Spacer(Modifier.height(Space.GAP.u))
+            ChromeTxt(game.title, Type.screenTitle)
+            Spacer(Modifier.height(Space.GAP.u))
+            val credits = listOfNotNull(info?.publisher ?: info?.developer, info?.genre).joinToString(" · ")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (credits.isNotEmpty()) Txt("$credits · ", Type.label, Palette.inkSecondary)
+                Txt(
+                    if (stats.playtimeMs > 0) "${formatPlaytime(stats.playtimeMs)} played".uppercase() else "NOT PLAYED YET",
+                    Type.labelStrong, Palette.sun1,
+                )
+            }
             Spacer(Modifier.height(Space.MD.u))
             Row(horizontalArrangement = Arrangement.spacedBy(Space.GAP.u), verticalAlignment = Alignment.CenterVertically) {
                 info?.rating?.let { Stars(it) }
-                info?.genre?.let { Pill(it, Palette.surface, Palette.ink, Type.pill) }
-                info?.players?.let { Pill("$it P", Palette.surface, Palette.ink, Type.pill) }
-                if (vm.stats(game).favorite) Pill("Favorite", Palette.surface, Palette.ink, Type.pill)
+                vm.raProgress[game.id]?.takeIf { it.total > 0 }?.let {
+                    Pill("🏆 ${it.awarded}/${it.total}", Palette.cyan.copy(alpha = CHIP_FILL), Palette.cyanSoft, Type.pill)
+                }
+                stats.status?.let { Pill(Progress.label(it), Palette.pink.copy(alpha = CHIP_FILL), Palette.pinkSoft, Type.pill) }
+                info?.players?.let { Pill("$it P", Palette.cyan.copy(alpha = CHIP_FILL), Palette.cyanSoft, Type.pill) }
+                if (stats.favorite) Pill("★ Fav", Palette.sun1.copy(alpha = CHIP_FILL), Palette.sun1, Type.pill)
             }
             Spacer(Modifier.height(Space.MD.u))
-            val credits = listOfNotNull(info?.publisher ?: info?.developer).joinToString()
             Txt(
-                info?.description ?: credits.ifEmpty { game.fileName },
+                info?.description ?: game.fileName,
                 Type.bodySmall,
                 Palette.inkBody,
                 maxLines = 3,
@@ -266,29 +285,37 @@ private fun CoverGrid(
                     .tap { if (i == index) onPlay(i) else onSelect(i) },
                 contentAlignment = Alignment.Center,
             ) {
-                Cover(vm.boxArt(game), game.title, focused = i == index)
+                val stats = vm.stats(game)
+                Cover(vm.boxArt(game), game.title, focused = i == index, favorite = stats.favorite, status = stats.status)
             }
         }
     }
 }
 
-/** A cover sized to its own proportions, lifting with a white edge when focused. */
+/**
+ * A cover sized to its own proportions, lifting with a glowing pink edge when focused, with a star
+ * for favorites and a progress tag (Beaten, Playing…).
+ */
 @Composable
-private fun Cover(file: java.io.File?, title: String, focused: Boolean) {
+private fun Cover(file: java.io.File?, title: String, focused: Boolean, favorite: Boolean, status: String?) {
     val progress by animateFloatAsState(if (focused) 1f else 0f, Motion.focus(), label = "cover")
     val painter = if (file != null) rememberAsyncImagePainter(file) else null
     val loaded = painter?.state as? AsyncImagePainter.State.Success
     val ratio = loaded?.painter?.intrinsicSize?.let { if (it.height > 0) it.width / it.height else null }
         ?: DEFAULT_COVER_RATIO
+    val radius = Radius.CARD_SMALL.u
+    val edge = Size.FOCUS_RING_CARD.u
     Box(
         Modifier
             .aspectRatio(ratio)
             .lift(progress, Focus.COVER_SCALE, Radius.CARD_SMALL)
+            .then(if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx()) } else Modifier)
             .clip(rounded(Radius.CARD_SMALL))
             .background(Palette.card)
+            .alpha(COVER_DIM + (1f - COVER_DIM) * progress)
             .then(
-                if (focused) Modifier.border(Size.FOCUS_RING_CARD.u, Palette.white, rounded(Radius.CARD_SMALL))
-                else Modifier,
+                if (focused) Modifier.border(edge, Palette.pink, rounded(Radius.CARD_SMALL))
+                else Modifier.border(Size.HAIRLINE.u, Palette.inkFaint, rounded(Radius.CARD_SMALL)),
             ),
         contentAlignment = Alignment.BottomStart,
     ) {
@@ -301,8 +328,27 @@ private fun Cover(file: java.io.File?, title: String, focused: Boolean) {
             }
             Txt(title, Type.cardTitle, Palette.ink, Modifier.padding(Space.CARD_PAD.u), maxLines = 4)
         }
+        if (favorite) {
+            Txt("★", Type.labelStrong, Palette.sun1, Modifier.align(Alignment.TopEnd).padding(Space.GAP.u), glow = Palette.sun2)
+        }
+        status?.let {
+            Pill(
+                Progress.label(it).substringBefore(" "),
+                when (it) {
+                    Progress.BEATEN -> Palette.ok
+                    Progress.COMPLETED -> Palette.sun1
+                    Progress.PLAYING -> Palette.cyan
+                    else -> Palette.inkSecondary
+                },
+                Palette.inkOnLight, Type.badge, Space.SM, Space.SM, Modifier.padding(Space.GAP.u),
+            )
+        }
     }
 }
+
+/** Unfocused covers sit back a little. */
+private const val COVER_DIM = 0.82f
+private const val CHIP_FILL = 0.12f
 
 /** Header for a browser: optional logo (else [title]), a count, and pills (filters or tabs). */
 @Composable
@@ -320,35 +366,35 @@ fun BrowserHeader(
                 if (logo != null) {
                     ArtImage(logo, Modifier.height(Size.LOGO_SMALL_H.u).fillMaxWidth(0.6f), tint = Palette.ink)
                 } else {
-                    Txt(title, Type.screenTitle, Palette.ink)
+                    ChromeTxt(title, Type.screenTitle)
                 }
             }
-            Txt("$count ${if (count == 1) "game" else "games"}", Type.label, Palette.inkSecondary)
+            Txt("$count ${if (count == 1) "game" else "games"}".uppercase(), Type.hint, Palette.cyanSoft, glow = Palette.cyan)
         }
         Spacer(Modifier.height(Space.ROW_GAP.u))
         TabPills(pills, selected, onPill)
     }
 }
 
-/** Glass segmented control (Apple-style): selected item white, others translucent. */
+/** Arcade tab strip: pink-edged box, the selected tab lit up in pink. */
 @Composable
 fun TabPills(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     if (items.isEmpty()) return
     Row(
-        Modifier.glass(Radius.PILL).padding(Space.SM.u),
+        Modifier.glass(Radius.CARD_SMALL).padding(Space.SM.u),
         horizontalArrangement = Arrangement.spacedBy(Space.SM.u),
     ) {
         items.forEachIndexed { i, name ->
             val on = i == selected
-            Pill(
-                name,
-                if (on) Palette.white else Palette.transparent,
-                if (on) Palette.inkOnLight else Palette.ink,
-                Type.tab,
-                Space.CHIP_V,
-                Space.PILL_H_SMALL,
-                Modifier.tap { onSelect(i) },
-            )
+            Box(
+                Modifier
+                    .clip(rounded(Radius.GLYPH_RECT))
+                    .background(if (on) Palette.pink else Palette.transparent)
+                    .tap { onSelect(i) }
+                    .padding(vertical = Space.CHIP_V.u, horizontal = Space.PILL_H_SMALL.u),
+            ) {
+                Txt(name.uppercase(), Type.tab, if (on) Palette.white else Palette.inkSecondary, glow = if (on) Palette.chromeShadow else null)
+            }
         }
     }
 }

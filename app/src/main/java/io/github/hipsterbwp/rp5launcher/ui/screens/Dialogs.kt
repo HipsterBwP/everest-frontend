@@ -1,5 +1,6 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.ui.neonPanel
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.BasicTextField
@@ -85,7 +86,7 @@ private fun DialogFrame(hints: List<Hint>, content: @Composable () -> Unit) {
             Column(
                 Modifier
                     .width(Size.DIALOG_W.u)
-                    .glass(Radius.PANEL, Palette.glassStrong)
+                    .neonPanel(Radius.PANEL, fill = Palette.glassStrong)
                     .padding(Space.SECTION_LARGE.u),
             ) { content() }
         }

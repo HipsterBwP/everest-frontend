@@ -1,5 +1,16 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import io.github.hipsterbwp.rp5launcher.ui.theme.Retro
+import io.github.hipsterbwp.rp5launcher.ui.tap
+import io.github.hipsterbwp.rp5launcher.ui.neonPanel
+import io.github.hipsterbwp.rp5launcher.ui.neonGlow
+import io.github.hipsterbwp.rp5launcher.ui.ChromeTxt
+import androidx.compose.foundation.border
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -61,7 +73,6 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
         return
     }
     val stats = vm.stats(game)
-    val accent by animateColorAsState(system.color, Motion.colorFade(), label = "details-accent")
     // Keyed on emulatorsVersion so the status refreshes after installs and re-detects.
     val command = remember(vm.emulatorsVersion, vm.config, stats) { vm.selectedCommand(systemName, game) }
     val systemCommand = remember(vm.emulatorsVersion, vm.config) { vm.selectedCommand(systemName) }
@@ -101,64 +112,48 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
     }
 
     Box(Modifier.fillMaxSize().background(Palette.page)) {
-        ArtImage(vm.fanart(game) ?: vm.snapArt(game), Modifier.fillMaxSize().blur(Blur.BACKDROP.u), ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Palette.black.copy(alpha = Alpha.BROWSER_DIM)))
-        Row(Modifier.fillMaxSize()) {
-            // Left: system-color panel with the box art (or a placeholder until it's scraped).
-            Box(
-                Modifier
-                    .width(Size.DETAILS_PANEL.u)
-                    .fillMaxHeight()
-                    .background(accent),
-                contentAlignment = Alignment.Center,
-            ) {
-                GameplayBackdrop(vm.snapArt(game), accent, Alpha.PANEL_BACKDROP_SCRIM)
+        ArtImage(vm.fanart(game) ?: vm.snapArt(game), Modifier.fillMaxSize().blur(Blur.BACKDROP.u).alpha(BACKDROP_ALPHA), ContentScale.Crop)
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.radialGradient(listOf(Palette.violet.copy(alpha = 0.55f), Palette.night.copy(alpha = 0.95f))),
+            ),
+        )
+        Row(
+            Modifier.fillMaxSize().padding(bottom = Size.HINT_BAR.u),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Left: the box art, turned slightly towards the menu, in a cyan glow.
+            Box(Modifier.width(Size.DETAILS_PANEL.u).fillMaxHeight(), contentAlignment = Alignment.Center) {
                 val box = vm.boxArt(game)
+                val radius = Radius.CARD.u
+                val edge = Size.NEON_EDGE.u
+                val art = Modifier
+                    .size(Size.BOX_ART_W.u, Size.BOX_ART_H.u)
+                    .graphicsLayer { rotationY = BOX_TURN; cameraDistance = BOX_CAMERA * density }
                 if (box != null) {
-                    ArtImage(
-                        box,
-                        Modifier
-                            .padding(bottom = Size.HINT_BAR.u)
-                            .size(Size.BOX_ART_W.u, Size.BOX_ART_H.u)
-                            .clip(rounded(Radius.CARD)),
-                    )
+                    ArtImage(box, art.drawBehind { neonGlow(Palette.cyan, CornerRadius(radius.toPx()), edge.toPx()) }.clip(rounded(Radius.CARD)))
                 } else {
-                    Box(
-                        Modifier
-                            .padding(bottom = Size.HINT_BAR.u)
-                            .size(Size.BOX_ART_W.u, Size.BOX_ART_H.u)
-                            .clip(rounded(Radius.PANEL))
-                            .background(Palette.onSystemSurfaceStrong)
-                            .padding(Space.SECTION_LARGE.u),
-                        contentAlignment = Alignment.Center,
-                    ) {
+                    Box(art.neonPanel(Radius.CARD, edge = Palette.cyan, corner = Palette.pink).padding(Space.SECTION_LARGE.u), contentAlignment = Alignment.Center) {
                         val logo = vm.logos[system.name]
                         if (logo != null) ArtImage(logo, Modifier.fillMaxSize(), tint = Palette.white)
-                        else Txt(system.info.shortName, Type.pageTitle, Palette.white)
+                        else ChromeTxt(system.info.shortName, Type.pageTitle)
                     }
                 }
             }
 
+            // Right: an arcade "press start" menu.
             Column(
                 Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    .padding(top = Space.SCREEN_TOP_LIGHT.u, start = Space.DETAILS_H.u, end = Space.DETAILS_H.u),
+                    .padding(top = Space.SCREEN_TOP_LIGHT.u, end = Space.DETAILS_H.u, bottom = Space.SECTION.u)
+                    .neonPanel(Radius.PANEL)
+                    .padding(horizontal = Space.SECTION_LARGE.u, vertical = Space.SECTION.u),
             ) {
                 val info = vm.artFor(game)
-                Row(horizontalArrangement = Arrangement.spacedBy(Space.GAP.u)) {
-                    Pill(system.info.shortName, accent, Palette.white)
-                    info?.genre?.let { Pill(it, Palette.surface, Palette.ink) }
-                    game.tag?.let { Pill(it, Palette.surface, Palette.ink) }
-                    if (stats.favorite) Pill("Favorite", Palette.surface, Palette.ink)
-                    stats.status?.let { Pill(Progress.label(it), Palette.surface, Palette.ink) }
-                    vm.raProgress[game.id]?.takeIf { it.total > 0 }?.let {
-                        Pill("🏆 ${it.awarded}/${it.total}", if (it.awarded == it.total) Palette.ok else Palette.surface, Palette.ink)
-                    }
-                }
-                Spacer(Modifier.height(Space.ROW_GAP.u))
-                Txt(game.title, Type.section, Palette.ink, maxLines = 1)
-                Spacer(Modifier.height(Space.SM.u))
+                Txt("— 1 PLAYER START —", Type.hint, Palette.sun1, glow = Palette.sun2)
+                Spacer(Modifier.height(Space.MD.u))
+                ChromeTxt(game.title, Type.section)
+                Spacer(Modifier.height(Space.GAP.u))
                 // "Square · 1995" once scraped; system and file size until then.
                 val credits = listOfNotNull(info?.publisher ?: info?.developer, info?.year)
                 val sub = credits.ifEmpty { listOf(system.info.displayName, formatSize(game.sizeBytes)).filter { it.isNotEmpty() } }
@@ -168,21 +163,24 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
                     installed -> command.shortName
                     else -> "${command.shortName} not installed"
                 }
-                Txt((sub + played + emulatorNote).joinToString(" · "), Type.label, if (installed) Palette.inkSecondary else Palette.problem)
-                Spacer(Modifier.height(Space.SECTION_SMALL.u))
-                Column(verticalArrangement = Arrangement.spacedBy(Space.LIST_GAP.u)) {
+                Row {
+                    Txt((sub + emulatorNote).joinToString(" · ") + " · ", Type.label, if (installed) Palette.inkSecondary else Palette.problem)
+                    Txt(played, Type.labelStrong, Palette.sun1)
+                }
+                Spacer(Modifier.height(Space.MD.u))
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.GAP.u)) {
+                    vm.raProgress[game.id]?.takeIf { it.total > 0 }?.let {
+                        Pill("🏆 ${it.awarded}/${it.total}", Palette.cyan.copy(alpha = CHIP_FILL), if (it.awarded == it.total) Palette.ok else Palette.cyanSoft)
+                    }
+                    stats.status?.let { Pill(Progress.label(it), Palette.ok.copy(alpha = CHIP_FILL), Palette.ok) }
+                    info?.genre?.let { Pill(it, Palette.cyan.copy(alpha = CHIP_FILL), Palette.cyanSoft) }
+                    game.tag?.let { Pill(it, Palette.cyan.copy(alpha = CHIP_FILL), Palette.cyanSoft) }
+                    if (stats.favorite) Pill("★ Favorite", Palette.sun1.copy(alpha = CHIP_FILL), Palette.sun1)
+                }
+                Spacer(Modifier.height(Space.ROW_GAP.u))
+                Column(verticalArrangement = Arrangement.spacedBy(Space.SM.u)) {
                     actions.forEachIndexed { i, option ->
-                        ListRow(
-                            focused = i == current,
-                            accent = Palette.white,
-                            background = if (option.primary) accent else Palette.glassStrong,
-                            padV = Space.ROW_V_SMALL,
-                            onClick = { if (i == current) option.action() else row = i },
-                        ) {
-                            if (option.primary) PlayIcon(Palette.white)
-                            Txt(option.title, Type.rowTitle, Palette.ink, Modifier.weight(1f))
-                            option.value?.let { Txt(it, Type.label, Palette.inkSecondary, Modifier.widthIn(max = Size.STAT_MAX_W.u)) }
-                        }
+                        MenuEntry(option, focused = i == current) { if (i == current) option.action() else row = i }
                     }
                 }
             }
@@ -201,3 +199,38 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
 
 /** One action on the Options page. */
 private class OptionRow(val title: String, val value: String?, val primary: Boolean = false, val action: () -> Unit)
+
+/** A menu line: pixel-font title, value on the right; focused gets the pink bar and ▶ cursor. */
+@Composable
+private fun MenuEntry(option: OptionRow, focused: Boolean, onClick: () -> Unit) {
+    val shape = rounded(Radius.CARD_SMALL)
+    val edge = Size.NEON_EDGE.u
+    val radius = Radius.CARD_SMALL.u
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx() / 2) } else Modifier)
+            .clip(shape)
+            .then(if (focused) Modifier.background(Retro.focusFill).border(edge, Palette.pink, shape) else Modifier)
+            .tap(onClick)
+            .padding(vertical = Space.ROW_V_SMALL.u, horizontal = Space.ROW_H.u),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(Size.CURSOR_W.u * 2)) {
+            if (focused) Txt("▶", Type.menu, Palette.sun1, glow = Palette.sun2)
+        }
+        Txt(
+            option.title.uppercase(),
+            if (option.primary) Type.screenTitleSmall else Type.menu,
+            if (focused) Palette.white else Palette.inkSecondary,
+            Modifier.weight(1f),
+        )
+        option.value?.let { Txt(it, Type.labelStrong, Palette.inkFaint, Modifier.widthIn(max = Size.STAT_MAX_W.u)) }
+    }
+}
+
+private const val BACKDROP_ALPHA = 0.5f
+private const val CHIP_FILL = 0.12f
+/** Box art turns this many degrees towards the menu. */
+private const val BOX_TURN = 12f
+private const val BOX_CAMERA = 12f

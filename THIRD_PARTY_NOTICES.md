@@ -15,16 +15,19 @@ Copyright (c) 2014 Alec Lofquist
 
 Licensed under the MIT License; the full text is in `app/src/main/assets/esde/LICENSE-ES-DE.txt`.
 
-## Inter
+## Press Start 2P, Chakra Petch, VT323
 
-`app/src/main/res/font/inter_*.ttf` are static instances (weights 400, 600, 700) of the Inter variable font
-from https://github.com/google/fonts/tree/main/ofl/inter.
+`app/src/main/res/font/pressstart2p_regular.ttf`, `chakrapetch_*.ttf` (weights 400, 600, 700) and
+`vt323_regular.ttf`, from https://github.com/google/fonts/tree/main/ofl.
 
 ```
-Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)
+Copyright 2012 The Press Start 2P Project Authors (cody@zone38.net), with Reserved Font Name "Press Start 2P".
+Copyright 2018 The Chakra Petch Project Authors (https://github.com/m4rc1e/Chakra-Petch.git)
+Copyright 2011, The VT323 Project Authors (peter.hull@oikoi.com)
 ```
 
-Licensed under the SIL Open Font License 1.1; the full text is in `app/src/main/assets/OFL-Inter.txt`.
+Licensed under the SIL Open Font License 1.1; the full texts are in `app/src/main/assets/OFL-PressStart2P.txt`,
+`OFL-ChakraPetch.txt` and `OFL-VT323.txt`.
 
 ## Downloaded at runtime (not included in the APK)
 
