@@ -443,6 +443,14 @@ object Size {
     const val SYSTEM_PANEL_W = 300
     /** Box art thumbnail on the panel's Continue card. */
     const val CONTINUE_ART_H = 44
+    /** Spinning 3D logo sign on the console screen: face height, extrusion depth and glow. */
+    const val SIGN_H = 150
+    /** Top of the sign, so it hovers above the horizon with its reflection on the grid. */
+    const val SIGN_TOP = 120
+    const val SIGN_DEPTH = 22
+    const val SIGN_EDGE = 1
+    const val SIGN_GLOW = 22
+    const val SIGN_REFLECTION_H = 70
     /** Pixel battery next to the clock. */
     const val BATTERY_W = 24
     const val BATTERY_H = 12
@@ -542,6 +550,10 @@ object Motion {
     const val SPLASH_BAR_MS = 350
     /** The bar's minimum fill time (kept under SPLASH_MIN_MS so it reaches the end on screen). */
     const val SPLASH_FILL_MS = 1200
+    /** One full turn of the console logo sign. */
+    const val SIGN_SPIN_MS = 9_000
+    /** Focus glows breathe in and out over this long. */
+    const val GLOW_PULSE_MS = 1_100
     /** INSERT COIN blink: on and off for this long each. */
     const val BLINK_MS = 600
     /** Screensaver: time per picture and the cross-fade between pictures. */

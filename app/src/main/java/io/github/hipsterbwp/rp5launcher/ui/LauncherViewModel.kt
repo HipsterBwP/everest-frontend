@@ -1258,7 +1258,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 }
 
 /** Console screen backdrop choices, in the order Settings cycles through them. */
-val BACKDROPS = listOf("auto", "cover", "console")
+val BACKDROPS = listOf("auto", "logo", "cover", "console")
 
 /** Kinds of your own per-console files. */
 enum class MediaKind(val media: CustomMedia, val dir: String, val noun: String, val pickHint: String, val doneHint: String) {

@@ -2,6 +2,7 @@ package io.github.hipsterbwp.rp5launcher.ui.screens
 
 import io.github.hipsterbwp.rp5launcher.data.Progress
 import io.github.hipsterbwp.rp5launcher.ui.neonGlow
+import io.github.hipsterbwp.rp5launcher.ui.rememberGlowPulse
 import io.github.hipsterbwp.rp5launcher.ui.neonPanel
 import io.github.hipsterbwp.rp5launcher.ui.ChromeTxt
 import io.github.hipsterbwp.rp5launcher.ui.RetroBackdrop
@@ -305,11 +306,12 @@ private fun Cover(file: java.io.File?, title: String, focused: Boolean, favorite
         ?: DEFAULT_COVER_RATIO
     val radius = Radius.CARD_SMALL.u
     val edge = Size.FOCUS_RING_CARD.u
+    val pulse = rememberGlowPulse()
     Box(
         Modifier
             .aspectRatio(ratio)
             .lift(progress, Focus.COVER_SCALE, Radius.CARD_SMALL)
-            .then(if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx()) } else Modifier)
+            .then(if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx(), pulse.value) } else Modifier)
             .clip(rounded(Radius.CARD_SMALL))
             .background(Palette.card)
             .alpha(COVER_DIM + (1f - COVER_DIM) * progress)
@@ -384,10 +386,14 @@ fun TabPills(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
         Modifier.glass(Radius.CARD_SMALL).padding(Space.SM.u),
         horizontalArrangement = Arrangement.spacedBy(Space.SM.u),
     ) {
+        val pulse = rememberGlowPulse()
+        val radius = Radius.GLYPH_RECT.u
+        val edge = Size.NEON_EDGE.u
         items.forEachIndexed { i, name ->
             val on = i == selected
             Box(
                 Modifier
+                    .then(if (on) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx(), pulse.value) } else Modifier)
                     .clip(rounded(Radius.GLYPH_RECT))
                     .background(if (on) Palette.pink else Palette.transparent)
                     .tap { onSelect(i) }

@@ -491,15 +491,17 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
                     Txt("Console backdrop", Type.rowTitle, Palette.ink)
                     Txt(
                         when (c.backdrop) {
+                            "logo" -> "The console's logo as a spinning 3D neon sign"
                             "cover" -> "The best-selling game's cover, over a blur of itself"
-                            "console" -> "The console on its own colour"
-                            else -> "Your own pictures first, then game fanart, then the best-selling game's cover"
+                            "console" -> "The console on its own"
+                            else -> "Your own pictures first, then game fanart, then the spinning 3D logo"
                         },
                         Type.label, Palette.inkSecondary, maxLines = 2,
                     )
                 }
                 Txt(
                     when (c.backdrop) {
+                        "logo" -> "3D logo"
                         "cover" -> "Best-seller"
                         "console" -> "Console"
                         else -> "Automatic"

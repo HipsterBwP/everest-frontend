@@ -2,6 +2,13 @@ package io.github.hipsterbwp.rp5launcher.ui
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.runtime.State
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -195,12 +202,34 @@ fun Modifier.neonPanel(
     }
 }
 
-/** Soft neon halo around a rounded rect: a few widening translucent strokes. */
-fun DrawScope.neonGlow(color: Color, cornerRadius: CornerRadius, width: Float) {
+/**
+ * Soft neon halo around a rounded rect: a few widening translucent strokes. [intensity] (0..1, from
+ * [rememberGlowPulse] on focused items) makes it breathe: brighter and wider at the peak.
+ */
+fun DrawScope.neonGlow(color: Color, cornerRadius: CornerRadius, width: Float, intensity: Float = 1f) {
+    val spread = width * (1f + intensity)
     for (i in GLOW_STEPS downTo 1) {
-        drawRoundRect(color.copy(alpha = GLOW_ALPHA / i), cornerRadius = cornerRadius, style = Stroke(width + i * width * 2))
+        drawRoundRect(
+            color.copy(alpha = color.alpha * GLOW_ALPHA * (0.5f + intensity * 0.6f) / i),
+            cornerRadius = cornerRadius,
+            style = Stroke(width + i * spread * 1.5f),
+        )
     }
 }
+
+/**
+ * Breathing 0.35 → 1 → 0.35 for focus glows. Read `.value` inside draw blocks so the pulse only
+ * redraws. Every caller runs on the same clock, so glows on screen pulse together.
+ */
+@Composable
+fun rememberGlowPulse(): State<Float> = rememberInfiniteTransition(label = "glow").animateFloat(
+    initialValue = PULSE_LOW,
+    targetValue = 1f,
+    animationSpec = infiniteRepeatable(tween(Motion.GLOW_PULSE_MS, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+    label = "glow-pulse",
+)
+
+private const val PULSE_LOW = 0.35f
 
 private const val GLOW_STEPS = 3
 private const val GLOW_ALPHA = 0.35f
@@ -409,11 +438,12 @@ fun ListRow(
     val shape = rounded(Radius.CARD_SMALL)
     val edge = Size.NEON_EDGE.u
     val radius = Radius.CARD_SMALL.u
+    val pulse = rememberGlowPulse()
     Row(
         modifier = modifier
             .fillMaxWidth()
             .then(
-                if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx() / 2) }
+                if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx() / 2, pulse.value) }
                 else Modifier
             )
             .clip(shape)

@@ -4,6 +4,7 @@ import io.github.hipsterbwp.rp5launcher.ui.theme.Retro
 import io.github.hipsterbwp.rp5launcher.ui.tap
 import io.github.hipsterbwp.rp5launcher.ui.neonPanel
 import io.github.hipsterbwp.rp5launcher.ui.neonGlow
+import io.github.hipsterbwp.rp5launcher.ui.rememberGlowPulse
 import io.github.hipsterbwp.rp5launcher.ui.ChromeTxt
 import androidx.compose.foundation.border
 import androidx.compose.ui.geometry.CornerRadius
@@ -206,10 +207,11 @@ private fun MenuEntry(option: OptionRow, focused: Boolean, onClick: () -> Unit) 
     val shape = rounded(Radius.CARD_SMALL)
     val edge = Size.NEON_EDGE.u
     val radius = Radius.CARD_SMALL.u
+    val pulse = rememberGlowPulse()
     Row(
         Modifier
             .fillMaxWidth()
-            .then(if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx() / 2) } else Modifier)
+            .then(if (focused) Modifier.drawBehind { neonGlow(Palette.pink, CornerRadius(radius.toPx()), edge.toPx() / 2, pulse.value) } else Modifier)
             .clip(shape)
             .then(if (focused) Modifier.background(Retro.focusFill).border(edge, Palette.pink, shape) else Modifier)
             .tap(onClick)

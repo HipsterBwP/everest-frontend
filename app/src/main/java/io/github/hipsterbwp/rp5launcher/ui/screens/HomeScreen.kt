@@ -1,5 +1,8 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.hipsterbwp.rp5launcher.ui.rememberGlowPulse
+import io.github.hipsterbwp.rp5launcher.ui.LogoSign
 import io.github.hipsterbwp.rp5launcher.ui.theme.Retro
 import io.github.hipsterbwp.rp5launcher.ui.neonPanel
 import io.github.hipsterbwp.rp5launcher.ui.neonGlow
@@ -170,7 +173,8 @@ private fun SystemsTab(
         // Hero, best first (in "auto"): your own picture from the "_art" folder, widescreen fanart of
         // one of your games, an HD cover of the best-selling game over a blur of itself, the console.
         val hero = selected?.takeIf { backdrop == "auto" }?.let { vm.systemCustom[it.name] ?: vm.systemHero(it) }
-        val feature = selected?.takeIf { backdrop != "console" }?.let { vm.systemFeature[it.name] }
+        val feature = selected?.takeIf { backdrop == "cover" }?.let { vm.systemFeature[it.name] }
+        val sign = selected?.takeIf { backdrop != "console" }?.let { vm.logos[it.name] }
         val product = selected?.let { vm.systemImages[it.name] }
         val shade = if (vm.config.backdropTint && selected != null) {
             lerp(Palette.night, selected.color, Alpha.BACKDROP_TINT)
@@ -178,9 +182,22 @@ private fun SystemsTab(
             Palette.night
         }
 
-        Crossfade(targetState = Triple(hero, feature, product), animationSpec = Motion.colorFade(), label = "hero") { (art, cover, console) ->
+        Crossfade(targetState = Hero(hero, feature, sign, product), animationSpec = Motion.colorFade(), label = "hero") { (art, cover, logo, console) ->
             Box(Modifier.fillMaxSize()) {
-                if (art == null && cover != null) {
+                if (art == null && cover == null && logo != null) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(
+                                start = (Size.RAIL_W + Size.SYSTEM_PANEL_W + Space.SECTION_LARGE).u,
+                                end = Space.SCREEN_H.u,
+                                top = Size.SIGN_TOP.u,
+                            ),
+                        contentAlignment = Alignment.TopCenter,
+                    ) {
+                        LogoSign(logo, Modifier.fillMaxWidth(SIGN_WIDTH))
+                    }
+                } else if (art == null && cover != null) {
                     FeatureCover(cover, selected?.let { vm.bestSeller(it.name) }, vm.config.backdropBlur, shade)
                 } else if (art != null) {
                     ArtImage(art, Modifier.fillMaxSize(), ContentScale.Crop)
@@ -300,6 +317,7 @@ private fun LogoRail(
                 )
                 val alpha by animateFloatAsState(if (focused) 1f else Focus.RAIL_DIM, Motion.focus(), label = "rail-a")
                 val highlight by animateFloatAsState(if (focused) 1f else 0f, Motion.focus(), label = "rail-hl")
+                val pulse = rememberGlowPulse()
                 val radius = Radius.CARD.u
                 Box(
                     Modifier
@@ -310,7 +328,7 @@ private fun LogoRail(
                             // Selected console: cyan neon box.
                             if (highlight <= 0f) return@drawBehind
                             val cr = CornerRadius(radius.toPx())
-                            neonGlow(Palette.cyan.copy(alpha = highlight), cr, edge.toPx())
+                            neonGlow(Palette.cyan.copy(alpha = highlight), cr, edge.toPx(), pulse.value)
                             drawRoundRect(Palette.cyan.copy(alpha = 0.08f * highlight), cornerRadius = cr)
                             drawRoundRect(Palette.cyan.copy(alpha = highlight), cornerRadius = cr, style = Stroke(edge.toPx() * 1.5f))
                         }
@@ -320,7 +338,11 @@ private fun LogoRail(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (focused) {
-                        Txt("▶", Type.tileSelected, Palette.pink, Modifier.align(Alignment.CenterStart).offset(x = -Space.LG.u), glow = Palette.pink)
+                        Txt(
+                            "▶", Type.tileSelected, Palette.pink,
+                            Modifier.align(Alignment.CenterStart).offset(x = -Space.LG.u).graphicsLayer { this.alpha = 0.5f + pulse.value / 2 },
+                            glow = Palette.pink,
+                        )
                     }
                     val logo = vm.logos[system.name]
                     if (logo != null) {
@@ -493,6 +515,11 @@ private fun Modifier.dashedBottom(): Modifier {
     }
 }
 
+/** What fills the right of the console screen, best first: art, cover, 3D logo, console. */
+private data class Hero(val art: File?, val cover: File?, val logo: File?, val console: File?)
+
+/** The logo sign spans most of the space right of the panel. */
+private const val SIGN_WIDTH = 0.82f
 private const val STATUS_REFRESH_MS = 30_000L
 private const val LOW_BATTERY = 15
 private const val HOUR_MS = 3_600_000L

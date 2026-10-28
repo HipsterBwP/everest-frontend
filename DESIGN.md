@@ -49,6 +49,7 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
 
 ### Focus / selection
 
+- Selection glows breathe (`rememberGlowPulse`, GLOW_PULSE_MS): brighter and wider, then softer, in step.
 - Lists and menus: pink fade with a glowing pink edge and a yellow ▶ cursor in front.
 - Covers: lift (≈1.08) with a glowing pink edge; unfocused covers dim to 82%.
 - Logo rail: the selected console sits in a cyan neon box with a pink ▶; others fade to 30%.
@@ -76,10 +77,10 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
    edge; next to it a neon panel with maker · year (cyan), the name in sunset letters, a scoreboard (GAMES / FAVS /
    PLAYED in VT323), a dashed fact sheet, a pink "▶ CONTINUE?" card (X) for the last-played game, and the console (or controller) illustration filling the panel's lower part; the rail highlights the
    selected logo and dims the rest. Right, filling the whole screen: your own picture from the ROMs folder's
-   `_art` folder, else hero fanart from one of that system's games (ScreenScraper), else an HD cover of the
-   system's best-selling game as a lifted card over a blurred copy of itself with a glass "Best-selling game"
-   caption, else the console illustration as a product shot (Settings › Appearance can force the cover or the
-   console). Full-screen art gets a shade on the left (tinted with the system color unless tinting is off) and
+   `_art` folder, else hero fanart from one of that system's games (ScreenScraper), else the console's logo as
+   a spinning 3D neon sign (`LogoSign`: sunset face, cyan rim, pink-to-violet extrusion that slides as it turns,
+   breathing pink glow, reflection on the grid; it turns like a coin so it never reads mirrored). Settings ›
+   Appearance can force the logo, the best-selling game's cover, or the console illustration. Full-screen art gets a shade on the left (tinted with the system color unless tinting is off) and
    along the top. After MONTAGE_DELAY on a console, muted gameplay clips of its games play full screen
    over the backdrop (same shades) with a glass "Now showing" caption. A console's startup sound (if the
    player added one) plays once the selection settles. With no art at all, the synthwave backdrop shows.

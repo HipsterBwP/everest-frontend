@@ -60,7 +60,7 @@ data class LauncherConfig(
     val consoleVideos: Boolean = true,
     /**
      * Console screen backdrop: "auto" (your own art from the "_art" folder, then game fanart, then the
-     * best-selling game's cover), "cover" (best-selling game's cover only) or "console".
+     * spinning 3D logo), "logo" (always the 3D logo), "cover" (best-selling game's cover) or "console".
      */
     val backdrop: String = "auto",
     /** Blur behind the best-selling game's cover: 0 off, 1 soft, 2 strong. */
