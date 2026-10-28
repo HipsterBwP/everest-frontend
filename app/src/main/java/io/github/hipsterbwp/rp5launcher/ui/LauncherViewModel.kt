@@ -16,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.hipsterbwp.rp5launcher.art.GameArt
 import io.github.hipsterbwp.rp5launcher.art.ArtIndex
 import io.github.hipsterbwp.rp5launcher.art.CustomMedia
+import io.github.hipsterbwp.rp5launcher.ui.theme.Motion
 import io.github.hipsterbwp.rp5launcher.art.EsdeMedia
 import io.github.hipsterbwp.rp5launcher.art.RaProgress
 import io.github.hipsterbwp.rp5launcher.art.RaSummary
@@ -50,6 +51,7 @@ import io.github.hipsterbwp.rp5launcher.update.UpdateInfo
 import io.github.hipsterbwp.rp5launcher.update.Updater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -76,7 +78,7 @@ sealed interface Dialog {
     data class TextInput(val field: TextField, val title: String, val initial: String, val secret: Boolean) : Dialog
 }
 
-enum class TextField { SsUser, SsPassword, SsDevId, SsDevPassword, RaUser, RaKey, Search, NewCollection }
+enum class TextField { SsUser, SsPassword, SsDevId, SsDevPassword, RaUser, RaKey, Search, NewCollection, Initials }
 
 /** A named list of games: one you made, or one Everest builds from your library. */
 data class GameCollection(
@@ -236,6 +238,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun setBackdropTint(enabled: Boolean) = updateConfig { it.copy(backdropTint = enabled) }
 
     fun setCrtEffect(enabled: Boolean) = updateConfig { it.copy(crtEffect = enabled) }
+
+    fun setLiveSky(enabled: Boolean) = updateConfig { it.copy(liveSky = enabled) }
+
+    fun setConsoleNeon(enabled: Boolean) = updateConfig { it.copy(consoleNeon = enabled) }
+
+    fun setLaunchEffects(enabled: Boolean) = updateConfig { it.copy(launchEffects = enabled) }
+
+    fun setBootSequence(enabled: Boolean) = updateConfig { it.copy(bootSequence = enabled) }
 
     /** Imports files (or a zip of them) picked from anywhere on the device, e.g. Downloads. */
     fun importMedia(kind: MediaKind, uris: List<Uri>) {
@@ -984,6 +994,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             result.onSuccess { (summary, matched) ->
+                // New unlocks since the last check (not on the first one) get a pixel banner each.
+                raSummary?.let { before ->
+                    summary.recent.filter { it !in before.recent }.forEach { u ->
+                        toast(Toast("Achievement unlocked!", u.title, "${u.game} · ${u.points} pts"))
+                    }
+                }
                 raSummary = summary
                 raProgress.clear()
                 raProgress.putAll(matched)
@@ -1007,7 +1023,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             TextField.SsPassword -> Dialog.TextInput(field, "ScreenScraper password", c.password, secret = true)
             TextField.SsDevId -> Dialog.TextInput(field, "Developer ID", c.devId, secret = false)
             TextField.SsDevPassword -> Dialog.TextInput(field, "Developer password", c.devPassword, secret = true)
-            TextField.RaUser, TextField.RaKey, TextField.Search, TextField.NewCollection -> return
+            TextField.RaUser, TextField.RaKey, TextField.Search, TextField.NewCollection, TextField.Initials -> return
         }
     }
 
@@ -1015,6 +1031,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         when (field) {
             TextField.Search -> {
                 searchQuery = value.trim()
+                dialog = null
+                return
+            }
+            TextField.Initials -> {
+                val letters = value.uppercase().filter { it.isLetterOrDigit() }.take(INITIALS)
+                if (letters.isNotEmpty()) updateConfig { it.copy(initials = letters.padEnd(INITIALS, 'A')) }
                 dialog = null
                 return
             }
@@ -1043,7 +1065,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             TextField.SsPassword -> c.copy(password = value)
             TextField.SsDevId -> c.copy(devId = value.trim())
             TextField.SsDevPassword -> c.copy(devPassword = value)
-            TextField.RaUser, TextField.RaKey, TextField.Search, TextField.NewCollection -> c
+            TextField.RaUser, TextField.RaKey, TextField.Search, TextField.NewCollection, TextField.Initials -> c
         }
         screenScraper = updated
         screenScraperStatus = null
@@ -1171,7 +1193,123 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     // Launching
     // -----------------------------------------------------------------------------------------
 
+    /** CRT switch-off before a launch, switch-on after coming back; null when the screen is just on. */
+    var crt by mutableStateOf<CrtFx?>(null)
+        private set
+
+    /** Pixel banners (achievements, unlocks, secrets) waiting to be shown, oldest first. */
+    val toasts = mutableStateListOf<Toast>()
+
+    fun toast(toast: Toast) {
+        toasts += toast
+        sound(toast.sound)
+    }
+
+    fun dismissToast() {
+        if (toasts.isNotEmpty()) toasts.removeAt(0)
+    }
+
+    /** Starts a game: coin sound and CRT switch-off first (if on), then the emulator. */
     fun play(system: String, game: Game) {
+        if (!config.launchEffects) {
+            launchNow(system, game, coinPlayed = false)
+            return
+        }
+        if (crt == CrtFx.Off) return
+        sound(UiSound.Launch)
+        crt = CrtFx.Off
+        viewModelScope.launch {
+            delay(Motion.CRT_OFF_MS.toLong())
+            if (!launchNow(system, game, coinPlayed = true)) crt = null
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Credits and unlocks, the Konami code, Game of the Day
+    // -----------------------------------------------------------------------------------------
+
+    /** Credits earned: one per launch and one per 10 minutes played, minus what the shop took. */
+    fun credits(): Int {
+        val earned = stats.games.values.sumOf { it.playCount + (it.playtimeMs / CREDIT_MS).toInt() }
+        return (earned - stats.spentCredits).coerceAtLeast(0)
+    }
+
+    fun owns(unlock: Unlock): Boolean = unlock.key in stats.unlocks
+
+    /** Spends credits on [unlock] and switches it on. */
+    fun buy(unlock: Unlock) {
+        if (owns(unlock)) return use(unlock)
+        if (credits() < unlock.cost) {
+            toast(Toast("Not enough credits", unlock.title, "${unlock.cost} needed · play to earn more", UiSound.Error))
+            return
+        }
+        updateStatsFile { it.copy(spentCredits = it.spentCredits + unlock.cost, unlocks = it.unlocks + unlock.key) }
+        toast(Toast("Unlocked!", unlock.title, "Switched on — change it in Settings › Appearance", UiSound.Secret))
+        use(unlock)
+    }
+
+    /** Switches an owned scene or theme on (a theme that's on goes back to neon). */
+    fun use(unlock: Unlock) {
+        if (!owns(unlock)) return
+        when (unlock) {
+            Unlock.Gold -> updateConfig { it.copy(theme = if (it.theme == "gold") "neon" else "gold") }
+            else -> updateConfig { it.copy(scene = if (it.scene == unlock.scene) "grid" else unlock.scene!!) }
+        }
+    }
+
+    private var secret = 0
+
+    /** Feeds the Konami code (↑↑↓↓←→←→ B A); true when this press completed it (and is used up). */
+    fun secretInput(button: Pad): Boolean {
+        secret = when {
+            KONAMI[secret] == button -> secret + 1
+            KONAMI[0] == button -> 1
+            else -> 0
+        }
+        if (secret < KONAMI.size) return false
+        secret = 0
+        if (!owns(Unlock.Gold)) updateStatsFile { it.copy(unlocks = it.unlocks + Unlock.Gold.key) }
+        val gold = config.theme != "gold"
+        updateConfig { it.copy(theme = if (gold) "gold" else "neon") }
+        toast(Toast("Secret found!", if (gold) "GOLDEN MODE" else "Neon mode", "↑↑↓↓←→←→ B A", UiSound.Secret))
+        return true
+    }
+
+    /** Today's featured game: the same all day, a different one tomorrow. */
+    fun gameOfTheDay(): Pair<SystemEntry, Game>? {
+        val all = allGames().sortedBy { it.second.id }
+        if (all.isEmpty()) return null
+        val day = java.time.LocalDate.now().toEpochDay()
+        return all[((day * DAILY_MIX) % all.size).toInt().let { if (it < 0) it + all.size else it }]
+    }
+
+    /** Days in a row you've played the Game of the Day (0 once a day is missed). */
+    fun dailyStreak(): Int {
+        val last = stats.dailyLastDay ?: return 0
+        val today = java.time.LocalDate.now()
+        return if (last == today.toString() || last == today.minusDays(1).toString()) stats.dailyStreak else 0
+    }
+
+    private fun countDailyGame(game: Game) {
+        if (gameOfTheDay()?.second?.id != game.id) return
+        val today = java.time.LocalDate.now()
+        if (stats.dailyLastDay == today.toString()) return
+        val streak = if (stats.dailyLastDay == today.minusDays(1).toString()) stats.dailyStreak + 1 else 1
+        updateStatsFile { it.copy(dailyStreak = streak, dailyLastDay = today.toString()) }
+        toast(Toast("Game of the Day", "Streak: $streak ${if (streak == 1) "day" else "days"}", game.title))
+    }
+
+    fun editInitials() {
+        dialog = Dialog.TextInput(TextField.Initials, "Your initials (3 letters)", config.initials, secret = false)
+    }
+
+    /** Most-played games as an arcade high-score table: initials, score (minutes × 10), game. */
+    fun highScores(): List<Pair<Game, Long>> =
+        allGames().map { it.second }.map { it to stats(it).playtimeMs / 6_000 }.filter { it.second > 0 }
+            .sortedByDescending { it.second }.take(HIGH_SCORES)
+
+    /** Returns true if the emulator started. */
+    private fun launchNow(system: String, game: Game, coinPlayed: Boolean): Boolean {
         val root = rootUri()
         val command = selectedCommand(system, game)
         val result = when {
@@ -1200,7 +1338,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
         when (result) {
             LaunchResult.Started -> {
-                sound(UiSound.Launch)
+                if (!coinPlayed) sound(UiSound.Launch)
+                countDailyGame(game)
                 val now = System.currentTimeMillis()
                 session = game.id to now
                 // Starting a game you haven't tracked (or had in the backlog) marks it as playing.
@@ -1216,6 +1355,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 dialog = Dialog.LaunchError(system, game, result.problem)
             }
         }
+        return result == LaunchResult.Started
     }
 
     /** Test-launch from settings: the system's first game. */
@@ -1233,6 +1373,16 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
         val played = session != null
         session = null
+        // Back from a game: the screen switches back on like a CRT.
+        if (played && config.launchEffects) {
+            crt = CrtFx.On
+            viewModelScope.launch {
+                delay(Motion.CRT_ON_MS.toLong())
+                if (crt == CrtFx.On) crt = null
+            }
+        } else if (crt == CrtFx.Off) {
+            crt = null
+        }
         redetectEmulators()
         // Back from a game: pick up any achievements unlocked in it.
         if (played) refreshRetroAchievements(userInitiated = false)
@@ -1261,6 +1411,28 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
 /** Console screen backdrop choices, in the order Settings cycles through them. */
 val BACKDROPS = listOf("logo", "auto", "cover", "console")
+
+/** Things credits buy: backdrop scenes and the gold theme. */
+enum class Unlock(val key: String, val title: String, val cost: Int, val scene: String?) {
+    City("scene_city", "Neon City skyline", 5, "city"),
+    Ocean("scene_ocean", "Ocean sunset", 10, "ocean"),
+    Space("scene_space", "Deep space", 15, "space"),
+    Gold("theme_gold", "Golden theme", 25, null),
+}
+
+private val KONAMI = listOf(Pad.Up, Pad.Up, Pad.Down, Pad.Down, Pad.Left, Pad.Right, Pad.Left, Pad.Right, Pad.B, Pad.A)
+private const val INITIALS = 3
+private const val HIGH_SCORES = 10
+/** One credit per this much play time. */
+private const val CREDIT_MS = 10L * 60 * 1000
+/** Spreads consecutive days across the library (a large prime). */
+private const val DAILY_MIX = 7919L
+
+/** CRT effect around a launch: switching off before the emulator opens, back on after. */
+enum class CrtFx { Off, On }
+
+/** A pixel banner: "ACHIEVEMENT UNLOCKED!", an unlock, a secret. */
+data class Toast(val eyebrow: String, val title: String, val detail: String? = null, val sound: UiSound = UiSound.Achievement)
 
 /** Kinds of your own per-console files. */
 enum class MediaKind(val media: CustomMedia, val dir: String, val noun: String, val pickHint: String, val doneHint: String) {

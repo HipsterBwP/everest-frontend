@@ -65,6 +65,22 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
 - Left-aligned primary actions; Start/Select hints right-aligned.
 - Hints reflect what the buttons actually do on the current screen. B always means Back.
 
+### Arcade extras
+
+- `RetroBackdrop` is live by default: sky colours follow the clock (night, dawn, day, evening keyframes,
+  blended), the sun shows at dawn and sunset, stars twinkle, a shooting star crosses every ~14 s at night,
+  grid rows roll in (GRID_ROLL_MS). Scenes: grid (default), city, ocean, space (bought with credits).
+- Per-console neon (`SystemNeon`) colours the console screen's grid, haze, horizon, selection box, panel edge
+  and logo sign; the gold theme (`NeonTheme.Gold`, Konami code or credits) recolours every neon at once.
+- Launch: coin sound, then `CrtPower` squashes the picture to a white line and a dot (CRT_OFF_MS) before the
+  emulator opens; switch-on runs it backwards on return.
+- Boot check: VT323 lines on black, one every BOOT_LINE_MS, cyan "OK"s, blinking block cursor.
+- Pixel banners (`ToastHost`): neon panel at the top with a gold edge, ★, pixel eyebrow, title and detail.
+- Attract mode: gameplay video or Ken Burns art, EVEREST / CREDIT corners, caption, blinking INSERT COIN; every
+  fourth slide a high-score table (rank colours gold, cyan, pink; initials and 6-digit score in VT323).
+- Sounds: 8-bit pulse-wave blips (`tools/music/sfx.py`), coin for launch, arpeggio jingles for achievements
+  and secrets.
+
 ### Brand
 
 - Name: **Everest Frontend**; the app label under the icon is just "Everest" ("Everest" in running text,

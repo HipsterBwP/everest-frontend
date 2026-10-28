@@ -1,6 +1,8 @@
 package io.github.hipsterbwp.rp5launcher.ui
 
 import android.content.ActivityNotFoundException
+import io.github.hipsterbwp.rp5launcher.ui.theme.NeonTheme
+import androidx.compose.runtime.SideEffect
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
@@ -52,9 +54,11 @@ fun LauncherApp(vm: LauncherViewModel) {
         }
     }
 
-    // The loading screen stays at least SPLASH_MIN_MS so it never flashes, then fades away.
+    // The loading screen stays at least SPLASH_MIN_MS after the boot check so it never flashes, then fades away.
+    var bootDone by remember { mutableStateOf(false) }
     var minTimeUp by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(bootDone) {
+        if (!bootDone) return@LaunchedEffect
         delay(Motion.SPLASH_MIN_MS)
         minTimeUp = true
     }
@@ -75,16 +79,29 @@ fun LauncherApp(vm: LauncherViewModel) {
         if (vm.screen !is Screen.Setup && !vm.textInputActive) vm.screensaver = true
     }
 
+    val theme = if (vm.config.theme == "gold") NeonTheme.Gold else NeonTheme.Neon
+    SideEffect { Palette.theme = theme }
+    val sky = SkySettings(vm.config.scene, vm.config.liveSky)
+
     Box(Modifier.fillMaxSize().background(Palette.night)) {
         if (vm.ready) {
-            CompositionLocalProvider(LocalButtonLabel provides labels) {
-                LauncherContent(vm, appName, pickFolder)
+            CompositionLocalProvider(LocalButtonLabel provides labels, LocalSky provides sky) {
+                CrtPower(vm.crt) { LauncherContent(vm, appName, pickFolder) }
             }
         }
+        ToastHost(vm)
         if (vm.quickMenu && !vm.screensaver) vm.quickControls?.let { QuickMenu(vm, it) }
         if (vm.screensaver) Screensaver(vm)
         if (loadingAlpha > 0f) {
-            Box(Modifier.fillMaxSize().alpha(loadingAlpha)) { LoadingScreen(vm.loading) }
+            Box(Modifier.fillMaxSize().alpha(loadingAlpha)) {
+                LoadingScreen(
+                    vm.loading,
+                    boot = vm.config.bootSequence,
+                    games = vm.systems.sumOf { it.games.size }.takeIf { it > 0 },
+                    credits = vm.credits(),
+                    onBootDone = { bootDone = true },
+                )
+            }
         }
         if (vm.config.crtEffect) CrtOverlay()
     }

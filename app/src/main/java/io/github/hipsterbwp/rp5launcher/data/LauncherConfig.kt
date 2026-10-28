@@ -69,6 +69,20 @@ data class LauncherConfig(
     val backdropTint: Boolean = true,
     /** CRT finish: faint scanlines and darker corners over the whole screen. */
     val crtEffect: Boolean = true,
+    /** Backdrop sky follows the clock, the grid rolls, shooting stars cross the night sky. */
+    val liveSky: Boolean = true,
+    /** Backdrop scene: "grid", or one unlocked with credits ("city", "ocean", "space"). */
+    val scene: String = "grid",
+    /** Each console lights the console screen in its own neon colour. */
+    val consoleNeon: Boolean = true,
+    /** Neon theme: "neon", or "gold" once unlocked. */
+    val theme: String = "neon",
+    /** Coin sound and CRT switch-off before a game starts, CRT switch-on when you come back. */
+    val launchEffects: Boolean = true,
+    /** Arcade BIOS check before the logo on the loading screen. */
+    val bootSequence: Boolean = true,
+    /** Your three-letter initials for the high-score table. */
+    val initials: String = "AAA",
 ) {
     fun system(name: String): SystemConfig = systems[name] ?: SystemConfig()
 

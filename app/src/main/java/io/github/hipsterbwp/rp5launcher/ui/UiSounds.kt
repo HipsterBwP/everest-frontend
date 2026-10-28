@@ -6,9 +6,9 @@ import android.media.SoundPool
 import android.os.SystemClock
 import io.github.hipsterbwp.rp5launcher.R
 
-enum class UiSound { Move, Select, Back, Tab, Launch, Error }
+enum class UiSound { Move, Select, Back, Tab, Launch, Error, Achievement, Secret }
 
-/** Short navigation sounds (synthesized for this app, see res/raw). Toggle and volume live in config. */
+/** Short 8-bit navigation sounds (synthesized by tools/music/sfx.py). Toggle and volume live in config. */
 class UiSounds(context: Context) {
     private val pool = SoundPool.Builder()
         .setMaxStreams(4)
@@ -27,6 +27,8 @@ class UiSounds(context: Context) {
         UiSound.Tab to pool.load(context, R.raw.ui_tab, 1),
         UiSound.Launch to pool.load(context, R.raw.ui_launch, 1),
         UiSound.Error to pool.load(context, R.raw.ui_error, 1),
+        UiSound.Achievement to pool.load(context, R.raw.ui_achievement, 1),
+        UiSound.Secret to pool.load(context, R.raw.ui_secret, 1),
     )
 
     private var lastMoveAt = 0L

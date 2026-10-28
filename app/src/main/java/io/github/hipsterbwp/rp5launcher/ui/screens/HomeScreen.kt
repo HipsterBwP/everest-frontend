@@ -1,6 +1,8 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.graphics.graphicsLayer
+import io.github.hipsterbwp.rp5launcher.ui.theme.SystemNeon
 import io.github.hipsterbwp.rp5launcher.ui.rememberGlowPulse
 import io.github.hipsterbwp.rp5launcher.ui.LogoSign
 import io.github.hipsterbwp.rp5launcher.ui.theme.Retro
@@ -153,8 +155,16 @@ private fun SystemsTab(
         if (selected != null && last != null) vm.play(selected.name, last)
     }
 
+    val daily = vm.gameOfTheDay()
+    fun openDaily() {
+        daily?.let { (system, game) -> vm.push(Screen.Details(system.name, game.id)) }
+    }
+
     PadInput { button, _ ->
+        // ↑↑↓↓←→←→ B A: the last A is used up by the secret instead of opening a console.
+        if (vm.secretInput(button)) return@PadInput true
         when (button) {
+            Pad.R2 -> { openDaily(); true }
             Pad.Up, Pad.Left -> { if (!collections) select(index - 1); true }
             Pad.Down, Pad.Right -> { if (!collections) select(index + 1); true }
             Pad.L1 -> { switchTab(-1); true }
@@ -167,8 +177,13 @@ private fun SystemsTab(
         }
     }
 
+    // Each console lights the screen in its own neon.
+    val neon by animateColorAsState(
+        if (vm.config.consoleNeon && selected != null) SystemNeon.forSystem(selected.name) else Palette.pink,
+        Motion.colorFade(), label = "neon",
+    )
     Box(Modifier.fillMaxSize().background(Palette.night)) {
-        RetroBackdrop()
+        RetroBackdrop(accent = neon)
         val backdrop = vm.config.backdrop
         // Hero, best first (in "auto"): your own picture from the "_art" folder, widescreen fanart of
         // one of your games, an HD cover of the best-selling game over a blur of itself, the console.
@@ -196,7 +211,7 @@ private fun SystemsTab(
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        LogoSign(logo, Modifier.fillMaxWidth(SIGN_WIDTH))
+                        LogoSign(logo, Modifier.fillMaxWidth(SIGN_WIDTH), neon)
                     }
                 } else if (art == null && cover != null) {
                     FeatureCover(cover, selected?.let { vm.bestSeller(it.name) }, vm.config.backdropBlur, shade)
@@ -240,9 +255,9 @@ private fun SystemsTab(
         if (selected != null && vm.config.consoleVideos) ConsoleMontage(vm, selected, shade)
 
         Row(Modifier.fillMaxSize()) {
-            LogoRail(vm, systems, if (collections) -1 else index, ::select, ::open)
+            LogoRail(vm, systems, if (collections) -1 else index, neon, ::select, ::open)
             if (selected != null) {
-                SystemPanel(vm, selected)
+                SystemPanel(vm, selected, neon)
             } else {
                 EmptyPanel(
                     if (collections) "Collections" else if (vm.scan != null) "Looking for games…" else "No games found",
@@ -267,11 +282,31 @@ private fun SystemsTab(
             StatusPill()
         }
 
+        // Game of the Day, under the top bar, with your streak.
+        daily?.let { (system, game) ->
+            Row(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = (Space.SCREEN_TOP + Size.STATUS_H + Space.LG).u, end = Space.SCREEN_H.u)
+                    .glass(Radius.CARD_SMALL)
+                    .tap(::openDaily)
+                    .padding(vertical = Space.CHIP_V.u, horizontal = Space.CHIP_H.u),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Space.GAP.u),
+            ) {
+                Txt("★ GAME OF THE DAY", Type.badge, Palette.sun1, glow = Palette.sun2)
+                Txt("${game.title} · ${system.info.shortName}", Type.labelStrong, Palette.ink, Modifier.widthIn(max = Size.DAILY_TITLE_W.u))
+                val streak = vm.dailyStreak()
+                if (streak > 0) Txt("🔥$streak", Type.labelStrong, Palette.sun2)
+            }
+        }
+
         val hints = buildList {
             if (selected != null) add(Hint(Pad.A, "Open", onClick = ::open))
             if (last != null) add(Hint(Pad.X, "Continue", onClick = ::resume))
             add(Hint(Pad.Y, "Search", onClick = { vm.push(Screen.Search) }))
             add(Hint(listOf(Pad.L1, Pad.R1), "Switch tab", onClick = { switchTab(1) }))
+            if (daily != null) add(Hint(Pad.R2, "Today's game", onClick = ::openDaily))
             add(Hint(Pad.Start, "Settings", trailing = true, onClick = openSettings))
         }
         HintBar(hints, onSystem = true, glyphInk = Palette.inkOnLight)
@@ -284,6 +319,7 @@ private fun LogoRail(
     vm: LauncherViewModel,
     systems: List<SystemEntry>,
     index: Int,
+    neon: Color,
     select: (Int) -> Unit,
     open: () -> Unit,
 ) {
@@ -300,7 +336,7 @@ private fun LogoRail(
                 drawLine(Palette.pink, Offset(x, 0f), Offset(x, size.height), edge.toPx() * 2)
             },
     ) {
-        Txt("P1 · EVEREST", Type.badge, Palette.pinkSoft, Modifier.padding(Space.LG.u), glow = Palette.pink)
+        Txt("P1 · CREDIT ${vm.credits().toString().padStart(2, '0')}", Type.badge, Palette.pinkSoft, Modifier.padding(Space.LG.u), glow = Palette.pink)
         val itemHeight = (Size.RAIL_LOGO_SELECTED_H + Size.RAIL_ITEM_GAP).u
         val state = rememberLazyListState()
         LaunchedEffect(index) { if (index >= 0) state.animateScrollToItem(index) }
@@ -329,9 +365,9 @@ private fun LogoRail(
                             // Selected console: cyan neon box.
                             if (highlight <= 0f) return@drawBehind
                             val cr = CornerRadius(radius.toPx())
-                            neonGlow(Palette.cyan.copy(alpha = highlight), cr, edge.toPx(), pulse.value)
-                            drawRoundRect(Palette.cyan.copy(alpha = 0.08f * highlight), cornerRadius = cr)
-                            drawRoundRect(Palette.cyan.copy(alpha = highlight), cornerRadius = cr, style = Stroke(edge.toPx() * 1.5f))
+                            neonGlow(neon.copy(alpha = highlight), cr, edge.toPx(), pulse.value)
+                            drawRoundRect(neon.copy(alpha = 0.08f * highlight), cornerRadius = cr)
+                            drawRoundRect(neon.copy(alpha = highlight), cornerRadius = cr, style = Stroke(edge.toPx() * 1.5f))
                         }
                         .padding(horizontal = Space.SECTION_SMALL.u - Space.SM.u)
                         .alpha(alpha)
@@ -359,7 +395,7 @@ private fun LogoRail(
 
 /** Neon panel: maker · year, the name in sunset letters, a scoreboard, facts, Continue and the console. */
 @Composable
-private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry) {
+private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry, neon: Color) {
     val info = system.info
     val favorites = system.games.count { vm.stats(it).favorite }
     val facts = vm.systemFacts[system.name].orEmpty().filter { it.first !in SKIP_FACTS }.take(MAX_FACTS)
@@ -368,7 +404,7 @@ private fun SystemPanel(vm: LauncherViewModel, system: SystemEntry) {
             .width(Size.SYSTEM_PANEL_W.u)
             .fillMaxHeight()
             .padding(start = Space.SECTION.u, top = Space.SCREEN_TOP.u, bottom = (Size.HINT_BAR + Space.LG).u)
-            .neonPanel(Radius.PANEL)
+            .neonPanel(Radius.PANEL, edge = neon)
             .padding(Space.SECTION.u),
     ) {
         val eyebrow = listOfNotNull(info.maker, info.year?.toString()).joinToString(" · ").uppercase()

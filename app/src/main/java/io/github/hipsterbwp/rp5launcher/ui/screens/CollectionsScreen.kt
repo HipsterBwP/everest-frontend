@@ -61,7 +61,7 @@ import kotlinx.coroutines.delay
 import kotlin.random.Random
 
 /** Best art to show for a game, sharpest first. */
-private fun LauncherViewModel.anyArt(game: Game) = fanart(game) ?: snapArt(game) ?: boxArt(game)
+internal fun LauncherViewModel.anyArt(game: Game) = fanart(game) ?: snapArt(game) ?: boxArt(game)
 
 // ---------------------------------------------------------------------------------------------
 // Collections tab: list of collections | cover preview
@@ -298,53 +298,3 @@ fun SearchScreen(vm: LauncherViewModel) {
 // Screensaver
 // ---------------------------------------------------------------------------------------------
 
-/** Apple-TV-style screensaver: random game art drifting slowly, with its title. Any button wakes. */
-@Composable
-fun Screensaver(vm: LauncherViewModel) {
-    val pool = remember(vm.systems) {
-        vm.systems.flatMap { s -> s.games.map { s to it } }.filter { vm.anyArt(it.second) != null }
-    }
-    var pick by remember { mutableIntStateOf(if (pool.isEmpty()) 0 else Random.nextInt(pool.size)) }
-    LaunchedEffect(pool.size) {
-        while (pool.size > 1) {
-            delay(Motion.SCREENSAVER_SLIDE_MS)
-            pick = Random.nextInt(pool.size)
-        }
-    }
-    Box(Modifier.fillMaxSize().background(Palette.black).tap { vm.onInput() }) {
-        val entry = pool.getOrNull(pick)
-        Crossfade(targetState = entry, animationSpec = tween(Motion.SCREENSAVER_FADE_MS), label = "screensaver") { current ->
-            if (current != null) {
-                val zoom = remember(current) { Animatable(1f) }
-                LaunchedEffect(current) {
-                    zoom.animateTo(Focus.KEN_BURNS_SCALE, tween(Motion.SCREENSAVER_SLIDE_MS.toInt() + Motion.SCREENSAVER_FADE_MS, easing = LinearEasing))
-                }
-                Box(Modifier.fillMaxSize()) {
-                    ArtImage(
-                        vm.anyArt(current.second),
-                        Modifier.fillMaxSize().graphicsLayer { scaleX = zoom.value; scaleY = zoom.value },
-                        ContentScale.Crop,
-                    )
-                    Column(
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(Space.SCREEN_H.u)
-                            .glass(Radius.CARD)
-                            .padding(Space.LG.u),
-                    ) {
-                        val (system, game) = current
-                        val line = listOfNotNull(system.info.displayName, vm.artFor(game)?.year).joinToString(" · ").uppercase()
-                        Txt(line, Type.eyebrow, Palette.inkSecondary)
-                        Spacer(Modifier.height(Space.SM.u))
-                        Txt(game.title, Type.screenTitle, Palette.ink, Modifier.width(Size.BROWSER_INFO_W.u))
-                    }
-                }
-            }
-        }
-        if (entry == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Txt("EVEREST", Type.hero, Palette.inkSecondary)
-            }
-        }
-    }
-}

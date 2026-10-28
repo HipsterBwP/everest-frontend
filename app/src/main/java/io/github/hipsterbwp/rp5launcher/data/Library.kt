@@ -77,6 +77,12 @@ data class StatsFile(
     val playDays: Set<String> = emptySet(),
     /** Your own collections: name -> game ids, in the order added. */
     val collections: Map<String, List<String>> = emptyMap(),
+    /** Credits spent in the unlock shop, and what they bought (scenes, themes). */
+    val spentCredits: Int = 0,
+    val unlocks: Set<String> = emptySet(),
+    /** Days in a row you played the Game of the Day, and the last such day ("2026-10-28"). */
+    val dailyStreak: Int = 0,
+    val dailyLastDay: String? = null,
 )
 
 /** Small JSON files in app-private storage: the last scan and play stats. */

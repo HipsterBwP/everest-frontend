@@ -48,6 +48,7 @@ import io.github.hipsterbwp.rp5launcher.ui.HintBar
 import io.github.hipsterbwp.rp5launcher.data.Progress
 import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
 import io.github.hipsterbwp.rp5launcher.ui.MediaKind
+import io.github.hipsterbwp.rp5launcher.ui.Unlock
 import io.github.hipsterbwp.rp5launcher.ui.ListRow
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadInput
@@ -562,6 +563,41 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
                 Txt(if (c.consoleVideos) "On" else "Off", Type.labelStrong, if (c.consoleVideos) Palette.ok else Palette.inkSecondary)
             }
         },
+        toggle("livesky", "Live sky", "The sky follows the clock, the grid rolls, shooting stars at night", c.liveSky, accent) {
+            vm.setLiveSky(!c.liveSky)
+        },
+        toggle("neon", "Console colours", "Each console lights the screen in its own neon", c.consoleNeon, accent) {
+            vm.setConsoleNeon(!c.consoleNeon)
+        },
+        Item("credits") { _ ->
+            ListRow(false, accent, background = Palette.surface) {
+                Column(Modifier.weight(1f)) {
+                    Txt("UNLOCK SHOP", Type.hint, Palette.sun1, glow = Palette.sun2)
+                    Txt("Earn a credit per game you start and per 10 minutes played", Type.label, Palette.inkSecondary)
+                }
+                Txt("CREDIT ${vm.credits()}", Type.crt, Palette.sun1, glow = Palette.sun2)
+            }
+        },
+        *Unlock.entries.map { unlock ->
+            val owned = vm.owns(unlock)
+            val on = if (unlock == Unlock.Gold) c.theme == "gold" else c.scene == unlock.scene
+            Item("unlock-${unlock.key}", onA = { vm.buy(unlock) }, aLabel = if (owned) (if (on) "Switch off" else "Use") else "Buy") { focused ->
+                ListRow(focused, accent) {
+                    Column(Modifier.weight(1f)) {
+                        Txt(unlock.title, Type.rowTitle, if (owned) Palette.ink else Palette.inkSecondary)
+                        Txt(if (unlock == Unlock.Gold) "Everything in gold neon" else "Backdrop scene", Type.label, Palette.inkSecondary)
+                    }
+                    Txt(
+                        when {
+                            on -> "On"
+                            owned -> "Owned"
+                            else -> "${unlock.cost} CREDITS"
+                        },
+                        Type.labelStrong, if (on) Palette.ok else if (owned) Palette.inkSecondary else Palette.sun1,
+                    )
+                }
+            }
+        }.toTypedArray(),
         Item("crt", onA = { vm.setCrtEffect(!c.crtEffect) }, aLabel = "Toggle") { focused ->
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
@@ -714,6 +750,21 @@ private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
     val context = LocalContext.current
     val cfg = vm.config
     return listOf(
+        toggle("launchfx", "Insert-coin launch", "Coin sound and a CRT switch-off when a game starts", cfg.launchEffects, accent) {
+            vm.setLaunchEffects(!cfg.launchEffects)
+        },
+        toggle("boot", "Boot check", "Arcade BIOS lines before the logo when Everest starts", cfg.bootSequence, accent) {
+            vm.setBootSequence(!cfg.bootSequence)
+        },
+        Item("initials", onA = { vm.editInitials() }, aLabel = "Edit") { focused ->
+            ListRow(focused, accent) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Your initials", Type.rowTitle, Palette.ink)
+                    Txt("Shown on the high-score table in attract mode", Type.label, Palette.inkSecondary)
+                }
+                Txt(cfg.initials, Type.crt, Palette.sun1, glow = Palette.sun2)
+            }
+        },
         Item("swap", onA = { vm.setSwapButtons(!cfg.swapButtons) }, aLabel = "Toggle") { focused ->
             ListRow(focused, accent) {
                 Column(Modifier.weight(1f)) {
@@ -859,3 +910,15 @@ private fun Slider(value: Float, modifier: Modifier = Modifier) {
         drawCircle(Palette.white, r, Offset(x, y))
     }
 }
+
+/** An on/off row: title, a line of explanation, and On/Off on the right. */
+private fun toggle(key: String, title: String, detail: String, on: Boolean, accent: Color, flip: () -> Unit) =
+    Item(key, onA = flip, aLabel = "Toggle") { focused ->
+        ListRow(focused, accent) {
+            Column(Modifier.weight(1f)) {
+                Txt(title, Type.rowTitle, Palette.ink)
+                Txt(detail, Type.label, Palette.inkSecondary, maxLines = 2)
+            }
+            Txt(if (on) "On" else "Off", Type.labelStrong, if (on) Palette.ok else Palette.inkSecondary)
+        }
+    }

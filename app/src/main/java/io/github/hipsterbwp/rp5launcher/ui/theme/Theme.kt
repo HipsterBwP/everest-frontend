@@ -5,6 +5,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -39,7 +42,16 @@ import io.github.hipsterbwp.rp5launcher.R
 // Color
 // ---------------------------------------------------------------------------------------------
 
+/** The two neon colours everything is lit with. Gold is the secret theme (Konami code, or bought with credits). */
+enum class NeonTheme(val pink: Color, val pinkSoft: Color, val cyan: Color, val cyanSoft: Color) {
+    Neon(Color(0xFFFF2A9D), Color(0xFFFF6FC3), Color(0xFF2DE2E6), Color(0xFF9FF7F8)),
+    Gold(Color(0xFFFFB31A), Color(0xFFFFD877), Color(0xFFFFF1C2), Color(0xFFFFF8E1)),
+}
+
 object Palette {
+    /** Current neon theme; reading the neon colours below follows it. */
+    var theme by mutableStateOf(NeonTheme.Neon)
+
     val white = Color(0xFFFFFFFF)
     val black = Color(0xFF000000)
     val transparent = Color(0x00000000)
@@ -48,10 +60,10 @@ object Palette {
     val night = Color(0xFF0B0420)
     val deep = Color(0xFF160935)
     val violet = Color(0xFF2A0E5C)
-    val pink = Color(0xFFFF2A9D)
-    val pinkSoft = Color(0xFFFF6FC3)
-    val cyan = Color(0xFF2DE2E6)
-    val cyanSoft = Color(0xFF9FF7F8)
+    val pink: Color get() = theme.pink
+    val pinkSoft: Color get() = theme.pinkSoft
+    val cyan: Color get() = theme.cyan
+    val cyanSoft: Color get() = theme.cyanSoft
     /** Sunset gradient stops, top to bottom (titles, the sun, the loading bar). */
     val sun1 = Color(0xFFFFE45E)
     val sun2 = Color(0xFFFF9A3D)
@@ -78,12 +90,12 @@ object Palette {
     val inkOnLight = night
 
     /** Controls that aren't tied to a system. */
-    val accent = pink
+    val accent: Color get() = pink
 
     /** Panels: dark violet fill with a neon edge, drawn over art. */
     val glass = Color(0xCC0E0522)
     val glassStrong = Color(0xE60E0522)
-    val glassEdge = Color(0x80FF2A9D)
+    val glassEdge: Color get() = pink.copy(alpha = 0.5f)
     /** Darkens art under text (top and bottom of full-screen backdrops). */
     val shade = Color(0x8C0B0420)
 
@@ -123,11 +135,11 @@ object Palette {
 
     /** Everest brand on the loading screen: the glow behind the mountain badge. */
     val brandNavy = night
-    val brandBlue = pink
-    val brandBlueLight = pinkSoft
-    val brandGlow = Color(0x80FF2A9D)
-    val brandTrack = Color(0x33FF2A9D)
-    val brandEdge = Color(0xB3FF2A9D)
+    val brandBlue: Color get() = pink
+    val brandBlueLight: Color get() = pinkSoft
+    val brandGlow: Color get() = pink.copy(alpha = 0.5f)
+    val brandTrack: Color get() = pink.copy(alpha = 0.2f)
+    val brandEdge: Color get() = pink.copy(alpha = 0.7f)
     val brandText = inkSecondary
     val brandSheen = Color(0x8CFFFFFF)
 }
@@ -137,9 +149,27 @@ object Retro {
     /** Sunset fill for titles and the sun. */
     val sunset = Brush.verticalGradient(listOf(Palette.sun1, Palette.sun2, Palette.sun3, Palette.sun4, Palette.sun5))
     /** Focused row: pink fading to nothing, left to right. */
-    val focusFill = Brush.horizontalGradient(listOf(Palette.pink.copy(alpha = 0.35f), Palette.pink.copy(alpha = 0.05f)))
+    val focusFill: Brush get() = Brush.horizontalGradient(listOf(Palette.pink.copy(alpha = 0.35f), Palette.pink.copy(alpha = 0.05f)))
     /** Colour wash over backdrop art (blend mode Color): pink top-left to cyan bottom-right. */
-    val duotone = Brush.linearGradient(listOf(Palette.pink.copy(alpha = 0.22f), Palette.cyan.copy(alpha = 0.14f)))
+    val duotone: Brush get() = Brush.linearGradient(listOf(Palette.pink.copy(alpha = 0.22f), Palette.cyan.copy(alpha = 0.14f)))
+}
+
+/** Each console's own neon on the console screen (grid, selection, sign, panel edge). */
+object SystemNeon {
+    private val colors: Map<String, Color> = mapOf(
+        "gb" to Color(0xFF9BE564), "gbc" to Color(0xFFB05CFF), "gba" to Color(0xFF7A7CFF),
+        "nes" to Color(0xFFFF4040), "famicom" to Color(0xFFFF4040), "snes" to Color(0xFFB69CFF), "sfc" to Color(0xFFB69CFF),
+        "n64" to Color(0xFF2BD96B), "gc" to Color(0xFF8A5CFF), "wii" to Color(0xFF9FF7F8), "wiiu" to Color(0xFF2DB8E6),
+        "switch" to Color(0xFFFF4D4D), "nds" to Color(0xFF7FB2FF), "n3ds" to Color(0xFFFF4D6A),
+        "psx" to Color(0xFF9AA8FF), "ps2" to Color(0xFF3C8DFF), "ps3" to Color(0xFF6E8BFF), "psp" to Color(0xFFC6CCFF), "psvita" to Color(0xFF4DA3FF),
+        "dreamcast" to Color(0xFFFF8A3D), "saturn" to Color(0xFF6E7BFF), "megadrive" to Color(0xFF3C6DFF), "genesis" to Color(0xFF3C6DFF),
+        "mastersystem" to Color(0xFFFF4D4D), "gamegear" to Color(0xFF5CC8FF), "segacd" to Color(0xFF6E7BFF),
+        "arcade" to Color(0xFFFFC93C), "mame" to Color(0xFFFFC93C), "fbneo" to Color(0xFFFFC93C), "neogeo" to Color(0xFFFFC93C),
+        "atari2600" to Color(0xFFFF8A3D), "pcengine" to Color(0xFFFF6FC3), "tg16" to Color(0xFFFF6FC3),
+    )
+
+    /** The console's neon, or the theme's pink. In the gold theme everything stays gold. */
+    fun forSystem(name: String): Color = if (Palette.theme == NeonTheme.Gold) Palette.pink else colors[name] ?: Palette.pink
 }
 
 /** Default system colors (DESIGN.md table). Keys are ES-DE system names. Overridable in config. */
@@ -460,6 +490,16 @@ object Size {
     const val SLIDER_KNOB = 14
     const val SLIDER_TRACK = 5
     const val SLIDER_VALUE_W = 40
+    /** Attract mode high-score table and its rank column. */
+    const val HIGH_SCORES_W = 520
+    const val RANK_W = 36
+    /** Game of the Day title on the console screen. */
+    const val DAILY_TITLE_W = 200
+    /** Boot check cursor. */
+    const val BOOT_CURSOR_W = 10
+    const val BOOT_CURSOR_H = 16
+    /** Pixel banner (achievements, unlocks). */
+    const val TOAST_W = 420
     /** Quick menu sheet (hold Select). */
     const val QUICK_MENU_W = 340
     /** Top-shade height on full-screen backdrops. */
@@ -556,8 +596,18 @@ object Motion {
     const val SPLASH_BAR_MS = 350
     /** The bar's minimum fill time (kept under SPLASH_MIN_MS so it reaches the end on screen). */
     const val SPLASH_FILL_MS = 1200
+    /** CRT switch-off before a game starts, and switch-on when you come back. */
+    const val CRT_OFF_MS = 520
+    const val CRT_ON_MS = 480
+    /** Arcade BIOS check on the loading screen: one line every BOOT_LINE_MS, then a short hold. */
+    const val BOOT_LINE_MS = 120
+    const val BOOT_HOLD_MS = 350
+    /** Pixel banners stay up this long. */
+    const val TOAST_MS = 3_500L
     /** One full turn of the console logo sign. */
     const val SIGN_SPIN_MS = 9_000
+    /** The grid floor rolls one row towards you in this long. */
+    const val GRID_ROLL_MS = 2_400
     /** Focus glows breathe in and out over this long. */
     const val GLOW_PULSE_MS = 1_100
     /** INSERT COIN blink: on and off for this long each. */

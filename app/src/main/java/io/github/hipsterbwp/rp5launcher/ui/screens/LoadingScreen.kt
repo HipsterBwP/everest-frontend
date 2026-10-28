@@ -1,5 +1,12 @@
 package io.github.hipsterbwp.rp5launcher.ui.screens
 
+import androidx.compose.animation.core.Easing
+import kotlinx.coroutines.delay
+import io.github.hipsterbwp.rp5launcher.ui.PadInput
+import io.github.hipsterbwp.rp5launcher.BuildConfig
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -59,7 +66,14 @@ import kotlin.math.roundToInt
  * INSERT COIN.
  */
 @Composable
-fun LoadingScreen(step: LoadingStep) {
+fun LoadingScreen(step: LoadingStep, boot: Boolean, games: Int?, credits: Int, onBootDone: () -> Unit) {
+    // First an arcade BIOS check (skippable with any button), then the logo screen.
+    var booting by remember { mutableStateOf(boot) }
+    LaunchedEffect(booting) { if (!booting) onBootDone() }
+    if (booting) {
+        BootCheck(games) { booting = false }
+        return
+    }
     // Start-up is often done before this screen's first frame, so the bar fills over a fixed time
     // and never runs ahead of the real progress: it always visibly loads, and never lies.
     val fill = remember { Animatable(0f) }
@@ -86,7 +100,7 @@ fun LoadingScreen(step: LoadingStep) {
     Box(Modifier.fillMaxSize().background(Palette.night)) {
         RetroBackdrop()
         Txt("1UP  000000", Type.hint, Palette.pinkSoft, Modifier.align(Alignment.TopStart).padding(Space.SECTION.u), glow = Palette.pink)
-        Txt("CREDIT  01", Type.hint, Palette.cyanSoft, Modifier.align(Alignment.TopEnd).padding(Space.SECTION.u), glow = Palette.cyan)
+        Txt("CREDIT  ${credits.toString().padStart(2, '0')}", Type.hint, Palette.cyanSoft, Modifier.align(Alignment.TopEnd).padding(Space.SECTION.u), glow = Palette.cyan)
         Column(
             Modifier.fillMaxSize().padding(top = Size.SPLASH_LOGO_TOP.u),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -116,6 +130,46 @@ fun LoadingScreen(step: LoadingStep) {
             Spacer(Modifier.height(Space.GAP.u))
             Txt("INSERT COIN", Type.buttonSmall, Palette.sun1, Modifier.alpha(blink), glow = Palette.sun2)
         }
+    }
+}
+
+/**
+ * Arcade-board power-on check: lines typed out in VT323 on black, each ending in OK, with a blinking
+ * block cursor. Takes about a second; any button skips it.
+ */
+@Composable
+private fun BootCheck(games: Int?, done: () -> Unit) {
+    val lines = listOf(
+        "EVEREST ARCADE BIOS  v${BuildConfig.VERSION_CODE}",
+        "(C) 2026 EVEREST FRONTEND",
+        "",
+        "RAM CHECK .............. 8192K  OK",
+        "ROM CHECK .............. OK",
+        "VIDEO .................. 1920x1080  OK",
+        "SOUND .................. 8-BIT  OK",
+        "CONTROLLER ............. P1  OK",
+        "LIBRARY ................ ${games?.let { "$it GAMES" } ?: "SCANNING"}  OK",
+        "",
+        "STARTING...",
+    )
+    var shown by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (shown < lines.size) {
+            delay(Motion.BOOT_LINE_MS.toLong())
+            shown++
+        }
+        delay(Motion.BOOT_HOLD_MS.toLong())
+        done()
+    }
+    PadInput { _, _ -> done(); true }
+    val cursor by rememberInfiniteTransition(label = "cursor").animateFloat(
+        initialValue = 1f, targetValue = 0f,
+        animationSpec = infiniteRepeatable(tween(Motion.BLINK_MS / 2, easing = Easing { if (it < 0.5f) 0f else 1f }), RepeatMode.Reverse),
+        label = "cursor-blink",
+    )
+    Column(Modifier.fillMaxSize().background(Palette.black).padding(Space.XL.u)) {
+        lines.take(shown).forEach { Txt(it, Type.crt, if (it.endsWith("OK")) Palette.cyanSoft else Palette.ink) }
+        Box(Modifier.size(Size.BOOT_CURSOR_W.u, Size.BOOT_CURSOR_H.u).alpha(cursor).background(Palette.cyanSoft))
     }
 }
 

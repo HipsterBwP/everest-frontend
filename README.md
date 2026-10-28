@@ -60,6 +60,24 @@ and opens Android's setting to make Everest Frontend the home screen (the Home b
   downloaded play in game lists, and as a montage on the console screen after a few seconds
   (Settings › Appearance turns the montage off).
 
+## Arcade extras
+
+- **Live sky**: the backdrop follows the clock — pastel dawn, purple day, a big striped sunset, a starry
+  night with shooting stars — and the grid floor rolls towards you (Settings › Appearance › Live sky).
+- **Console colours**: each console lights the console screen in its own neon (Game Boy green, GameCube
+  purple, PS2 blue…).
+- **Insert-coin launch**: a coin sound and a CRT switch-off before a game starts, a switch-on when you come
+  back (Settings › Controls).
+- **Boot check**: an arcade BIOS check before the logo; any button skips it (Settings › Controls).
+- **Attract mode**: the screensaver plays gameplay videos from your library with INSERT COIN blinking, and
+  a high-score table of your most-played games under your initials (Settings › Controls › Your initials).
+- **Credits**: one per game you start and per 10 minutes played. Spend them in Settings › Appearance on
+  backdrop scenes (Neon City, Ocean sunset, Deep space) and the golden theme.
+- **Game of the Day**: a featured game on the console screen (R2 opens it); play it on consecutive days to
+  build a streak.
+- **Achievement banners**: new RetroAchievements unlocks pop up as pixel banners after you play.
+- **8-bit sounds** for moving, selecting and going back. And try ↑↑↓↓←→←→ B A on the console screen.
+
 ## Your own console backdrops
 
 Name one picture per system after its folder or ES-DE name: `snes.jpg`, `ps2.png`, `n64.webp`, `megadrive.jpg`…

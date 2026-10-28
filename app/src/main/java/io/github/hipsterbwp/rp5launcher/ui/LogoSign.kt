@@ -1,6 +1,7 @@
 package io.github.hipsterbwp.rp5launcher.ui
 
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -41,7 +42,7 @@ import kotlin.math.sin
  * turns, which is what makes it read as solid.
  */
 @Composable
-fun LogoSign(logo: File, modifier: Modifier = Modifier) {
+fun LogoSign(logo: File, modifier: Modifier = Modifier, accent: Color = Palette.pink) {
     val painter = rememberAsyncImagePainter(logo)
     val spin = rememberInfiniteTransition(label = "sign").animateFloat(
         initialValue = 0f,
@@ -67,14 +68,14 @@ fun LogoSign(logo: File, modifier: Modifier = Modifier) {
             Image(
                 painter, null,
                 Modifier.matchParentSize().turn(0.5f).graphicsLayer { alpha = GLOW_ALPHA * pulse.value }.blur(Size.SIGN_GLOW.u),
-                colorFilter = ColorFilter.tint(Palette.pink), contentScale = ContentScale.Fit,
+                colorFilter = ColorFilter.tint(accent), contentScale = ContentScale.Fit,
             )
             // Extrusion, back to front: deep violet fading up to hot pink.
             for (i in LAYERS downTo 1) {
                 val t = i / LAYERS.toFloat()
                 Image(
                     painter, null, Modifier.matchParentSize().turn(t),
-                    colorFilter = ColorFilter.tint(lerp(Palette.pink, Palette.violet, t)), contentScale = ContentScale.Fit,
+                    colorFilter = ColorFilter.tint(lerp(accent, Palette.violet, t)), contentScale = ContentScale.Fit,
                 )
             }
             // Cyan rim peeking above the face.
