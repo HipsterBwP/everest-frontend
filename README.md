@@ -97,6 +97,30 @@ and opens Android's setting to make Everest Frontend the home screen (the Home b
 - **Yeti-1**, a pixel yeti, walks along the bottom of the screen: it jumps when a game starts, cheers on
   achievements and sleeps in attract mode (Settings › Controls).
 
+## Base Camp (L2 on the console screen)
+
+- **The Summit**: climb Everest by playing. Every credit earned, +5 per game beaten and +10 per 100%
+  moves Yeti-1 up the mountain: Base Camp, Camps I–IV, the Hillary Step and the Summit, each with a
+  reward (outfits, backdrops, the golden theme). Reaching the top rolls special end credits.
+- **Quests**: four weekly quests (play three consoles, two hours, beat a game…) that pay credits.
+- **Wardrobe**: outfits for Yeti-1 — bought with credits, earned on the Summit, or free in season.
+- **Memory card**: every game you've played as a save block, PS2-browser style; A opens it.
+- **Codes**: a Game Genie code sheet. Codes hide in the end credits and the magazine.
+- **Magazine**: this month's issue of *Everest Power* and *Everest Wrapped*, your year in review.
+
+## Physical media and seasons
+
+- **Insert the game**: before a launch the cartridge drops into its slot, the disc spins onto its
+  tray or the UMD clicks in. Sometimes a cartridge glitches and Yeti-1 blows on it. A failed cartridge
+  launch offers R1 · *Blow on the cartridge*.
+- **Back of the box**: Y on a game's page turns the case around (ScreenScraper's back cover, or one
+  made from a screenshot and the blurb).
+- **Seasonal events**: Halloween orange with bats, a frosty winter with snow, New Year fireworks, and a
+  birthday banner (with fireworks) when one of your consoles turns a year older.
+- **Console tunes**: NES, Game Boy, Mega Drive, SNES and PlayStation each play their own original menu
+  tune on the console screen.
+- **Rumble**: small vibrations on moves, selects and launches.
+
 ## Your own console backdrops
 
 Name one picture per system after its folder or ES-DE name: `snes.jpg`, `ps2.png`, `n64.webp`, `megadrive.jpg`…

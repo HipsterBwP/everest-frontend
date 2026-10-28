@@ -7,7 +7,8 @@ import android.os.SystemClock
 import io.github.hipsterbwp.rp5launcher.R
 
 enum class UiSound { Move, Select, Back, Tab, Launch, Error, Achievement, Secret, Challenger, OneUp, BootGb, BootPs, BootGc, BootDc,
-    BootGba, BootGbc, BootMd, BootThreeDs, BootN64, BootNds, BootNes, BootSwitch, BootPs2, BootPsp, BootSnes, BootWii }
+    BootGba, BootGbc, BootMd, BootThreeDs, BootN64, BootNds, BootNes, BootSwitch, BootPs2, BootPsp, BootSnes, BootWii,
+    Insert, Disc, Blow }
 
 /** Short 8-bit navigation sounds (synthesized by tools/music/sfx.py). Toggle and volume live in config. */
 class UiSounds(context: Context) {
@@ -48,6 +49,9 @@ class UiSounds(context: Context) {
         UiSound.BootPsp to pool.load(context, R.raw.ui_boot_psp, 1),
         UiSound.BootSnes to pool.load(context, R.raw.ui_boot_snes, 1),
         UiSound.BootWii to pool.load(context, R.raw.ui_boot_wii, 1),
+        UiSound.Insert to pool.load(context, R.raw.ui_insert, 1),
+        UiSound.Disc to pool.load(context, R.raw.ui_disc, 1),
+        UiSound.Blow to pool.load(context, R.raw.ui_blow, 1),
     )
 
     private var lastMoveAt = 0L

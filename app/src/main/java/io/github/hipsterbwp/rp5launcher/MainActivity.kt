@@ -3,7 +3,11 @@ package io.github.hipsterbwp.rp5launcher
 import android.content.Intent
 import android.hardware.input.InputManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.os.Handler
 import android.os.Looper
 import android.view.InputDevice
@@ -28,10 +32,11 @@ import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
 import io.github.hipsterbwp.rp5launcher.ui.LocalPad
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadDispatcher
+import io.github.hipsterbwp.rp5launcher.ui.UiSound
 import io.github.hipsterbwp.rp5launcher.ui.UiSounds
 import io.github.hipsterbwp.rp5launcher.ui.theme.LauncherTheme
 
-private data class MusicSettings(val on: Boolean, val volume: Float, val root: String?, val off: Set<String>, val repeat: String?)
+private data class MusicSettings(val on: Boolean, val volume: Float, val root: String?, val off: Set<String>, val repeat: String?, val theme: String?)
 
 class MainActivity : ComponentActivity() {
     private val vm: LauncherViewModel by viewModels()
@@ -65,6 +70,7 @@ class MainActivity : ComponentActivity() {
         getSystemService(InputManager::class.java)?.registerInputDeviceListener(challengers, Handler(Looper.getMainLooper()))
         sounds = UiSounds(this)
         vm.soundPlayer = { sounds.play(it, UiSounds.volume(vm.config.soundVolume)) }
+        vm.haptic = ::rumble
         music = BackgroundMusic(this, lifecycleScope)
         vm.music = music
         consoleSounds = ConsoleSounds { playing -> music.duck(playing) }
@@ -76,8 +82,10 @@ class MainActivity : ComponentActivity() {
                 val cfg = vm.config
                 val videoScreen = vm.screen.let { it is Screen.Games || it is Screen.Search || it is Screen.Collection }
                 val duck = if (cfg.videoSound && videoScreen) VIDEO_DUCK else 1f
-                MusicSettings(vm.ready && cfg.music, BackgroundMusic.volume(cfg.musicLevel) * duck, cfg.romsRoot, cfg.musicOff, cfg.musicRepeat)
-            }.collect { m -> music.configure(m.on, m.volume, m.root?.let(Uri::parse), m.off, m.repeat) }
+                // On the console screen, a console with its own tune plays it.
+                val theme = if (cfg.consoleMusic && vm.screen == Screen.Home) BackgroundMusic.themeFor(vm.landedSystem) else null
+                MusicSettings(vm.ready && cfg.music, BackgroundMusic.volume(cfg.musicLevel) * duck, cfg.romsRoot, cfg.musicOff, cfg.musicRepeat, theme)
+            }.collect { m -> music.configure(m.on, m.volume, m.root?.let(Uri::parse), m.off, m.repeat, m.theme) }
         }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideSystemBars()
@@ -192,6 +200,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         getSystemService(InputManager::class.java)?.unregisterInputDeviceListener(challengers)
         vm.soundPlayer = null
+        vm.haptic = null
         vm.music = null
         vm.consoleSoundPlayer = null
         vm.quickControls = null
@@ -200,6 +209,30 @@ class MainActivity : ComponentActivity() {
         sounds.release()
         music.release()
         super.onDestroy()
+    }
+
+    private val vibrator: Vibrator? by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getSystemService(VibratorManager::class.java)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Vibrator::class.java)
+        }
+    }
+
+    /** A tick for moves, a tap for selects, a thump for launches, a buzz for errors. */
+    private fun rumble(sound: UiSound) {
+        val v = vibrator?.takeIf { it.hasVibrator() } ?: return
+        val effect = when (sound) {
+            UiSound.Move, UiSound.Tab -> VibrationEffect.createOneShot(8, 40)
+            UiSound.Select, UiSound.Back -> VibrationEffect.createOneShot(14, 80)
+            UiSound.Launch, UiSound.Insert -> VibrationEffect.createOneShot(45, 200)
+            UiSound.Error -> VibrationEffect.createWaveform(longArrayOf(0, 40, 50, 60), intArrayOf(0, 160, 0, 160), -1)
+            UiSound.Achievement, UiSound.OneUp, UiSound.Secret, UiSound.Challenger ->
+                VibrationEffect.createWaveform(longArrayOf(0, 30, 40, 30, 40, 60), intArrayOf(0, 120, 0, 160, 0, 220), -1)
+            else -> return
+        }
+        runCatching { v.vibrate(effect) }
     }
 
     private companion object {

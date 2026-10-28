@@ -83,7 +83,23 @@ data class StatsFile(
     /** Days in a row you played the Game of the Day, and the last such day ("2026-10-28"). */
     val dailyStreak: Int = 0,
     val dailyLastDay: String? = null,
+    /** Recent play sessions (newest last, capped), for quests, the monthly magazine and Wrapped. */
+    val sessions: List<SessionLog> = emptyList(),
+    /** Credits from quests and codes, on top of what playing earns. */
+    val bonusCredits: Int = 0,
+    /** Quests already paid out ("2026-W44:consoles"). */
+    val questsClaimed: Set<String> = emptySet(),
+    /** Highest Summit camp reached (0 = Base Camp). */
+    val summitCamp: Int = 0,
+    /** Game Genie codes already entered. */
+    val codesUsed: Set<String> = emptySet(),
+    /** Day each game was first marked beaten or 100% ("2026-10-28"), by game id. */
+    val beatenOn: Map<String, String> = emptyMap(),
 )
+
+/** One play session: the day it started, the console, the game id and how long it ran. */
+@Serializable
+data class SessionLog(val day: String, val system: String, val game: String, val ms: Long)
 
 /** Small JSON files in app-private storage: the last scan and play stats. */
 class LibraryStore(context: Context) {

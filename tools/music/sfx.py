@@ -116,4 +116,16 @@ if __name__ == "__main__":
     write(out, "ui_boot_psp", sum(tri(hz(m), 1.4, 2) for m in (64, 71, 76, 83)) * 0.6 + seq(rest(0.3), tri(hz(88), 1.1, 3)), 0.3)
     write(out, "ui_boot_snes", seq(*[pulse(hz(m), 0.06, 0.25) for m in (76, 79, 83, 88)], sum(pulse(hz(m), 0.8, 0.25, 3) for m in (88, 92, 95))), 0.3)
     write(out, "ui_boot_wii", seq(*[tri(hz(m), 0.14) for m in (79, 83, 86)], tri(hz(91), 0.9, 2.5)), 0.34)
+    # Media going in: a cartridge clunk, a disc spinning up, a puff of breath on the contacts.
+    rng = np.random.default_rng(64)
+    thud = sine(55, 0.18, 30)
+    thud[:int(0.06 * SR)] += 0.5 * pulse(hz(40), 0.06, 0.5, 60)
+    click = rng.standard_normal(int(0.012 * SR)) * np.linspace(1, 0, int(0.012 * SR))
+    write(out, "ui_insert", seq(click, np.zeros(int(0.03 * SR)), thud), 0.34)
+    t = np.arange(int(0.9 * SR)) / SR
+    whirr = np.sin(2 * np.pi * np.cumsum(180 + 900 * t / 0.9) / SR) * np.minimum(1, t / 0.1) * np.exp(-t * 1.2)
+    write(out, "ui_disc", whirr + 0.15 * rng.standard_normal(len(t)) * np.exp(-t * 3), 0.26)
+    n = int(0.55 * SR)
+    breath = np.convolve(rng.standard_normal(n), np.ones(40) / 40, mode="same") * np.sin(np.linspace(0, np.pi, n)) ** 1.5
+    write(out, "ui_blow", breath, 0.3)
     print("ok")

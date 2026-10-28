@@ -123,7 +123,7 @@ fun Screensaver(vm: LauncherViewModel) {
 
         if (!showScores) HistoryCard(Modifier.align(Alignment.TopCenter).padding(top = Space.SECTION.u))
         if (vm.config.mascot) {
-            Mascot(Mood.Sleep)
+            Mascot(Mood.Sleep, vm.outfit, vm.config.yetiSize)
             Txt(
                 "z Z", Type.hint, Palette.inkSecondary,
                 Modifier.align(Alignment.BottomEnd).padding(end = Space.XL.u, bottom = Size.HINT_BAR.u + Space.SECTION_LARGE.u).alpha(blink),

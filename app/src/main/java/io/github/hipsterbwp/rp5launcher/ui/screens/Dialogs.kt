@@ -47,6 +47,7 @@ import io.github.hipsterbwp.rp5launcher.ui.Dialog
 import io.github.hipsterbwp.rp5launcher.ui.Hint
 import io.github.hipsterbwp.rp5launcher.ui.HintBar
 import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
+import io.github.hipsterbwp.rp5launcher.ui.Media
 import io.github.hipsterbwp.rp5launcher.ui.ListRow
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadInput
@@ -197,11 +198,17 @@ private fun LaunchErrorDialog(vm: LauncherViewModel, d: Dialog.LaunchError) {
     fun install() {
         problem.installPackage?.let(vm::openStore)
     }
+    // Cartridge consoles: the classic fix.
+    val cartridge = Media.forSystem(d.system)?.cartridge == true && d.game != null
+    fun blow() {
+        if (cartridge) d.game?.let { vm.blowAndRetry(d.system, it) }
+    }
     PadInput { button, _ ->
         when (button) {
             Pad.A, Pad.B -> { vm.dialog = null; true }
             Pad.X -> { changeEmulator(); true }
             Pad.Y -> { install(); true }
+            Pad.R1 -> { blow(); true }
             else -> true
         }
     }
@@ -209,6 +216,7 @@ private fun LaunchErrorDialog(vm: LauncherViewModel, d: Dialog.LaunchError) {
         add(Hint(Pad.A, "OK", onClick = { vm.dialog = null }))
         add(Hint(Pad.X, "Change emulator", onClick = ::changeEmulator))
         if (problem.installPackage != null) add(Hint(Pad.Y, "Get emulator", onClick = ::install))
+        if (cartridge) add(Hint(Pad.R1, "Blow on the cartridge", onClick = ::blow))
     }
     DialogFrame(hints) {
         d.game?.let {

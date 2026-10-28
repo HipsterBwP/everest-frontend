@@ -78,6 +78,9 @@ import io.github.hipsterbwp.rp5launcher.ui.ArtImage
 import io.github.hipsterbwp.rp5launcher.ui.Hint
 import io.github.hipsterbwp.rp5launcher.ui.HintBar
 import io.github.hipsterbwp.rp5launcher.ui.LauncherViewModel
+import io.github.hipsterbwp.rp5launcher.ui.ordinalOf
+import io.github.hipsterbwp.rp5launcher.ui.Season
+import io.github.hipsterbwp.rp5launcher.ui.SeasonalSky
 import io.github.hipsterbwp.rp5launcher.ui.Pad
 import io.github.hipsterbwp.rp5launcher.ui.PadInput
 import io.github.hipsterbwp.rp5launcher.ui.Screen
@@ -166,6 +169,7 @@ private fun SystemsTab(
         if (vm.secretInput(button)) return@PadInput true
         when (button) {
             Pad.R2 -> { openDaily(); true }
+            Pad.L2 -> { vm.push(Screen.BaseCamp); true }
             Pad.Up, Pad.Left -> { if (!collections) select(index - 1); true }
             Pad.Down, Pad.Right -> { if (!collections) select(index + 1); true }
             Pad.L1 -> { switchTab(-1); true }
@@ -302,12 +306,28 @@ private fun SystemsTab(
             }
         }
 
+        // A console in your library turns a year older today: a banner, and fireworks while it's selected.
+        vm.birthday()?.let { (system, age) ->
+            if (selected?.name == system.name) SeasonalSky(Season.NewYear)
+            Row(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = (Space.SCREEN_TOP + Size.STATUS_H + Space.LG + Size.BIRTHDAY_OFFSET).u, end = Space.SCREEN_H.u)
+                    .glass(Radius.CARD_SMALL)
+                    .padding(vertical = Space.CHIP_V.u, horizontal = Space.CHIP_H.u),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Txt("★ HAPPY ${ordinalOf(age).uppercase()} BIRTHDAY, ${system.info.displayName.uppercase()}!", Type.badge, Palette.sun1, glow = Palette.sun2)
+            }
+        }
+
         val hints = buildList {
             if (selected != null) add(Hint(Pad.A, "Open", onClick = ::open))
             if (last != null) add(Hint(Pad.X, "Continue", onClick = ::resume))
             add(Hint(Pad.Y, "Search", onClick = { vm.push(Screen.Search) }))
             add(Hint(listOf(Pad.L1, Pad.R1), "Switch tab", onClick = { switchTab(1) }))
             if (daily != null) add(Hint(Pad.R2, "Today's game", onClick = ::openDaily))
+            add(Hint(Pad.L2, "Base Camp", onClick = { vm.push(Screen.BaseCamp) }))
             add(Hint(Pad.Start, "Settings", trailing = true, onClick = openSettings))
         }
         HintBar(hints, onSystem = true, glyphInk = Palette.inkOnLight)

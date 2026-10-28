@@ -44,6 +44,8 @@ data class GameArt(
     val titleShot: String? = null,
     /** When Wikipedia was asked for a description (0 = not yet). */
     val wikiCheckedAt: Long = 0,
+    /** Back of the box (ScreenScraper box-2D-back). */
+    val boxBack: String? = null,
 )
 
 /** One scraping run's ScreenScraper state: one request at a time, and a stop reason if refused. */
@@ -203,6 +205,7 @@ class Scraper(context: Context) {
             rating = previous?.rating,
             players = previous?.players,
             ssCheckedAt = previous?.ssCheckedAt ?: 0,
+            boxBack = previous?.boxBack,
         )
     }
 
@@ -227,6 +230,7 @@ class Scraper(context: Context) {
             // ScreenScraper's scan beats a Wikipedia thumbnail; libretro's set is kept when it has one.
             box = (if (base.matched == null) fetch(found.boxUrl, "box/$id.webp", BOX_MAX_H) else null) ?: base.box,
             fanart = fetch(found.fanartUrl, "fanart/$id.webp", FANART_MAX_H) ?: base.fanart,
+            boxBack = fetch(found.boxBackUrl, "back/$id.webp", BOX_MAX_H) ?: base.boxBack,
             snap = base.snap ?: fetch(found.screenshotUrl, "snap/$id.webp", SNAP_MAX_H),
             video = found.videoUrl ?: base.video,
             description = found.description ?: base.description,

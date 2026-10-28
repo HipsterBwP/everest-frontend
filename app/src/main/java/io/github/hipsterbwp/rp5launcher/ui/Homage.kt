@@ -287,7 +287,7 @@ private const val ONE_UP_RISE = 60f
 
 /** The roll from Settings › About: who made what, ending in THANK YOU FOR PLAYING. B (or anything) exits. */
 @Composable
-fun CreditsRoll(initials: String, onDone: () -> Unit) {
+fun CreditsRoll(initials: String, summit: Boolean = false, onDone: () -> Unit) {
     PadInput { _, _ -> onDone(); true }
     val blocks = listOf(
         "EVEREST FRONTEND" to listOf("A controller-first launcher", "for the Retroid Pocket 5"),
@@ -298,6 +298,13 @@ fun CreditsRoll(initials: String, onDone: () -> Unit) {
         "GAME DATA" to listOf("ScreenScraper", "RetroAchievements", "ES-DE media"),
         "MUSIC & SOUND" to listOf("Neon Drift", "Pixel Garden", "After Hours", "After Hours (8-bit)", "Synthesized in Python"),
         "MASCOT" to listOf("Yeti-1"),
+        "OVERHEARD AT BASE CAMP" to listOf(
+            "\"Try YETIYETI on the code sheet.\"",
+            "\"TINYYETI works too.\"",
+            "\"PIXELS makes everything crunchy.\"",
+            "\"Tired? SNOOZE.\"",
+            "\"TOASTY!\"",
+        ),
         "SPECIAL THANKS" to listOf("Every console that came before", "and everyone who played them"),
     )
     var height by remember { mutableIntStateOf(0) }
@@ -327,6 +334,12 @@ fun CreditsRoll(initials: String, onDone: () -> Unit) {
                 Spacer(Modifier.height(Space.XL.u))
             }
             Spacer(Modifier.height(Space.XL.u))
+            if (summit) {
+                Txt("8,849 m", Type.hero, Palette.white, glow = Palette.cyan)
+                Spacer(Modifier.height(Space.MD.u))
+                ChromeTxt("You reached the summit", Type.screenTitle)
+                Spacer(Modifier.height(Space.XL.u))
+            }
             ChromeTxt("Thank you for playing", Type.screenTitle)
             Spacer(Modifier.height(Space.LG.u))
             Txt(initials, Type.hero, Palette.sun1, glow = Palette.sun2)

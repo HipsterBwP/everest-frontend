@@ -89,6 +89,18 @@ data class LauncherConfig(
     val bootTributes: String = "daily",
     /** Yeti-1, the pixel mascot walking along the hint bar. */
     val mascot: Boolean = true,
+    /** Yeti-1's outfit from the Wardrobe (null = none, or the season's when seasonal events are on). */
+    val yetiOutfit: String? = null,
+    /** "normal", "big" or "tiny" (Game Genie codes). */
+    val yetiSize: String = "normal",
+    /** Halloween, winter, New Year and console birthdays dress up the launcher. */
+    val seasonal: Boolean = true,
+    /** Each console plays its own menu tune on the console screen. */
+    val consoleMusic: Boolean = true,
+    /** Small vibrations on menu moves and launches. */
+    val rumble: Boolean = true,
+    /** The game's cartridge, disc or UMD goes in before a launch. */
+    val mediaInsert: Boolean = true,
     /** Your three-letter initials for the high-score table. */
     val initials: String = "AAA",
 ) {

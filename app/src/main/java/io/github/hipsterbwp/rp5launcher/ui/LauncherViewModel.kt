@@ -40,6 +40,7 @@ import io.github.hipsterbwp.rp5launcher.data.LibraryScanner
 import io.github.hipsterbwp.rp5launcher.data.LibraryStore
 import io.github.hipsterbwp.rp5launcher.data.StatsFile
 import io.github.hipsterbwp.rp5launcher.data.Progress
+import io.github.hipsterbwp.rp5launcher.data.SessionLog
 import io.github.hipsterbwp.rp5launcher.data.SystemDef
 import io.github.hipsterbwp.rp5launcher.data.SystemInfo
 import io.github.hipsterbwp.rp5launcher.data.SystemMeta
@@ -64,6 +65,8 @@ sealed interface Screen {
     data object Settings : Screen
     data object Search : Screen
     data class Collection(val key: String) : Screen
+    /** The Base Camp hub: Summit, quests, wardrobe, memory card, codes and the magazine. */
+    data object BaseCamp : Screen
 }
 
 sealed interface Dialog {
@@ -201,8 +204,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Set by the activity: plays a navigation sound if sounds are on. */
     var soundPlayer: ((UiSound) -> Unit)? = null
 
+    /** Set by the activity: a short vibration to go with a sound. */
+    var haptic: ((UiSound) -> Unit)? = null
+
     fun sound(sound: UiSound) {
         if (config.navigationSounds) soundPlayer?.invoke(sound)
+        if (config.rumble) haptic?.invoke(sound)
     }
 
     /** Sound Test: plays [sound] even when navigation sounds are off. */
@@ -371,7 +378,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private var lastConsoleSound: String? = null
 
     /** Plays the startup sound for the console you've landed on (once per visit, not on return). */
+    /** The console the console screen last settled on (for its menu tune). */
+    var landedSystem by mutableStateOf<String?>(null)
+        private set
+
     fun landedOn(system: String) {
+        landedSystem = system
         if (system == lastConsoleSound) return
         lastConsoleSound = system
         if (!config.consoleSounds) return
@@ -683,8 +695,15 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleFavorite(game: Game) = updateStats(game) { it.copy(favorite = !it.favorite) }
 
     /** Steps through Not tracked → Backlog → Playing → Beaten → 100% complete. */
-    fun cycleStatus(game: Game) = updateStats(game) {
-        it.copy(status = Progress.ORDER[(Progress.ORDER.indexOf(it.status) + 1) % Progress.ORDER.size])
+    fun cycleStatus(game: Game) {
+        updateStats(game) {
+            it.copy(status = Progress.ORDER[(Progress.ORDER.indexOf(it.status) + 1) % Progress.ORDER.size])
+        }
+        val status = stats(game).status
+        if ((status == Progress.BEATEN || status == Progress.COMPLETED) && game.id !in stats.beatenOn) {
+            updateStatsFile { it.copy(beatenOn = it.beatenOn + (game.id to java.time.LocalDate.now().toString())) }
+        }
+        checkSummit()
     }
 
     fun statusCounts(): Map<String, Int> =
@@ -891,6 +910,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun boxArt(game: Game): File? = scraper.file(art[game.id]?.box)
 
     fun snapArt(game: Game): File? = scraper.file(art[game.id]?.snap)
+
+    fun boxBack(game: Game): File? = scraper.file(art[game.id]?.boxBack)
+
+    fun gameDescription(game: Game): String? = art[game.id]?.description
 
     fun artFor(game: Game): GameArt? = art[game.id]
 
@@ -1250,6 +1273,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val mascotMood: Mood
         get() = when {
             crt == CrtFx.Off -> Mood.Jump
+            napping -> Mood.Sleep
             toasts.isNotEmpty() || oneUp > 0 || challenger -> Mood.Cheer
             else -> Mood.Walk
         }
@@ -1270,8 +1294,38 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (toasts.isNotEmpty()) toasts.removeAt(0)
     }
 
-    /** Starts a game: coin sound and CRT switch-off first (if on), then the emulator. */
+    /** The game's cartridge, disc or UMD going in before a launch. */
+    var insert by mutableStateOf<InsertFx?>(null)
+        private set
+
+    /** Starts a game: its media goes in, then the coin sound and CRT switch-off (if on), then the emulator. */
     fun play(system: String, game: Game) {
+        if (insert != null || crt == CrtFx.Off) return
+        val media = Media.forSystem(system)
+        if (config.mediaInsert && media != null) {
+            // Now and then a cartridge doesn't take on the first try. Blow on it.
+            val glitch = media.cartridge && kotlin.random.Random.nextInt(GLITCH_ODDS) == 0
+            insert = InsertFx(system, game, media, glitch = glitch, blow = false)
+            return
+        }
+        playNow(system, game)
+    }
+
+    /** Called by the insert animation when it's done. */
+    fun insertDone() {
+        val fx = insert ?: return
+        insert = null
+        playNow(fx.system, fx.game)
+    }
+
+    /** From a failed cartridge launch: blow on the cartridge and try again. */
+    fun blowAndRetry(system: String, game: Game) {
+        dialog = null
+        val media = Media.forSystem(system) ?: return play(system, game)
+        insert = InsertFx(system, game, media, glitch = false, blow = true)
+    }
+
+    private fun playNow(system: String, game: Game) {
         if (!config.launchEffects) {
             launchNow(system, game, coinPlayed = false)
             return
@@ -1286,14 +1340,173 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // -----------------------------------------------------------------------------------------
+    // Base Camp: the Summit, quests, wardrobe, codes, magazine, seasons
+    // -----------------------------------------------------------------------------------------
+
+    private fun logSession(log: SessionLog) =
+        updateStatsFile { it.copy(sessions = (it.sessions + log).takeLast(MAX_SESSIONS)) }
+
+    fun climb(): Climb {
+        val counts = statusCounts()
+        return climb(earnedCredits(), counts[Progress.BEATEN] ?: 0, counts[Progress.COMPLETED] ?: 0)
+    }
+
+    /** Announces camps newly reached (and hands out their rewards); the Summit rolls special credits. */
+    fun checkSummit() {
+        val now = climb()
+        if (now.camp <= stats.summitCamp) return
+        val reached = CAMPS.subList(stats.summitCamp + 1, now.camp + 1)
+        updateStatsFile { s -> s.copy(summitCamp = now.camp, unlocks = s.unlocks + reached.mapNotNull { it.reward }) }
+        reached.forEach { camp ->
+            toast(Toast("${camp.name} reached · ${"%,d".format(camp.metres)} m", camp.rewardTitle ?: camp.name, "Unlocked — see Base Camp", UiSound.Secret))
+        }
+        if (now.summit) {
+            summitRoll = true
+            creditsRoll = true
+        }
+    }
+
+    /** The end credits are the Summit's (YOU REACHED THE SUMMIT) rather than the About page's. */
+    var summitRoll by mutableStateOf(false)
+
+    private fun weekSessions(): List<SessionLog> {
+        val start = weekStart().toString()
+        return stats.sessions.filter { it.day >= start }
+    }
+
+    /** This week's quests with your progress on each. */
+    fun quests(): List<Pair<Quest, Int>> {
+        val start = weekStart().toString()
+        val context = QuestContext(
+            week = weekSessions(),
+            beatenThisWeek = stats.beatenOn.values.count { it >= start },
+            consoleYear = { name -> system(name)?.info?.year },
+        )
+        return questsFor(weekKey()).map { it to it.progress(context).coerceAtMost(it.goal) }
+    }
+
+    fun questClaimed(quest: Quest): Boolean = "${weekKey()}:${quest.id}" in stats.questsClaimed
+
+    fun claimQuest(quest: Quest) {
+        val done = quests().firstOrNull { it.first.id == quest.id }?.let { it.second >= quest.goal } == true
+        if (!done || questClaimed(quest)) {
+            sound(UiSound.Error)
+            return
+        }
+        updateStatsFile {
+            it.copy(bonusCredits = it.bonusCredits + quest.reward, questsClaimed = it.questsClaimed + "${weekKey()}:${quest.id}")
+        }
+        toast(Toast("Quest complete", quest.title, "+${quest.reward} credits", UiSound.OneUp))
+        checkSummit()
+    }
+
+    /** The season, when seasonal events are on. */
+    val season: Season? get() = if (config.seasonal) seasonOn() else null
+
+    /** A console in your library that has its birthday today, and its age. */
+    fun birthday(): Pair<SystemEntry, Int>? =
+        if (!config.seasonal) null else birthdayOn(systems.map { it.name })?.let { (name, age) -> system(name)?.let { it to age } }
+
+    fun ownsOutfit(outfit: Outfit): Boolean =
+        "outfit:${outfit.key}" in stats.unlocks || (outfit.season != null && outfit.season == season)
+
+    /** What Yeti-1 wears: your pick, or the season's outfit. */
+    val outfit: Outfit?
+        get() = Outfit.of(config.yetiOutfit)?.takeIf(::ownsOutfit) ?: season?.let { s -> Outfit.entries.firstOrNull { it.season == s } }
+
+    /** Wears an owned outfit (again to take it off), or buys it if it's for sale. */
+    fun pickOutfit(outfit: Outfit) {
+        if (!ownsOutfit(outfit)) {
+            val cost = outfit.cost
+            if (cost == null) {
+                toast(Toast("Locked", outfit.title, if (outfit.season != null) "Free during ${outfit.season.title}" else "Climb the Summit to earn it", UiSound.Error))
+                return
+            }
+            if (credits() < cost) {
+                toast(Toast("Not enough credits", outfit.title, "$cost needed · play to earn more", UiSound.Error))
+                return
+            }
+            updateStatsFile { it.copy(spentCredits = it.spentCredits + cost, unlocks = it.unlocks + "outfit:${outfit.key}") }
+            toast(Toast("Bought!", outfit.title, "Yeti-1 is wearing it", UiSound.Secret))
+        }
+        updateConfig { it.copy(yetiOutfit = if (it.yetiOutfit == outfit.key) null else outfit.key) }
+    }
+
+    /** Yeti-1 is napping (SNOOZE). */
+    var napping by mutableStateOf(false)
+
+    /** Checks a Game Genie code; true if it did something. */
+    fun enterCode(code: String): Boolean {
+        val genie = GenieCode.of(code)
+        if (genie == null) {
+            toast(Toast("Game Genie", "$code", "Nothing happens…", UiSound.Error))
+            return false
+        }
+        val first = code !in stats.codesUsed
+        if (first) updateStatsFile { it.copy(codesUsed = it.codesUsed + code) }
+        when (genie) {
+            GenieCode.BigYeti -> updateConfig { it.copy(yetiSize = if (it.yetiSize == "big") "normal" else "big") }
+            GenieCode.TinyYeti -> updateConfig { it.copy(yetiSize = if (it.yetiSize == "tiny") "normal" else "tiny") }
+            GenieCode.Pixels -> updateConfig { it.copy(crtEffect = !it.crtEffect) }
+            GenieCode.Sunset -> if (first) updateStatsFile { it.copy(bonusCredits = it.bonusCredits + 10) }
+            GenieCode.Snooze -> {
+                napping = true
+                viewModelScope.launch {
+                    delay(NAP_MS)
+                    napping = false
+                }
+            }
+            GenieCode.Toasty -> Unit
+        }
+        toast(Toast("Code accepted", if (genie == GenieCode.Toasty) "TOASTY!" else genie.title, code, UiSound.Secret))
+        return true
+    }
+
+    fun codesFound(): Int = stats.codesUsed.count { GenieCode.of(it) != null }
+
+    fun codeFound(code: GenieCode): Boolean = code.code in stats.codesUsed
+
+    fun gameById(id: String?): Pair<SystemEntry, Game>? =
+        id?.let { systems.firstNotNullOfOrNull { s -> s.games.firstOrNull { it.id == id }?.let { s to it } } }
+
+    /** This month's issue of the magazine. */
+    fun monthIssue(): Issue {
+        val today = java.time.LocalDate.now()
+        val prefix = today.toString().take(7)
+        val name = today.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())
+        return issueOf("$name ${today.year}", stats.sessions.filter { it.day.startsWith(prefix) })
+    }
+
+    /** The year so far, for Everest Wrapped. */
+    fun yearIssue(): Issue {
+        val year = java.time.LocalDate.now().year.toString()
+        return issueOf(year, stats.sessions.filter { it.day.startsWith(year) })
+    }
+
+    fun beatenThisYear(): Int {
+        val year = java.time.LocalDate.now().year.toString()
+        return stats.beatenOn.values.count { it.startsWith(year) }
+    }
+
+    /** Played games, most recent first, for the memory card. */
+    fun memoryCard(): List<Pair<SystemEntry, Game>> =
+        allGames().filter { stats(it.second).lastPlayed > 0 }.sortedByDescending { stats(it.second).lastPlayed }
+
+    fun setSeasonal(enabled: Boolean) = updateConfig { it.copy(seasonal = enabled) }
+    fun setConsoleMusic(enabled: Boolean) = updateConfig { it.copy(consoleMusic = enabled) }
+    fun setRumble(enabled: Boolean) = updateConfig { it.copy(rumble = enabled) }
+    fun setMediaInsert(enabled: Boolean) = updateConfig { it.copy(mediaInsert = enabled) }
+
+    // -----------------------------------------------------------------------------------------
     // Credits and unlocks, the Konami code, Game of the Day
     // -----------------------------------------------------------------------------------------
 
     /** Credits earned: one per launch and one per 10 minutes played, minus what the shop took. */
-    fun credits(): Int {
-        val earned = stats.games.values.sumOf { it.playCount + (it.playtimeMs / CREDIT_MS).toInt() }
-        return (earned - stats.spentCredits).coerceAtLeast(0)
-    }
+    fun credits(): Int = (earnedCredits() - stats.spentCredits).coerceAtLeast(0)
+
+    /** Every credit ever earned: launches, play time, quests and codes. */
+    fun earnedCredits(): Int =
+        stats.games.values.sumOf { it.playCount + (it.playtimeMs / CREDIT_MS).toInt() } + stats.bonusCredits
 
     /** Your library as an RPG character sheet for Settings › Stats. */
     fun rpgStatus(): RpgStatus {
@@ -1441,13 +1654,15 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Called when the launcher comes back to the foreground. */
     fun onResumed() {
+        val creditsBefore = credits()
         session?.let { (id, start) ->
             val elapsed = (System.currentTimeMillis() - start).coerceIn(0, MAX_SESSION_MS)
-            val game = systems.firstNotNullOfOrNull { s -> s.games.firstOrNull { it.id == id } }
+            val system = systems.firstOrNull { s -> s.games.any { it.id == id } }
+            val game = system?.games?.firstOrNull { it.id == id }
             if (game != null) updateStats(game) { it.copy(playtimeMs = it.playtimeMs + elapsed) }
+            if (system != null) logSession(SessionLog(java.time.LocalDate.now().toString(), system.name, id, elapsed))
         }
         val played = session != null
-        val creditsBefore = credits()
         session = null
         // Back from a game: the screen switches back on like a CRT.
         if (played && config.launchEffects) {
@@ -1462,6 +1677,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         redetectEmulators()
         // Back from a game: pick up any achievements unlocked in it.
         if (played) refreshRetroAchievements(userInitiated = false)
+        if (played) checkSummit()
         // Earned credits while playing: 1UP!
         val gained = credits() - creditsBefore
         if (played && gained > 0) {
@@ -1521,11 +1737,43 @@ private const val HIGH_SCORES = 10
 /** One credit per this much play time. */
 private const val CREDIT_MS = 10L * 60 * 1000
 private const val HOUR_MS = 60L * 60 * 1000
+private const val MAX_SESSIONS = 3000
+private const val GLITCH_ODDS = 40
+private const val NAP_MS = 60_000L
 /** Spreads consecutive days across the library (a large prime). */
 private const val DAILY_MIX = 7919L
 
 /** CRT effect around a launch: switching off before the emulator opens, back on after. */
 enum class CrtFx { Off, On }
+
+/** A launch's media going in: [glitch] fails first and gets blown on; [blow] starts with the blowing. */
+data class InsertFx(val system: String, val game: Game, val media: Media, val glitch: Boolean, val blow: Boolean)
+
+/** What a console's games come on, and the colour of its shell. */
+enum class Media(val cartridge: Boolean) {
+    Cartridge(true), HandheldCart(true), Disc(false), Umd(false);
+
+    companion object {
+        fun forSystem(system: String): Media? = when (system) {
+            "nes", "famicom", "snes", "sfc", "n64", "megadrive", "genesis", "mastersystem", "atari2600", "atari7800", "pcengine", "tg16" -> Cartridge
+            "gb", "gbc", "gba", "nds", "n3ds", "switch", "virtualboy", "gamegear", "ngp", "ngpc", "atarilynx", "wonderswan", "wonderswancolor" -> HandheldCart
+            "psx", "ps2", "gc", "wii", "dreamcast", "saturn", "segacd", "3do", "pcenginecd" -> Disc
+            "psp" -> Umd
+            else -> null
+        }
+
+        /** Shell colour of a console's cartridges. */
+        fun shell(system: String): Color = when (system) {
+            "nes", "famicom", "snes", "sfc", "gb" -> Color(0xFF8E8E93)
+            "n64" -> Color(0xFF5E5E66)
+            "gbc" -> Color(0xFF3B3B44)
+            "gba", "megadrive", "genesis", "mastersystem" -> Color(0xFF26262C)
+            "nds", "n3ds" -> Color(0xFF3A3A40)
+            "switch" -> Color(0xFFD9DDE3)
+            else -> Color(0xFF55555F)
+        }
+    }
+}
 
 /** A pixel banner: "ACHIEVEMENT UNLOCKED!", an unlock, a secret. */
 data class Toast(val eyebrow: String, val title: String, val detail: String? = null, val sound: UiSound = UiSound.Achievement)

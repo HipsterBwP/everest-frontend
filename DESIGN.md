@@ -93,6 +93,15 @@ talking; the chrome is neon-framed panels over it. Layout proportions are unchan
   moods: Walk, Jump (CRT off), Cheer (banners, 1UP, challenger), Sleep (attract mode).
 - New sounds come from `tools/music/sfx.py`; history facts from `assets/history.json` ("MM-DD" keys).
 
+### Base Camp and physical media
+
+- Base Camp (`ui/screens/BaseCampScreen.kt`) is the one hub for the meta-game; its logic lives in
+  `ui/Expedition.kt` (camps, quests, outfits, codes, seasons, issues) and its data in `StatsFile`
+  (session log capped at 3000, bonus credits, claimed quests, summit camp, codes, beaten dates).
+- The insert animation (`ui/MediaInsert.kt`) runs before the coin/CRT launch and swallows input.
+- Seasonal looks swap the neon theme (Pumpkin, Frost) unless Gold is on; weather is drawn by
+  `ui/Seasons.kt` over the console screen and Base Camp only.
+
 ### Brand
 
 - Name: **Everest Frontend**; the app label under the icon is just "Everest" ("Everest" in running text,

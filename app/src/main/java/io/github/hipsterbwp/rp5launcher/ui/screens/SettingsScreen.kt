@@ -525,6 +525,9 @@ private fun appearanceItems(vm: LauncherViewModel, accent: Color, importArt: () 
                 )
             }
         },
+        toggle("seasonal", "Seasonal events", "Halloween, winter and New Year looks, and console birthdays", c.seasonal, accent) {
+            vm.setSeasonal(!c.seasonal)
+        },
         toggle("era", "Era skins", "Game lists dress up as their console: Game Boy green, Virtual Boy red, NES, PlayStation, Dreamcast", c.eraSkins, accent) {
             vm.setEraSkins(!c.eraSkins)
         },
@@ -715,6 +718,9 @@ private fun soundItems(vm: LauncherViewModel, accent: Color, importSounds: () ->
                 Txt(if (vm.config.music) "On" else "Off", Type.labelStrong, if (vm.config.music) Palette.ok else Palette.inkSecondary)
             }
         },
+        toggle("consolemusic", "Console tunes", "NES, Game Boy, Mega Drive, SNES and PlayStation play their own menu music", vm.config.consoleMusic, accent) {
+            vm.setConsoleMusic(!vm.config.consoleMusic)
+        },
         Item("musicvolume", onAdjust = vm::stepMusicLevel) { focused ->
             ListRow(focused, accent) {
                 Txt("Music volume", Type.rowTitle, Palette.ink)
@@ -776,6 +782,7 @@ private val SOUND_NAMES = mapOf(
     UiSound.BootThreeDs to "Depth chime", UiSound.BootN64 to "Block tumble", UiSound.BootNds to "Dual-screen ding",
     UiSound.BootNes to "Title card", UiSound.BootSnes to "Super chord", UiSound.BootSwitch to "Click",
     UiSound.BootPs2 to "Tower drone", UiSound.BootPsp to "Light wave", UiSound.BootWii to "Channel chime",
+    UiSound.Insert to "Cartridge in", UiSound.Disc to "Disc spin-up", UiSound.Blow to "Blow on the cartridge",
 )
 
 @Composable
@@ -810,6 +817,12 @@ private fun controlsItems(vm: LauncherViewModel, accent: Color): List<Item> {
         },
         toggle("mascot", "Yeti-1", "The pixel mascot walking along the bottom of the screen", cfg.mascot, accent) {
             vm.setMascot(!cfg.mascot)
+        },
+        toggle("insert", "Insert the game", "The cartridge, disc or UMD goes in before a game starts", cfg.mediaInsert, accent) {
+            vm.setMediaInsert(!cfg.mediaInsert)
+        },
+        toggle("rumble", "Rumble", "Small vibrations when moving, selecting and launching", cfg.rumble, accent) {
+            vm.setRumble(!cfg.rumble)
         },
         Item("initials", onA = { vm.editInitials() }, aLabel = "Edit") { focused ->
             ListRow(focused, accent) {

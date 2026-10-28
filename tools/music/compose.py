@@ -355,11 +355,178 @@ def after_hours_8bit():
     return t.render(np.zeros_like(t.dry), reverb=(0.6, 6000), wet=0.08)
 
 
+# ---------------------------------------------------------------------------------------------
+# Console-flavoured menu tunes (original; only the sound palette nods to each console)
+# ---------------------------------------------------------------------------------------------
+
+def fm(f, n, ratio=1.0, index=2.0, index_decay=6.0):
+    """Two-operator FM: a sine carrier whose phase is pushed by a decaying sine modulator."""
+    t = np.arange(n) / SR
+    return np.sin(2 * np.pi * f * t + index * np.exp(-t * index_decay) * np.sin(2 * np.pi * f * ratio * t))
+
+
+def notes(t, start, seq, step, voice, gain, pan=0.0, send=0.0, gate=0.9):
+    """Plays [seq] (MIDI numbers, 0 = rest, -1 = hold previous) one per [step] seconds with [voice](f, n)."""
+    i = 0
+    while i < len(seq):
+        m = seq[i]
+        held = 1
+        while i + held < len(seq) and seq[i + held] == -1:
+            held += 1
+        if m > 0:
+            n = int(step * held * SR * gate)
+            t.add(voice(hz(m), n), start + i * step, gain, pan=pan, send=send)
+        i += held
+
+
+def drums(t, start, bars, kick_beats=(0, 2), snare_beats=(1, 3), hat=True, gain=1.0, chip=True):
+    for b in range(bars * 4):
+        at = start + b * t.beat
+        beat = b % 4
+        if beat in kick_beats:
+            n = int(0.12 * SR)
+            tt = np.arange(n) / SR
+            f = 150 * np.exp(-tt * 26) + 45
+            k = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt * 18)
+            t.add(np.sign(k) * np.abs(k) ** 0.5 if chip else k, at, 0.3 * gain)
+        if beat in snare_beats:
+            t.add(chip_noise(int(0.15 * SR), 9000 if chip else 30000, 22, seed=b), at, 0.14 * gain)
+        if hat:
+            t.add(chip_noise(int(0.035 * SR), 24000, 90, seed=7), at + t.beat / 2, 0.05 * gain)
+
+
+def console_nes():
+    """Heroic C major quest theme: two pulses, triangle bass, noise drums. 144 BPM."""
+    t = Track(144, 16)
+    s = t.beat / 2
+    prog = [(48, "M"), (45, "m"), (41, "M"), (43, "M")]
+    lead = [
+        [72, -1, 76, 79, 84, -1, 83, 79], [81, -1, 76, -1, 72, 74, 76, -1],
+        [77, -1, 81, 84, 81, 79, 77, 76], [74, -1, 79, -1, 83, 86, 83, 79],
+    ]
+    for bar in range(16):
+        root, kind = prog[bar % 4]
+        st = bar * t.bar
+        notes(t, st, [root - 12, root, root - 12, root, root - 12, root, root + 7 - 12, root + 7], s,
+              lambda f, n: tri(f, n) * adsr(n, 0.002, 0.05, 0.8, 0.02), 0.42)
+        tones = chord_tones(root + 24, kind)
+        notes(t, st, [tones[i % 3] for i in range(8)], s, lambda f, n: pulse(f, n, 0.125) * adsr(n, 0.001, 0.05, 0.4, 0.01), 0.06, pan=-0.3)
+        if bar >= 2:
+            notes(t, st, lead[bar % 4] if bar < 10 else [m + (12 if m > 0 else 0) if m > 0 else m for m in lead[bar % 4]], s,
+                  lambda f, n: pulse(f, n, 0.25) * adsr(n, 0.002, 0.08, 0.7, 0.03), 0.12, pan=0.2)
+    drums(t, 2 * t.bar, 14)
+    return t.render(np.zeros_like(t.dry), reverb=(0.5, 6000), wet=0.06)
+
+
+def console_gb():
+    """Bouncy A minor town theme in four-colour mono: two pulses and a stepped wave bass. 128 BPM."""
+    t = Track(128, 16)
+    s = t.beat / 2
+    prog = [(45, "m"), (41, "M"), (48, "M"), (43, "M")]
+    lead = [
+        [76, 0, 72, 76, 81, 0, 79, 76], [77, 0, 76, 72, 69, 0, 72, 0],
+        [79, 0, 76, 79, 84, 83, 81, 79], [79, 0, 74, 0, 71, 74, 79, 0],
+    ]
+    def wave(f, n):  # 4-bit stepped triangle, like the wave channel
+        return np.round(tri(f, n) * 7) / 7
+    for bar in range(16):
+        root, kind = prog[bar % 4]
+        st = bar * t.bar
+        notes(t, st, [root, 0, root + 12, 0, root + 7, 0, root + 12, root + 7], s,
+              lambda f, n: wave(f, n) * adsr(n, 0.002, 0.04, 0.7, 0.02), 0.4)
+        if bar >= 1:
+            notes(t, st, lead[bar % 4], s, lambda f, n: pulse(f, n, 0.5) * adsr(n, 0.002, 0.12, 0.5, 0.03), 0.1)
+            tones = chord_tones(root + 24, kind)
+            notes(t, st + s / 2, [tones[(i * 2) % 3] if i % 2 else 0 for i in range(8)], s,
+                  lambda f, n: pulse(f, n, 0.125) * adsr(n, 0.001, 0.03, 0.3, 0.01), 0.05)
+    drums(t, t.bar, 15, snare_beats=(1, 3), hat=False, gain=0.7)
+    out = t.render(np.zeros_like(t.dry), reverb=(0.3, 6000), wet=0.0)
+    return np.stack([out.mean(axis=1)] * 2, axis=1)  # the Game Boy speaker is mono
+
+
+def console_md():
+    """E minor 16-bit funk: FM slap bass, FM brass stabs and lead, PSG hats. 150 BPM."""
+    t = Track(150, 16)
+    s = t.beat / 4
+    prog = [(40, "m7"), (40, "m7"), (45, "m7"), (47, "m7")]
+    bass_riff = [0, -1, 12, 0, -1, 0, 10, 12, 0, -1, 7, -1, 10, 12, 0, -1]
+    lead = [
+        [76, -1, -1, 79, -1, 81, -1, 79, 76, -1, 74, -1, 76, -1, -1, -1],
+        [76, -1, -1, 79, -1, 83, -1, 81, 79, -1, 81, -1, 83, -1, 86, -1],
+        [84, -1, -1, 83, -1, 81, -1, 79, 81, -1, 79, -1, 76, -1, -1, -1],
+        [78, -1, 79, -1, 81, -1, 83, -1, 86, -1, 83, -1, 81, -1, 79, -1],
+    ]
+    for bar in range(16):
+        root, kind = prog[bar % 4]
+        st = bar * t.bar
+        notes(t, st, [root + d if d >= 0 else d for d in bass_riff], s,
+              lambda f, n: fm(f, n, 1.0, 3.5, 14) * adsr(n, 0.001, 0.1, 0.6, 0.02), 0.34)
+        tones = chord_tones(root + 24, kind)
+        for hit in (0.0, 1.5 * t.beat, 3 * t.beat):
+            n = int(0.16 * SR)
+            stab = sum(fm(hz(m), n, 1.0, 1.6, 8) for m in tones) / len(tones)
+            t.add(stab * adsr(n, 0.003, 0.08, 0.5, 0.04), st + hit, 0.12, pan=-0.2, send=0.2)
+        if bar >= 4:
+            notes(t, st, lead[bar % 4], s, lambda f, n: fm(f, n, 2.0, 1.2, 2) * adsr(n, 0.01, 0.1, 0.8, 0.05), 0.13, pan=0.2, send=0.3)
+    drums(t, 0, 16, kick_beats=(0, 2), snare_beats=(1, 3), gain=0.9)
+    return t.render(np.zeros_like(t.dry), reverb=(0.8, 5000), wet=0.12)
+
+
+def console_snes():
+    """Warm F major overworld: soft strings, plucked keys, a flute lead and the famous echo. 96 BPM."""
+    t = Track(96, 16)
+    s = t.beat / 2
+    prog = [(41, "M7"), (38, "m7"), (46, "M7"), (48, "6")]
+    lead = [
+        [77, -1, -1, 81, 79, -1, 77, 76], [74, -1, -1, 77, 76, -1, 74, 72],
+        [74, -1, 77, -1, 81, -1, 84, 82], [81, -1, -1, -1, 79, -1, 0, 0],
+    ]
+    def strings(f, n):
+        return lowpass(saw(f, n, 10, 0.003) + saw(f, n, 10, -0.003), 2500)
+    def flute(f, n):
+        tt = np.arange(n) / SR
+        return np.sin(2 * np.pi * f * tt * (1 + 0.003 * np.sin(2 * np.pi * 5 * tt))) + 0.2 * np.sin(4 * np.pi * f * tt)
+    for bar in range(16):
+        root, kind = prog[bar % 4]
+        st = bar * t.bar
+        n = int(t.bar * SR)
+        pad = sum(strings(hz(m), n) for m in chord_tones(root + 12, kind)) / 4
+        t.add(pad * adsr(n, 0.4, 0.3, 0.8, 0.5), st, 0.14, send=0.5)
+        notes(t, st, [root - 12, -1, root - 5, -1, root, -1, root - 5, -1], s, lambda f, n: tri(f, n) * adsr(n, 0.005, 0.2, 0.6, 0.05), 0.3)
+        tones = chord_tones(root + 24, kind)
+        notes(t, st, [tones[i % len(tones)] for i in range(8)], s, lambda f, n: epiano(f, n) * adsr(n, 0.002, 0.3, 0.0, 0.05), 0.06, pan=-0.3, send=0.4)
+        if bar >= 2:
+            for echo, g in ((0, 0.13), (3 * s / 2, 0.05)):
+                notes(t, st + echo, lead[bar % 4], s, lambda f, n: flute(f, n) * adsr(n, 0.04, 0.1, 0.8, 0.08), g, pan=0.2 - echo, send=0.5)
+    return t.render(np.zeros_like(t.dry), reverb=(2.2, 3500), wet=0.3)
+
+
+def console_ps():
+    """Late-night D minor menu ambience: evolving pad, glassy bells, soft electronic beat. 100 BPM."""
+    t = Track(100, 16)
+    prog = [(50, "m7"), (46, "M7"), (43, "M7"), (45, "m7")]
+    for bar in range(16):
+        root, kind = prog[bar % 4]
+        st = bar * t.bar
+        n = int(t.bar * SR * 1.2)
+        pad = sum(lowpass(saw(hz(m), n, 8, 0.004), 1200) for m in chord_tones(root, kind))
+        t.add(pad * adsr(n, 0.8, 0.5, 0.7, 1.0), st, 0.09, send=0.6)
+        for k, m in enumerate(chord_tones(root + 24, kind)):
+            nn = int(1.2 * SR)
+            bell = fm(hz(m), nn, 3.5, 2.0, 3) * np.exp(-np.arange(nn) / SR * 3)
+            t.add(bell, st + k * t.beat * 0.75 + (t.beat * 2 if bar % 2 else 0), 0.05, pan=(k - 1) * 0.4, send=0.7)
+        if bar >= 4:
+            notes(t, st, [root - 12, 0, 0, root - 12, 0, 0, root - 5, 0], t.beat / 2, lambda f, n: np.sin(2 * np.pi * f * np.arange(n) / SR) * adsr(n, 0.005, 0.2, 0.6, 0.1), 0.3)
+    drums(t, 4 * t.bar, 12, kick_beats=(0, 2), snare_beats=(2,), gain=0.6, chip=False)
+    return t.render(np.zeros_like(t.dry), reverb=(3.0, 3000), wet=0.4)
+
+
 if __name__ == "__main__":
     out = sys.argv[1]
     only = set(sys.argv[2:])
     tracks = [("neon_drift", neon_drift), ("pixel_garden", pixel_garden), ("after_hours", after_hours),
-              ("after_hours_8bit", after_hours_8bit)]
+              ("after_hours_8bit", after_hours_8bit), ("console_nes", console_nes), ("console_gb", console_gb),
+              ("console_md", console_md), ("console_snes", console_snes), ("console_ps", console_ps)]
     for name, fn in [(n, f) for n, f in tracks if not only or n in only]:
         audio = fn()
         sf.write(f"{out}/{name}.wav", audio, SR)

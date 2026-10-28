@@ -9,6 +9,7 @@
 
     <!-- Self-update: download new builds from GitHub releases and install them. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Quick menu: system-wide brightness, once you allow it in Android settings. -->

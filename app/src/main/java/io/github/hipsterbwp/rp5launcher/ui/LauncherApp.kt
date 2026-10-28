@@ -31,6 +31,7 @@ import io.github.hipsterbwp.rp5launcher.ui.screens.DialogHost
 import io.github.hipsterbwp.rp5launcher.ui.screens.GameDetailsScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.GameGridScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.HomeScreen
+import io.github.hipsterbwp.rp5launcher.ui.screens.BaseCampScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.CollectionScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.LoadingScreen
 import io.github.hipsterbwp.rp5launcher.ui.screens.QuickMenu
@@ -86,7 +87,13 @@ fun LauncherApp(vm: LauncherViewModel) {
         if (vm.screen !is Screen.Setup && !vm.textInputActive && !showLoading) vm.screensaver = true
     }
 
-    val theme = if (vm.config.theme == "gold") NeonTheme.Gold else NeonTheme.Neon
+    val season = vm.season
+    val theme = when {
+        vm.config.theme == "gold" -> NeonTheme.Gold
+        season == Season.Halloween -> NeonTheme.Pumpkin
+        season == Season.Winter -> NeonTheme.Frost
+        else -> NeonTheme.Neon
+    }
     SideEffect { Palette.theme = theme }
     val sky = SkySettings(vm.config.scene, vm.config.liveSky)
 
@@ -95,10 +102,17 @@ fun LauncherApp(vm: LauncherViewModel) {
             CompositionLocalProvider(LocalButtonLabel provides labels, LocalSky provides sky) {
                 CrtPower(vm.crt) {
                     LauncherContent(vm, appName, pickFolder)
-                    if (vm.config.mascot && vm.screen !is Screen.Setup) Mascot(vm.mascotMood)
+                    if (season != null && (vm.screen == Screen.Home || vm.screen == Screen.BaseCamp)) SeasonalSky(season)
+                    if (vm.config.mascot && vm.screen !is Screen.Setup) Mascot(vm.mascotMood, vm.outfit, vm.config.yetiSize)
                 }
                 vm.tribute?.let { system -> TributeIntro(system, vm) { vm.tribute = null } }
-                if (vm.creditsRoll) CreditsRoll(vm.config.initials) { vm.creditsRoll = false }
+                vm.insert?.let { InsertOverlay(vm, it) }
+                if (vm.creditsRoll) {
+                    CreditsRoll(vm.config.initials, summit = vm.summitRoll) {
+                        vm.creditsRoll = false
+                        vm.summitRoll = false
+                    }
+                }
             }
         }
         ToastHost(vm)
@@ -141,6 +155,7 @@ private fun LauncherContent(vm: LauncherViewModel, appName: String, pickFolder: 
                 Screen.Settings -> SettingsScreen(vm, pickFolder)
                 Screen.Search -> SearchScreen(vm)
                 is Screen.Collection -> CollectionScreen(vm, screen.key)
+                Screen.BaseCamp -> BaseCampScreen(vm)
                 null -> Unit
             }
         }

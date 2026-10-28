@@ -55,6 +55,8 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
     private var off: Set<String> = emptySet()
     private var repeat: String? = null
     private var fade: Job? = null
+    /** A console's own menu tune playing instead of the playlist ("nes", "gb", "md", "snes", "ps"). */
+    private var theme: String? = null
 
     /** All tracks found (on or off), for the Sound settings page. */
     var tracks by mutableStateOf<List<Track>>(emptyList())
@@ -73,11 +75,12 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
      * Applies settings; (re)loads the track list when the ROMs folder changes, and rebuilds the
      * queue when tracks are switched off or one is put on repeat.
      */
-    fun configure(on: Boolean, volume: Float, romsRoot: Uri?, off: Set<String>, repeat: String?) {
+    fun configure(on: Boolean, volume: Float, romsRoot: Uri?, off: Set<String>, repeat: String?, theme: String? = null) {
         enabled = on
         target = volume
         this.off = off
         this.repeat = repeat
+        this.theme = theme?.takeIf { it in CONSOLE_THEMES }
         val key = romsRoot?.toString().orEmpty()
         if (on && loadedFrom != key) {
             loadedFrom = key
@@ -97,7 +100,9 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
     /** Queues the tracks that are on: just the repeating one if set, else all of them shuffled. */
     private fun requeue() {
         val on = tracks.filter { it.key !in off }
-        val pick = on.firstOrNull { it.key == repeat }?.let(::listOf) ?: on
+        val pick = theme?.let { t ->
+            listOf(Track("console_$t", t, RawResourceDataSource.buildRawResourceUri(CONSOLE_THEMES.getValue(t))))
+        } ?: on.firstOrNull { it.key == repeat }?.let(::listOf) ?: on
         val keys = pick.map { it.key }
         if (keys != queued) {
             queued = keys
@@ -183,6 +188,25 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
         /** Folder names (in the ROMs folder) that hold the player's own music. */
         val MUSIC_FOLDERS = setOf("music", "_music")
         private val AUDIO_EXTENSIONS = setOf("mp3", "ogg", "m4a", "aac", "flac", "wav", "opus")
+        /** Console-flavoured menu tunes (tools/music/compose.py), by family. */
+        private val CONSOLE_THEMES = mapOf(
+            "nes" to R.raw.music_console_nes,
+            "gb" to R.raw.music_console_gb,
+            "md" to R.raw.music_console_md,
+            "snes" to R.raw.music_console_snes,
+            "ps" to R.raw.music_console_ps,
+        )
+
+        /** Which console tune a system gets, if any. */
+        fun themeFor(system: String?): String? = when (system) {
+            "nes", "famicom", "fds" -> "nes"
+            "gb", "gbc", "gba" -> "gb"
+            "megadrive", "genesis", "mastersystem", "gamegear", "segacd", "sega32x" -> "md"
+            "snes", "sfc" -> "snes"
+            "psx", "ps2", "psp" -> "ps"
+            else -> null
+        }
+
         private val BUILT_IN = listOf(
             Triple("neon_drift", "Neon Drift", R.raw.music_neon_drift),
             Triple("pixel_garden", "Pixel Garden", R.raw.music_pixel_garden),

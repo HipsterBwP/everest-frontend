@@ -128,21 +128,37 @@ private val FACE = Color(0xFF7FB2FF)
 private val EYES = Color(0xFF1B1035)
 private val MOUTH = Color(0xFFFF6FC3)
 
-/** Draws one sprite frame [px] pixels per sprite pixel, outlined, optionally mirrored. */
-fun DrawScope.drawSprite(rows: List<String>, px: Float, origin: Offset, mirror: Boolean = false) {
-    val n = rows.size
-    fun filled(x: Int, y: Int) = y in 0 until n && x in 0 until n && rows[y][x] != '.'
-    for (y in -1..n) for (x in -1..n) {
-        val c = if (filled(x, y)) when (rows[y][x]) {
-            'S' -> FUR_SHADE
-            'B' -> FACE
-            'E' -> EYES
-            'M' -> MOUTH
-            else -> FUR
+/** Draws one sprite frame [px] pixels per sprite pixel, outlined, optionally mirrored. [colors] overrides the yeti palette. */
+fun DrawScope.drawSprite(rows: List<String>, px: Float, origin: Offset, mirror: Boolean = false, colors: Map<Char, Color>? = null) {
+    val h = rows.size
+    val w = rows.maxOfOrNull { it.length } ?: 0
+    fun filled(x: Int, y: Int) = y in 0 until h && x in 0 until rows[y].length && rows[y][x] != '.'
+    for (y in -1..h) for (x in -1..w) {
+        val c = if (filled(x, y)) {
+            val ch = rows[y][x]
+            colors?.get(ch) ?: when (ch) {
+                'S' -> FUR_SHADE
+                'B' -> FACE
+                'E' -> EYES
+                'M' -> MOUTH
+                else -> FUR
+            }
         } else if (filled(x + 1, y) || filled(x - 1, y) || filled(x, y + 1) || filled(x, y - 1)) EYES else continue
-        val dx = if (mirror) n - 1 - x else x
+        val dx = if (mirror) w - 1 - x else x
         drawRect(c, Offset(origin.x + dx * px, origin.y + y * px), GeoSize(px + 0.5f, px + 0.5f))
     }
+}
+
+/** Draws [outfit] on a yeti [frame] drawn at [origin]: on top of the head, or across the eyes. */
+fun DrawScope.drawOutfit(outfit: Outfit, frame: List<String>, px: Float, origin: Offset, mirror: Boolean) {
+    val w = outfit.rows.maxOf { it.length }
+    val headTop = frame.indexOfFirst { row -> row.substring(5, 11).any { it != '.' } }.coerceAtLeast(0)
+    val eyes = frame.indexOfFirst { 'E' in it }.coerceAtLeast(headTop)
+    val top = if (outfit.onEyes) eyes - outfit.rows.size / 2 else headTop + 2 - outfit.rows.size
+    val left = (YETI_SIZE - w) / 2
+    val rows = if (mirror) outfit.rows.map { it.padEnd(w, '.').reversed() } else outfit.rows
+    val x = if (mirror) YETI_SIZE - left - w else left
+    drawSprite(rows, px, Offset(origin.x + x * px, origin.y + top * px), colors = outfit.colors)
 }
 
 /**
@@ -150,18 +166,22 @@ fun DrawScope.drawSprite(rows: List<String>, px: Float, origin: Offset, mirror: 
  * starts, arms up when a banner shows. Purely decorative; touch passes through.
  */
 @Composable
-fun Mascot(mood: Mood) {
+fun Mascot(mood: Mood, outfit: Outfit? = null, scale: String = "normal") {
     val time = rememberInfiniteTransition(label = "yeti")
     val stroll = time.animateFloat(0f, 1f, infiniteRepeatable(tween(Motion.YETI_STROLL_MS, easing = LinearEasing)), label = "yeti-x")
     val step = time.animateFloat(0f, 1f, infiniteRepeatable(tween(Motion.YETI_STEP_MS, easing = LinearEasing)), label = "yeti-step")
-    val pixel = Size.YETI_PIXEL.u
+    val pixel = when (scale) {
+        "big" -> Size.YETI_PIXEL * 3
+        "tiny" -> 1
+        else -> Size.YETI_PIXEL
+    }.u
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val sprite = pixel * YETI_SIZE
         Canvas(
             Modifier
                 .align(Alignment.BottomStart)
                 .offset(y = -(Size.HINT_BAR.u - Size.YETI_SINK.u))
-                .size(maxWidth, sprite + pixel * 6),
+                .size(maxWidth, sprite + pixel * 10),
         ) {
             val px = pixel.toPx()
             val w = sprite.toPx()
@@ -184,7 +204,10 @@ fun Mascot(mood: Mood) {
             }
             // Asleep in attract mode: tucked into the bottom-right corner.
             val at = if (mood == Mood.Sleep) size.width - w - px * 8 else x
-            drawSprite(frame, px, Offset(at, size.height - w - hop), mirror = facingLeft && walking)
+            val origin = Offset(at, size.height - w - hop)
+            val mirror = facingLeft && walking
+            drawSprite(frame, px, origin, mirror = mirror)
+            outfit?.let { drawOutfit(it, frame, px, origin, mirror) }
         }
     }
 }

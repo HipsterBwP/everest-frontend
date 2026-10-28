@@ -30,6 +30,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import io.github.hipsterbwp.rp5launcher.ui.ListRow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -102,11 +105,13 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
     var row by rememberSaveable(gameId) { mutableIntStateOf(0) }
     val current = row.coerceIn(0, actions.size - 1)
 
+    var flipped by remember(gameId) { mutableStateOf(false) }
     PadInput { button, _ ->
         when (button) {
             Pad.Up -> { row = (current - 1).coerceAtLeast(0); true }
             Pad.Down -> { row = (current + 1).coerceAtMost(actions.size - 1); true }
             Pad.A -> { actions[current].action(); true }
+            Pad.Y -> { flipped = !flipped; true }
             Pad.B -> vm.back()
             else -> false
         }
@@ -128,10 +133,14 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
                 val box = vm.boxArt(game)
                 val radius = Radius.CARD.u
                 val edge = Size.NEON_EDGE.u
+                // Y turns the case around to its back.
+                val turn by animateFloatAsState(if (flipped) 180f else 0f, tween(Motion.BOX_FLIP_MS), label = "box-flip")
                 val art = Modifier
                     .size(Size.BOX_ART_W.u, Size.BOX_ART_H.u)
-                    .graphicsLayer { rotationY = BOX_TURN; cameraDistance = BOX_CAMERA * density }
-                if (box != null) {
+                    .graphicsLayer { rotationY = BOX_TURN + turn; cameraDistance = BOX_CAMERA * density }
+                if (turn > 90f) {
+                    BoxBack(vm, game, art.graphicsLayer { rotationY = 180f })
+                } else if (box != null) {
                     ArtImage(box, art.drawBehind { neonGlow(Palette.cyan, CornerRadius(radius.toPx()), edge.toPx()) }.clip(rounded(Radius.CARD)))
                 } else {
                     Box(art.neonPanel(Radius.CARD, edge = Palette.cyan, corner = Palette.pink).padding(Space.SECTION_LARGE.u), contentAlignment = Alignment.Center) {
@@ -190,6 +199,7 @@ fun GameDetailsScreen(vm: LauncherViewModel, systemName: String, gameId: String)
         HintBar(
             listOf(
                 Hint(Pad.A, "Select", onClick = { actions[current].action() }),
+                Hint(Pad.Y, if (flipped) "Front of box" else "Back of box", onClick = { flipped = !flipped }),
                 Hint(Pad.B, "Back", onClick = { vm.back() }),
             ),
             onSystem = false,
@@ -236,3 +246,23 @@ private const val CHIP_FILL = 0.12f
 /** Box art turns this many degrees towards the menu. */
 private const val BOX_TURN = 12f
 private const val BOX_CAMERA = 12f
+
+/** The back of the case: the scanned back cover, or one made from a screenshot and the blurb. */
+@Composable
+private fun BoxBack(vm: LauncherViewModel, game: io.github.hipsterbwp.rp5launcher.data.Game, modifier: Modifier) {
+    val back = vm.boxBack(game)
+    if (back != null) {
+        ArtImage(back, modifier.clip(rounded(Radius.CARD)), ContentScale.Crop)
+        return
+    }
+    Column(modifier.clip(rounded(Radius.CARD)).background(Palette.night).padding(Space.MD.u)) {
+        ArtImage(vm.snapArt(game), Modifier.fillMaxWidth().weight(1f).clip(rounded(Radius.CARD_SMALL)), ContentScale.Crop)
+        Spacer(Modifier.height(Space.SM.u))
+        Txt(
+            vm.gameDescription(game) ?: game.title,
+            Type.caption, Palette.inkBody, maxLines = 7,
+        )
+        Spacer(Modifier.height(Space.SM.u))
+        Txt("EVEREST · ${game.title.uppercase()}", Type.badge, Palette.inkFaint, maxLines = 1)
+    }
+}

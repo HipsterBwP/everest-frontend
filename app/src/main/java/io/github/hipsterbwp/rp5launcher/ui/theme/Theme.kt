@@ -46,6 +46,9 @@ import io.github.hipsterbwp.rp5launcher.R
 enum class NeonTheme(val pink: Color, val pinkSoft: Color, val cyan: Color, val cyanSoft: Color) {
     Neon(Color(0xFFFF2A9D), Color(0xFFFF6FC3), Color(0xFF2DE2E6), Color(0xFF9FF7F8)),
     Gold(Color(0xFFFFB31A), Color(0xFFFFD877), Color(0xFFFFF1C2), Color(0xFFFFF8E1)),
+    /** Seasonal: Halloween orange and witchy purple; winter ice. */
+    Pumpkin(Color(0xFFFF7A1A), Color(0xFFFFAE5C), Color(0xFFB45CFF), Color(0xFFD9A8FF)),
+    Frost(Color(0xFF5CC8FF), Color(0xFFA8E4FF), Color(0xFFFFFFFF), Color(0xFFEAF6FF)),
 }
 
 object Palette {
@@ -442,6 +445,22 @@ object Space {
 object Size {
     /** Start-up tribute emblem, and the gaming-history card's width. */
     const val TRIBUTE_MARK = 120
+    /** The console birthday banner sits under the Game of the Day banner. */
+    const val BIRTHDAY_OFFSET = 34
+    /** Insert-the-game: the stage, cartridges, disc, the console body and how far media falls from. */
+    const val INSERT_STAGE_W = 420
+    const val INSERT_STAGE_H = 340
+    const val CART_W = 130
+    const val CART_H = 150
+    const val CART_SMALL_W = 90
+    const val CART_SMALL_H = 80
+    const val DISC = 170
+    const val CONSOLE_BODY_H = 110
+    const val INSERT_DROP = 320f
+    /** Base Camp: a wardrobe preview, a Game Genie key and code slot. */
+    const val WARDROBE_YETI = 64
+    const val GENIE_KEY = 34
+    const val GENIE_SLOT_W = 28
     /** The N64 tribute's spinning "E", sized to sit with the hero letters. */
     const val TRIBUTE_E = 72
     const val HISTORY_W = 380
@@ -625,6 +644,14 @@ object Motion {
     const val TRIBUTE_PS2_MS = 6_000
     const val CHALLENGER_MS = 2_400L
     const val ONE_UP_MS = 2_000L
+    /** Seasonal weather loops over this long. */
+    const val SEASON_LOOP_MS = 30_000
+    /** Turning a game case around on the details page. */
+    const val BOX_FLIP_MS = 450
+    /** Insert-the-game timings: media going in, a bad-cart glitch, blowing on it. */
+    const val INSERT_MS = 1_000
+    const val GLITCH_MS = 800
+    const val BLOW_MS = 1_100
     /** CONTINUE? 9… 8… one number per tick. */
     const val CONTINUE_TICK_MS = 1_000L
     /** End credits scroll speed: units per second. */
