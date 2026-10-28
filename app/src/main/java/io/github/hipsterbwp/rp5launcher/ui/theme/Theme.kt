@@ -621,6 +621,8 @@ object Motion {
     const val TRIBUTE_MS = 2_200
     /** The N64 tribute spins the E in and then drops six letters, so it runs longer. */
     const val TRIBUTE_LONG_MS = 3_400
+    /** The PS2 tribute plays the whole start-up: burst, title card, towers, logo. */
+    const val TRIBUTE_PS2_MS = 6_000
     const val CHALLENGER_MS = 2_400L
     const val ONE_UP_MS = 2_000L
     /** CONTINUE? 9… 8… one number per tick. */

@@ -36,6 +36,44 @@ def write(folder, name, x, peak=0.32):
     sf.write(f"{folder}/{name}.wav", x.astype(np.float32), SR, subtype="PCM_16")
 
 
+def sine(f, seconds, decay=0.0):
+    t = np.arange(int(seconds * SR)) / SR
+    return np.sin(2 * np.pi * f * t) * (np.exp(-t * decay) if decay else 1)
+
+
+def at(track, start, x):
+    """Mixes x into track at start seconds."""
+    i = int(start * SR)
+    track[i:i + len(x)] += x[:max(0, len(track) - i)]
+
+
+def ps2_boot():
+    """In the spirit of the PS2 start-up: a rushing swell, a burst of light, a hush, deep towers, a final chord."""
+    total = np.zeros(int(6.2 * SR))
+    rng = np.random.default_rng(2000)
+    # Rush: noise that swells and brightens for 0.65 s.
+    n = int(0.65 * SR)
+    noise = rng.standard_normal(n)
+    env = np.linspace(0, 1, n) ** 3
+    smooth = np.convolve(noise, np.ones(24) / 24, mode="same")
+    at(total, 0.0, (smooth * 0.6 + noise * 0.4 * env) * env * 0.5)
+    # Burst: low boom plus a bright bell.
+    at(total, 0.62, sine(hz(33), 2.2, 1.6) + sine(hz(45), 2.2, 2.0) * 0.6)
+    at(total, 0.62, sum(sine(hz(m), 1.6, 2.5) for m in (81, 88, 93)) * 0.18)
+    # Hush under the title card.
+    at(total, 1.1, sum(sine(hz(m), 1.6, 1.2) for m in (57, 64, 69)) * 0.12)
+    # Towers: a deep, slowly opening drone with sparkles.
+    drone = sum(sine(hz(m), 3.6, 0.35) for m in (38, 45, 50, 57)) * 0.22
+    drone *= np.minimum(1, np.arange(len(drone)) / (0.8 * SR))
+    at(total, 2.4, drone)
+    for i, m in enumerate((86, 93, 98, 91, 100, 95)):
+        at(total, 2.8 + i * 0.32 + rng.uniform(0, 0.1), sine(hz(m), 0.7, 6) * 0.1)
+    # Logo: a wide, warm chord.
+    at(total, 4.3, sum(sine(hz(m), 1.9, 1.4) for m in (50, 57, 62, 66, 69, 74)) * 0.16)
+    fade = np.minimum(1, (len(total) - np.arange(len(total))) / (0.3 * SR))
+    return total * fade
+
+
 if __name__ == "__main__":
     out = sys.argv[1]
     write(out, "ui_move", pulse(hz(88), 0.028, 0.125, 60), 0.22)
@@ -74,9 +112,7 @@ if __name__ == "__main__":
     write(out, "ui_boot_nds", seq(rest(0.05), tri(hz(88), 0.12), tri(hz(93), 0.9, 3.5)), 0.32)
     write(out, "ui_boot_nes", seq(*[pulse(hz(m), 0.07, 0.5) for m in (72, 76, 79, 84, 79, 84)], pulse(hz(88), 0.4, 0.5, 5)), 0.28)
     write(out, "ui_boot_switch", seq(pulse(hz(60), 0.03, 0.5, 40), rest(0.08), pulse(hz(67), 0.03, 0.5, 40), rest(0.25), tri(hz(84), 0.5, 5)), 0.32)
-    drone = sum(tri(hz(m), 2.0, 0.8) for m in (36, 43, 48))
-    sparkle = seq(rest(0.9), *[pulse(hz(m), 0.1, 0.125, 6) for m in (91, 96, 100, 103)], rest(0.6))[:len(drone)]
-    write(out, "ui_boot_ps2", drone + 0.2 * np.pad(sparkle, (0, len(drone) - len(sparkle))), 0.3)
+    write(out, "ui_boot_ps2", ps2_boot(), 0.45)
     write(out, "ui_boot_psp", sum(tri(hz(m), 1.4, 2) for m in (64, 71, 76, 83)) * 0.6 + seq(rest(0.3), tri(hz(88), 1.1, 3)), 0.3)
     write(out, "ui_boot_snes", seq(*[pulse(hz(m), 0.06, 0.25) for m in (76, 79, 83, 88)], sum(pulse(hz(m), 0.8, 0.25, 3) for m in (88, 92, 95))), 0.3)
     write(out, "ui_boot_wii", seq(*[tri(hz(m), 0.14) for m in (79, 83, 86)], tri(hz(91), 0.9, 2.5)), 0.34)

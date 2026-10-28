@@ -79,7 +79,11 @@ fun TributeIntro(system: String, vm: LauncherViewModel, onDone: () -> Unit) {
     val t = remember(system) { Animatable(0f) }
     LaunchedEffect(system) {
         if (system != "gb") vm.sound(bootSound(system))
-        val length = if (system == "n64") Motion.TRIBUTE_LONG_MS else Motion.TRIBUTE_MS
+        val length = when (system) {
+            "n64" -> Motion.TRIBUTE_LONG_MS
+            "ps2" -> Motion.TRIBUTE_PS2_MS
+            else -> Motion.TRIBUTE_MS
+        }
         t.animateTo(1f, tween(length, easing = LinearEasing))
         onDone()
     }

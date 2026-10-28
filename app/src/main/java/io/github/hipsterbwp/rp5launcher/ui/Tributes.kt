@@ -309,26 +309,117 @@ internal fun SwitchTribute(p: Float) {
     }
 }
 
-/** PlayStation 2: towers of glassy blocks rise from a deep-blue void, then the name glows in. */
+/**
+ * PlayStation 2, after the original start-up: a light rushes in from the dark and bursts white, a
+ * quiet "Everest Computer Entertainment" card, then the camera drifts over towers of glassy blue cubes
+ * while specks of light rise, and the logo fades in over them.
+ */
 @Composable
 internal fun Ps2Tribute(p: Float) {
-    Box(Modifier.fillMaxSize().background(Color(0xFF02041A)), contentAlignment = Alignment.Center) {
+    val void = Color(0xFF02041A)
+    Box(Modifier.fillMaxSize().background(Palette.black), contentAlignment = Alignment.Center) {
+        // 1. The rush and the burst.
         Canvas(Modifier.fillMaxSize()) {
-            val cols = 14
-            val w = size.width / cols
-            for (i in 0 until cols) {
-                val seed = ((i * 37) % 11) / 11f
-                val h = size.height * (0.15f + 0.5f * seed) * phase(p, seed * 0.2f, seed * 0.2f + 0.5f)
-                drawRect(
-                    Brush.verticalGradient(listOf(Color(0x664A7BFF), Color(0x110A1A60)), startY = size.height - h, endY = size.height),
-                    Offset(i * w + w * 0.15f, size.height - h), GeoSize(w * 0.7f, h),
+            val rush = phase(p, 0f, 0.1f)
+            val burst = phase(p, 0.09f, 0.2f)
+            val fadeOut = 1f - phase(p, 0.18f, 0.26f)
+            if (fadeOut > 0f) {
+                val r = size.minDimension * (0.01f + 0.04f * rush * rush) + size.maxDimension * burst
+                drawCircle(
+                    Brush.radialGradient(listOf(Palette.white, Color(0xFFB8C8FF).copy(alpha = 0.6f), Color.Transparent), center, r),
+                    r, center, alpha = fadeOut,
                 )
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Txt("EVEREST", Type.hero, Palette.white, Modifier.alpha(phase(p, 0.5f, 0.75f)), glow = Color(0xFF4A7BFF))
-            Spacer(Modifier.height(Space.SM.u))
-            Txt("2", Type.screenTitle, Color(0xFF4A7BFF), Modifier.alpha(phase(p, 0.6f, 0.8f)))
+        // 2. The company card.
+        val card = phase(p, 0.22f, 0.28f) * (1f - phase(p, 0.37f, 0.42f))
+        if (card > 0f) {
+            Column(Modifier.alpha(card), horizontalAlignment = Alignment.CenterHorizontally) {
+                Txt("EVEREST", Type.screenTitle, Palette.white, glow = Color(0xFF8FA8FF))
+                Spacer(Modifier.height(Space.MD.u))
+                Txt("Computer Entertainment", Type.label, Color(0xFFD8DEFF))
+            }
+        }
+        // 3. The towers.
+        val scene = phase(p, 0.4f, 0.5f)
+        if (scene > 0f) {
+            Canvas(Modifier.fillMaxSize().alpha(scene)) {
+                drawRect(void)
+                // Horizon glow.
+                drawRect(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color(0x332A50FF), Color.Transparent),
+                        startY = size.height * 0.15f, endY = size.height * 0.5f,
+                    ),
+                )
+                drawTowers(drift = phase(p, 0.4f, 1f))
+                // Rising specks of light.
+                val rise = phase(p, 0.4f, 1f)
+                for (k in 0 until PS2_SPECKS) {
+                    val sx = ((k * 0.618034f) % 1f) * size.width
+                    val sy = size.height * (1.1f - ((k * 0.381966f + rise * 0.7f) % 1.2f))
+                    val twinkle = 0.4f + 0.6f * abs(sin((rise * 9f + k) * 1.3f))
+                    drawCircle(Color(0xFFCFE0FF).copy(alpha = 0.7f * twinkle), 1.5f + (k % 3), Offset(sx, sy))
+                }
+            }
+        }
+        // 4. The logo.
+        val logo = phase(p, 0.7f, 0.82f)
+        if (logo > 0f) {
+            Column(
+                Modifier.alpha(logo).graphicsLayer { val z = 0.92f + 0.08f * logo; scaleX = z; scaleY = z },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Txt("EVEREST", Type.hero, Palette.white, glow = Color(0xFF4A7BFF))
+                    Spacer(Modifier.size(Space.MD.u))
+                    Txt("2", Type.hero, Color(0xFF6E9BFF), glow = Color(0xFF4A7BFF))
+                }
+                Spacer(Modifier.height(Space.SM.u))
+                Txt("FRONTEND", Type.hint, Color(0xFFB8C8FF))
+            }
+        }
+    }
+}
+
+private const val PS2_SPECKS = 28
+
+/** Tower spots on a floor grid: x, depth and how many cubes tall (a fixed, scattered pattern). */
+private val PS2_TOWERS: List<Triple<Float, Float, Int>> = buildList {
+    for (gx in -9..9) {
+        for (gz in 0 until 10) {
+            val h = Math.floorMod(gx * 7 + gz * 13 + gx * gz * 3, 23)
+            if (h < 6) add(Triple(gx * 2.2f, 9f + gz * 2.2f, 1 + (h * 5) % 6))
+        }
+    }
+}.sortedByDescending { it.second }
+
+/** Glassy cube towers in perspective, farthest first, the camera sliding sideways with [drift]. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTowers(drift: Float) {
+    val camX = -3f + 6f * drift
+    val camY = 7.5f
+    val focal = size.width * 0.55f
+    val horizon = size.height * 0.3f
+    fun at(x: Float, y: Float, z: Float) = Offset(size.width / 2 + (x - camX) * focal / z, horizon - (y - camY) * focal / z)
+    fun quad(a: Offset, b: Offset, c: Offset, d: Offset) = Path().apply {
+        moveTo(a.x, a.y); lineTo(b.x, b.y); lineTo(c.x, c.y); lineTo(d.x, d.y); close()
+    }
+    val s = 0.5f
+    for ((x, z, count) in PS2_TOWERS) {
+        val fog = (1f - (z - 9f) / 24f).coerceAtLeast(0.08f)
+        val side = if (x < camX) x + s else x - s
+        for (k in 0 until count) {
+            val y0 = k * 1.1f
+            val y1 = y0 + 1f
+            val front = quad(at(x - s, y0, z - s), at(x + s, y0, z - s), at(x + s, y1, z - s), at(x - s, y1, z - s))
+            val top = quad(at(x - s, y1, z - s), at(x + s, y1, z - s), at(x + s, y1, z + s), at(x - s, y1, z + s))
+            val wall = quad(at(side, y0, z - s), at(side, y0, z + s), at(side, y1, z + s), at(side, y1, z - s))
+            drawPath(wall, Color(0xFF1E46BE).copy(alpha = 0.21f * fog))
+            drawPath(wall, Color(0xFF5A8CFF).copy(alpha = 0.47f * fog), style = Stroke(1f))
+            drawPath(front, Color(0xFF3264F0).copy(alpha = 0.35f * fog))
+            drawPath(front, Color(0xFF8CBEFF).copy(alpha = 0.78f * fog), style = Stroke(1.2f))
+            drawPath(top, Color(0xFF6EA0FF).copy(alpha = 0.46f * fog))
+            drawPath(top, Color(0xFFB4D7FF).copy(alpha = 0.78f * fog), style = Stroke(1.2f))
         }
     }
 }
