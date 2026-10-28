@@ -170,6 +170,7 @@ private fun SystemsTab(
         when (button) {
             Pad.R2 -> { openDaily(); true }
             Pad.L2 -> { vm.push(Screen.BaseCamp); true }
+            Pad.Select -> { vm.toggleMute(); true }
             Pad.Up, Pad.Left -> { if (!collections) select(index - 1); true }
             Pad.Down, Pad.Right -> { if (!collections) select(index + 1); true }
             Pad.L1 -> { switchTab(-1); true }
@@ -284,6 +285,9 @@ private fun SystemsTab(
         ) {
             vm.scrape?.let { p -> Txt("Getting art ${p.done}/${p.total}", Type.label, Palette.inkSecondary) }
             TabPills(TABS, tab) { vm.homeTab = it }
+            if (vm.config.muted) {
+                Txt("🔇 MUTED", Type.badge, Palette.sun1, Modifier.tap(vm::toggleMute), glow = Palette.sun2)
+            }
             StatusPill()
         }
 
@@ -328,6 +332,7 @@ private fun SystemsTab(
             add(Hint(listOf(Pad.L1, Pad.R1), "Switch tab", onClick = { switchTab(1) }))
             if (daily != null) add(Hint(Pad.R2, "Today's game", onClick = ::openDaily))
             add(Hint(Pad.L2, "Base Camp", onClick = { vm.push(Screen.BaseCamp) }))
+            add(Hint(Pad.Select, if (vm.config.muted) "Unmute" else "Mute", onClick = vm::toggleMute))
             add(Hint(Pad.Start, "Settings", trailing = true, onClick = openSettings))
         }
         HintBar(hints, onSystem = true, glyphInk = Palette.inkOnLight)

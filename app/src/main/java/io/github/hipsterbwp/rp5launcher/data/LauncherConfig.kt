@@ -97,6 +97,8 @@ data class LauncherConfig(
     val seasonal: Boolean = true,
     /** Each console plays its own menu tune on the console screen. */
     val consoleMusic: Boolean = true,
+    /** Quick mute (Select on the console screen): no menu sounds, music, startup sounds or video sound. */
+    val muted: Boolean = false,
     /** Small vibrations on menu moves and launches. */
     val rumble: Boolean = true,
     /** The game's cartridge, disc or UMD goes in before a launch. */

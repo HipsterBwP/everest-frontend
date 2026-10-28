@@ -208,13 +208,19 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var haptic: ((UiSound) -> Unit)? = null
 
     fun sound(sound: UiSound) {
-        if (config.navigationSounds) soundPlayer?.invoke(sound)
+        if (config.navigationSounds && !config.muted) soundPlayer?.invoke(sound)
         if (config.rumble) haptic?.invoke(sound)
     }
 
     /** Sound Test: plays [sound] even when navigation sounds are off. */
     fun testSound(sound: UiSound) {
         soundPlayer?.invoke(sound)
+    }
+
+    /** Mutes or unmutes everything Everest plays (menu sounds, music, startup sounds, video sound). */
+    fun toggleMute() {
+        updateConfig { it.copy(muted = !it.muted) }
+        sound(UiSound.Select)
     }
 
     fun setNavigationSounds(enabled: Boolean) = updateConfig { it.copy(navigationSounds = enabled) }
@@ -386,7 +392,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         landedSystem = system
         if (system == lastConsoleSound) return
         lastConsoleSound = system
-        if (!config.consoleSounds) return
+        if (!config.consoleSounds || config.muted) return
         systemSounds[system]?.let { consoleSoundPlayer?.invoke(it) }
     }
 

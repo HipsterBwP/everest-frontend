@@ -194,7 +194,7 @@ private fun InfoColumn(vm: LauncherViewModel, system: SystemEntry, game: Game) {
                 }
             }
             LaunchedEffect(system.name) { vm.loadEsdeVideos(system.name) }
-            GameVideo(vm.videoFor(system.name, game), vm.config.videoSound, Modifier.fillMaxSize())
+            GameVideo(vm.videoFor(system.name, game), vm.config.videoSound && !vm.config.muted, Modifier.fillMaxSize())
         }
         Spacer(Modifier.height(Space.LG.u))
 

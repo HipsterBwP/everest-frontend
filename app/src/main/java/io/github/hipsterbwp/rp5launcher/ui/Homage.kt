@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -309,12 +311,13 @@ fun CreditsRoll(initials: String, summit: Boolean = false, onDone: () -> Unit) {
     )
     var height by remember { mutableIntStateOf(0) }
     val unitPx = with(androidx.compose.ui.platform.LocalDensity.current) { 1.u.toPx() }
-    BoxWithConstraints(Modifier.fillMaxSize().background(Palette.black)) {
+    BoxWithConstraints(Modifier.fillMaxSize().clipToBounds().background(Palette.black)) {
         val screen = constraints.maxHeight.toFloat()
         val scroll = remember { Animatable(0f) }
         LaunchedEffect(height) {
             if (height == 0) return@LaunchedEffect
-            val distance = screen + height
+            // Scroll until the last lines (THANK YOU FOR PLAYING and your initials) sit mid-screen.
+            val distance = screen / 2 + height
             val ms = (distance / (Motion.CREDITS_SPEED * unitPx) * 1000).toInt()
             scroll.animateTo(distance, tween(ms, easing = LinearEasing))
             delay(CREDITS_HOLD_MS)
@@ -323,8 +326,10 @@ fun CreditsRoll(initials: String, summit: Boolean = false, onDone: () -> Unit) {
         Column(
             Modifier
                 .fillMaxWidth()
+                // Measure the whole roll, not just one screen of it.
+                .wrapContentHeight(Alignment.Top, unbounded = true)
                 .onSizeChanged { height = it.height }
-                .offset { IntOffset(0, (screen - scroll.value.coerceAtMost(screen / 2 + height / 2)).roundToInt()) },
+                .offset { IntOffset(0, (screen - scroll.value).roundToInt()) },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             blocks.forEach { (title, lines) ->

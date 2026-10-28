@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
                 val duck = if (cfg.videoSound && videoScreen) VIDEO_DUCK else 1f
                 // On the console screen, a console with its own tune plays it.
                 val theme = if (cfg.consoleMusic && vm.screen == Screen.Home) BackgroundMusic.themeFor(vm.landedSystem) else null
-                MusicSettings(vm.ready && cfg.music, BackgroundMusic.volume(cfg.musicLevel) * duck, cfg.romsRoot, cfg.musicOff, cfg.musicRepeat, theme)
+                MusicSettings(vm.ready && cfg.music && !cfg.muted, BackgroundMusic.volume(cfg.musicLevel) * duck, cfg.romsRoot, cfg.musicOff, cfg.musicRepeat, theme)
             }.collect { m -> music.configure(m.on, m.volume, m.root?.let(Uri::parse), m.off, m.repeat, m.theme) }
         }
         WindowCompat.setDecorFitsSystemWindows(window, false)
