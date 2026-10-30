@@ -82,7 +82,7 @@ fun TributeIntro(system: String, vm: LauncherViewModel, onDone: () -> Unit) {
     LaunchedEffect(system) {
         if (system != "gb") vm.sound(bootSound(system))
         val length = when (system) {
-            "n64" -> Motion.TRIBUTE_LONG_MS
+            "n64", "xbox" -> Motion.TRIBUTE_LONG_MS
             "ps2" -> Motion.TRIBUTE_PS2_MS
             else -> Motion.TRIBUTE_MS
         }
@@ -113,6 +113,7 @@ fun TributeIntro(system: String, vm: LauncherViewModel, onDone: () -> Unit) {
         "switch" -> SwitchTribute(p)
         "ps2" -> Ps2Tribute(p)
         "psp" -> PspTribute(p)
+        "xbox" -> XboxTribute(p)
         else -> WiiTribute(p)
     }
 }
@@ -133,6 +134,7 @@ private fun bootSound(system: String) = when (system) {
     "ps2" -> UiSound.BootPs2
     "psp" -> UiSound.BootPsp
     "wii" -> UiSound.BootWii
+    "xbox" -> UiSound.BootXbox
     else -> UiSound.BootGb
 }
 

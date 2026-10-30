@@ -464,3 +464,62 @@ internal fun WiiTribute(p: Float) {
     }
 }
 
+
+/**
+ * Xbox: green energy ribbons spiral in out of the dark and fuse into a glowing core with Everest's
+ * peak carved into it, then the name lights up underneath.
+ */
+@Composable
+internal fun XboxTribute(p: Float) {
+    val green = Color(0xFF9BF00B)
+    val deep = Color(0xFF107C10)
+    val fuse = phase(p, 0.38f, 0.55f)
+    Box(Modifier.fillMaxSize().background(Palette.black), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val core = Offset(size.width / 2, size.height * 0.4f)
+            val reach = size.minDimension * 0.62f
+            // The ribbons: each a spiral whose head races inward, leaving a fading trail.
+            val head = phase(p, 0f, 0.5f)
+            if (fuse < 1f) {
+                for (k in 0 until XBOX_RIBBONS) {
+                    val start = k * 2 * PI.toFloat() / XBOX_RIBBONS
+                    val path = Path()
+                    val steps = 40
+                    for (i in 0..steps) {
+                        val f = (head - 0.35f + 0.35f * i / steps).coerceIn(0f, 1f)
+                        val r = reach * (1f - f)
+                        val a = start + f * 5f + sin(f * 9f + k) * 0.25f
+                        val pt = core + Offset(cos(a) * r, sin(a) * r * 0.8f)
+                        if (i == 0) path.moveTo(pt.x, pt.y) else path.lineTo(pt.x, pt.y)
+                    }
+                    drawPath(path, deep.copy(alpha = 0.5f * (1f - fuse)), style = Stroke(width = 18f))
+                    drawPath(path, green.copy(alpha = 0.9f * (1f - fuse)), style = Stroke(width = 4f))
+                }
+            }
+            // The core: a glowing orb with the peak cut into it.
+            if (fuse > 0f) {
+                val r = size.minDimension * 0.17f * FastOutSlowInEasing.transform(fuse)
+                val flash = (1f - phase(p, 0.5f, 0.7f)) * fuse
+                drawCircle(Brush.radialGradient(listOf(green.copy(alpha = 0.5f), Color.Transparent), core, r * 2.6f), r * 2.6f, core)
+                drawCircle(Brush.radialGradient(listOf(Color(0xFFE9FFD0), green, deep), core, r), r, core)
+                val peak = Path().apply {
+                    moveTo(core.x - r * 0.62f, core.y + r * 0.42f)
+                    lineTo(core.x - r * 0.12f, core.y - r * 0.5f)
+                    lineTo(core.x + r * 0.08f, core.y - r * 0.14f)
+                    lineTo(core.x + r * 0.26f, core.y - r * 0.36f)
+                    lineTo(core.x + r * 0.62f, core.y + r * 0.42f)
+                    close()
+                }
+                drawPath(peak, Color(0xFF0A2A0A))
+                drawCircle(Palette.white.copy(alpha = 0.8f * flash), r * (1f + flash * 0.6f), core)
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = Size.TRIBUTE_MARK.u * 2)) {
+            Txt("EVEREST", Type.hero, Color(0xFFF2FFE6), Modifier.alpha(phase(p, 0.6f, 0.75f)), glow = green)
+            Spacer(Modifier.height(Space.SM.u))
+            Txt("FRONTEND", Type.hint, green, Modifier.alpha(phase(p, 0.7f, 0.85f)))
+        }
+    }
+}
+
+private const val XBOX_RIBBONS = 5

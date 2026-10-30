@@ -1734,7 +1734,7 @@ data class RpgStatus(val name: String, val level: Int, val hours: Long, val exp:
 /** Consoles with a start-up tribute. */
 val TRIBUTES = setOf(
     "gb", "gbc", "gba", "nds", "n3ds", "nes", "famicom", "snes", "sfc", "n64", "gc", "wii", "switch",
-    "psx", "ps2", "psp", "megadrive", "genesis", "dreamcast",
+    "psx", "ps2", "psp", "megadrive", "genesis", "dreamcast", "xbox",
 )
 
 private val KONAMI = listOf(Pad.Up, Pad.Up, Pad.Down, Pad.Down, Pad.Left, Pad.Right, Pad.Left, Pad.Right, Pad.B, Pad.A)
@@ -1763,7 +1763,7 @@ enum class Media(val cartridge: Boolean) {
         fun forSystem(system: String): Media? = when (system) {
             "nes", "famicom", "snes", "sfc", "n64", "megadrive", "genesis", "mastersystem", "atari2600", "atari7800", "pcengine", "tg16" -> Cartridge
             "gb", "gbc", "gba", "nds", "n3ds", "switch", "virtualboy", "gamegear", "ngp", "ngpc", "atarilynx", "wonderswan", "wonderswancolor" -> HandheldCart
-            "psx", "ps2", "gc", "wii", "dreamcast", "saturn", "segacd", "3do", "pcenginecd" -> Disc
+            "psx", "ps2", "gc", "wii", "dreamcast", "saturn", "segacd", "3do", "pcenginecd", "xbox", "xbox360" -> Disc
             "psp" -> Umd
             else -> null
         }

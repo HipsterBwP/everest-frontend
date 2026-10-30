@@ -521,12 +521,42 @@ def console_ps():
     return t.render(np.zeros_like(t.dry), reverb=(3.0, 3000), wet=0.4)
 
 
+def console_xbox():
+    """Dashboard-era ambient techno in D minor: airy choir pad, glassy arps, sub bass, soft breaks. 122 BPM."""
+    t = Track(122, 16)
+    prog = [(50, "m7"), (46, "M7"), (48, "M"), (45, "m7")]
+    def choir(f, n):
+        # Saws through two vowel-ish resonances: a breathy "ah".
+        raw = saw(f, n, 14, 0.004) + saw(f, n, 14, -0.004)
+        return lowpass(highpass(raw, 500), 1400) + 0.5 * lowpass(highpass(raw, 1000), 2600)
+    for bar in range(16):
+        root, kind = prog[bar % 4]
+        st = bar * t.bar
+        n = int(t.bar * SR * 1.1)
+        pad = sum(choir(hz(m), n) for m in chord_tones(root + 12, kind)) / 4
+        t.add(pad * adsr(n, 0.6, 0.4, 0.8, 0.8), st, 0.12, send=0.6)
+        tones = chord_tones(root + 24, kind)
+        if bar >= 2:
+            order = tones + tones[::-1][1:-1]
+            notes(t, st, [order[i % len(order)] for i in range(16)], t.beat / 4,
+                  lambda f, n: lowpass(square(f, n, 0.3, 10), 3200) * adsr(n, 0.002, 0.06, 0.3, 0.02), 0.05, pan=0.3, send=0.4)
+        if bar >= 4:
+            notes(t, st, [root - 12, 0, root - 12, 0, root - 12, 0, root - 5, root - 12], t.beat / 2,
+                  lambda f, n: np.sin(2 * np.pi * f * np.arange(n) / SR) * adsr(n, 0.004, 0.15, 0.7, 0.05), 0.34)
+            for beat in range(4):
+                t.sidechain(st + beat * t.beat, depth=0.4)
+    drums(t, 4 * t.bar, 12, kick_beats=(0, 1, 2, 3), snare_beats=(1, 3), gain=0.7, chip=False)
+    pads = np.zeros_like(t.dry)
+    return t.render(pads, reverb=(2.6, 3500), wet=0.32)
+
+
 if __name__ == "__main__":
     out = sys.argv[1]
     only = set(sys.argv[2:])
     tracks = [("neon_drift", neon_drift), ("pixel_garden", pixel_garden), ("after_hours", after_hours),
               ("after_hours_8bit", after_hours_8bit), ("console_nes", console_nes), ("console_gb", console_gb),
-              ("console_md", console_md), ("console_snes", console_snes), ("console_ps", console_ps)]
+              ("console_md", console_md), ("console_snes", console_snes), ("console_ps", console_ps),
+              ("console_xbox", console_xbox)]
     for name, fn in [(n, f) for n, f in tracks if not only or n in only]:
         audio = fn()
         sf.write(f"{out}/{name}.wav", audio, SR)

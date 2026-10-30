@@ -782,7 +782,7 @@ private val SOUND_NAMES = mapOf(
     UiSound.BootThreeDs to "Depth chime", UiSound.BootN64 to "Block tumble", UiSound.BootNds to "Dual-screen ding",
     UiSound.BootNes to "Title card", UiSound.BootSnes to "Super chord", UiSound.BootSwitch to "Click",
     UiSound.BootPs2 to "Tower drone", UiSound.BootPsp to "Light wave", UiSound.BootWii to "Channel chime",
-    UiSound.Insert to "Cartridge in", UiSound.Disc to "Disc spin-up", UiSound.Blow to "Blow on the cartridge",
+    UiSound.Insert to "Cartridge in", UiSound.Disc to "Disc spin-up", UiSound.Blow to "Blow on the cartridge", UiSound.BootXbox to "Green core",
 )
 
 @Composable

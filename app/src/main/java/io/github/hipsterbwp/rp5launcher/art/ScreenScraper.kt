@@ -172,6 +172,7 @@ class ScreenScraper(private val creds: ScreenScraperAccount.Credentials) {
             "pcengine" to 31, "tg16" to 31, "ngp" to 25, "ngpc" to 82, "neogeo" to 142, "arcade" to 75,
             "atari2600" to 26, "atari7800" to 41, "atarilynx" to 28, "atarijaguar" to 27,
             "wonderswan" to 45, "wonderswancolor" to 46,
+            "xbox" to 32, "xbox360" to 33,
         )
     }
 }

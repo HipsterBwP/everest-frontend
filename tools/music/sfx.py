@@ -47,6 +47,28 @@ def at(track, start, x):
     track[i:i + len(x)] += x[:max(0, len(track) - i)]
 
 
+def xbox_boot():
+    """Early-2000s green-core start-up: a deep swell, a rush of energy, a bright airy chord."""
+    total = np.zeros(int(3.6 * SR))
+    rng = np.random.default_rng(2001)
+    t = np.arange(len(total)) / SR
+    # Sub swell rising under everything for the first two seconds.
+    swell = sine(hz(26), 2.2) * np.minimum(1, t[:int(2.2 * SR)] / 1.6) ** 2 * 0.9
+    at(total, 0.0, swell)
+    # Energy rush: filtered noise sweeping up, peaking as the core forms.
+    n = int(1.6 * SR)
+    noise = np.convolve(rng.standard_normal(n), np.ones(16) / 16, mode="same")
+    at(total, 0.0, noise * np.linspace(0, 1, n) ** 3 * 0.5)
+    # The core lights: a low hit and an open, airy chord with a shimmer on top.
+    at(total, 1.55, sine(hz(38), 1.8, 1.8) * 0.9)
+    chord = sum(sine(hz(m), 2.0, 1.1) for m in (50, 57, 62, 66, 69, 76)) * 0.14
+    at(total, 1.6, chord)
+    for i, m in enumerate((86, 90, 93, 98)):
+        at(total, 1.75 + i * 0.09, sine(hz(m), 0.9, 4) * 0.05)
+    fade = np.minimum(1, (len(total) - np.arange(len(total))) / (0.3 * SR))
+    return total * fade
+
+
 def ps2_boot():
     """In the spirit of the PS2 start-up: a rushing swell, a burst of light, a hush, deep towers, a final chord."""
     total = np.zeros(int(6.2 * SR))
@@ -113,6 +135,7 @@ if __name__ == "__main__":
     write(out, "ui_boot_nes", seq(*[pulse(hz(m), 0.07, 0.5) for m in (72, 76, 79, 84, 79, 84)], pulse(hz(88), 0.4, 0.5, 5)), 0.28)
     write(out, "ui_boot_switch", seq(pulse(hz(60), 0.03, 0.5, 40), rest(0.08), pulse(hz(67), 0.03, 0.5, 40), rest(0.25), tri(hz(84), 0.5, 5)), 0.32)
     write(out, "ui_boot_ps2", ps2_boot(), 0.45)
+    write(out, "ui_boot_xbox", xbox_boot(), 0.45)
     write(out, "ui_boot_psp", sum(tri(hz(m), 1.4, 2) for m in (64, 71, 76, 83)) * 0.6 + seq(rest(0.3), tri(hz(88), 1.1, 3)), 0.3)
     write(out, "ui_boot_snes", seq(*[pulse(hz(m), 0.06, 0.25) for m in (76, 79, 83, 88)], sum(pulse(hz(m), 0.8, 0.25, 3) for m in (88, 92, 95))), 0.3)
     write(out, "ui_boot_wii", seq(*[tri(hz(m), 0.14) for m in (79, 83, 86)], tri(hz(91), 0.9, 2.5)), 0.34)

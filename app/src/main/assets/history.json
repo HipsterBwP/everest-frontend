@@ -427,6 +427,10 @@
    "text": "The Xbox launches with Halo: Combat Evolved"
   },
   {
+   "year": 2002,
+   "text": "Xbox Live goes online in North America"
+  },
+  {
    "year": 2013,
    "text": "The PlayStation 4 launches in North America"
   },
@@ -609,6 +613,18 @@
   {
    "year": 2023,
    "text": "The Legend of Zelda: Tears of the Kingdom is released"
+  }
+ ],
+ "03-10": [
+  {
+   "year": 2000,
+   "text": "Bill Gates announces the Xbox at GDC"
+  }
+ ],
+ "01-06": [
+  {
+   "year": 2001,
+   "text": "The final Xbox design is unveiled at CES"
   }
  ]
 }

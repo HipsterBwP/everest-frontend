@@ -56,6 +56,10 @@ enum class Era(
         Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFFFC08A), Color(0xFFFF6A00))),
         Color(0xFFFF8A3D), Color(0xFFFFFFFF), null,
     ),
+    Xbox(
+        Brush.verticalGradient(listOf(Color(0xFFF2FFE6), Color(0xFF9BF00B), Color(0xFF107C10))),
+        Color(0xFF6BD62E), Color(0xFFC8FF8A), null,
+    ),
     ;
 
     companion object {
@@ -65,6 +69,7 @@ enum class Era(
             "nes", "famicom", "fds" -> Nes
             "psx" -> PlayStation
             "dreamcast" -> Dreamcast
+            "xbox" -> Xbox
             else -> null
         }
     }
@@ -127,6 +132,15 @@ fun EraBackdrop(era: Era) {
                     a += 0.05f
                 }
                 drawPath(path, Color(0x40FF8A3D), style = Stroke(h * 0.035f))
+            }
+            Era.Xbox -> {
+                // Black with the green core glowing through, and a faint X of light behind it.
+                drawRect(Color(0xFF050805))
+                val c = Offset(w * 0.7f, h * 0.45f)
+                drawCircle(Brush.radialGradient(listOf(Color(0x5582E600), Color(0x22107C10), Color.Transparent), c, h * 0.6f), h * 0.6f, c)
+                val arm = h * 0.55f
+                drawLine(Color(0x1A9BF00B), c + Offset(-arm, -arm), c + Offset(arm, arm), h * 0.08f)
+                drawLine(Color(0x1A9BF00B), c + Offset(-arm, arm), c + Offset(arm, -arm), h * 0.08f)
             }
         }
     }

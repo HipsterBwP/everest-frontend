@@ -195,6 +195,7 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
             "md" to R.raw.music_console_md,
             "snes" to R.raw.music_console_snes,
             "ps" to R.raw.music_console_ps,
+            "xbox" to R.raw.music_console_xbox,
         )
 
         /** Which console tune a system gets, if any. */
@@ -204,6 +205,7 @@ class BackgroundMusic(private val context: Context, private val scope: Coroutine
             "megadrive", "genesis", "mastersystem", "gamegear", "segacd", "sega32x" -> "md"
             "snes", "sfc" -> "snes"
             "psx", "ps2", "psp" -> "ps"
+            "xbox", "xbox360" -> "xbox"
             else -> null
         }
 

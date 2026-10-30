@@ -127,6 +127,7 @@ val CONSOLE_BIRTHDAYS: Map<String, LocalDate> = mapOf(
     "megadrive" to LocalDate.of(1988, 10, 29), "genesis" to LocalDate.of(1988, 10, 29),
     "mastersystem" to LocalDate.of(1985, 10, 20), "gamegear" to LocalDate.of(1990, 10, 6),
     "saturn" to LocalDate.of(1994, 11, 22), "dreamcast" to LocalDate.of(1998, 11, 27),
+    "xbox" to LocalDate.of(2001, 11, 15), "xbox360" to LocalDate.of(2005, 11, 22),
 )
 
 /** (console, age) for a console in [systems] born on [day], if any. */

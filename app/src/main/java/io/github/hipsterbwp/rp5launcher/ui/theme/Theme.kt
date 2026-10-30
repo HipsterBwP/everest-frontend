@@ -169,6 +169,7 @@ object SystemNeon {
         "mastersystem" to Color(0xFFFF4D4D), "gamegear" to Color(0xFF5CC8FF), "segacd" to Color(0xFF6E7BFF),
         "arcade" to Color(0xFFFFC93C), "mame" to Color(0xFFFFC93C), "fbneo" to Color(0xFFFFC93C), "neogeo" to Color(0xFFFFC93C),
         "atari2600" to Color(0xFFFF8A3D), "pcengine" to Color(0xFFFF6FC3), "tg16" to Color(0xFFFF6FC3),
+        "xbox" to Color(0xFF7CFF3A), "xbox360" to Color(0xFF9BF00B),
     )
 
     /** The console's neon, or the theme's pink. In the gold theme everything stays gold. */

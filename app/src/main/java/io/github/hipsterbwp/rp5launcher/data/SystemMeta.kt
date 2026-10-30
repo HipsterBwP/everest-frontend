@@ -47,6 +47,8 @@ object SystemMeta {
         "atarilynx" to SystemInfo("Atari Lynx", "LYNX", "Atari", 1989),
         "wonderswan" to SystemInfo("WonderSwan", "WS", "Bandai", 1999),
         "wonderswancolor" to SystemInfo("WonderSwan Color", "WSC", "Bandai", 2000),
+        "xbox" to SystemInfo("Xbox", "XBOX", "Microsoft", 2001),
+        "xbox360" to SystemInfo("Xbox 360", "X360", "Microsoft", 2005),
     )
 
     /** Common folder names people use that differ from ES-DE's. */
@@ -65,6 +67,12 @@ object SystemMeta {
         "ds" to "nds",
         "3ds" to "n3ds",
         "gamecube" to "gc",
+        "microsoftxbox" to "xbox",
+        "originalxbox" to "xbox",
+        "ogxbox" to "xbox",
+        "xboxog" to "xbox",
+        "xbox1" to "xbox",
+        "xboxclassic" to "xbox",
     )
 
     fun info(def: SystemDef): SystemInfo =
