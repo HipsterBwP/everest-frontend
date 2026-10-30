@@ -2,11 +2,11 @@
 
 Everest Frontend is a controller-first Android game launcher for the Retroid Pocket 5 (Android 13, 1920×1080), built with
 Kotlin and Jetpack Compose. The UI follows [DESIGN.md](DESIGN.md) (an Apple-TV-inspired dark style); every design
-token lives in [`ui/theme/Theme.kt`](app/src/main/java/io/github/hipsterbwp/rp5launcher/ui/theme/Theme.kt).
+token lives in [`ui/theme/Theme.kt`](app/src/main/java/io/github/hipsterbwp/everest/ui/theme/Theme.kt).
 
 ## Getting the APK
 
-Every push to `main` publishes a GitHub release (`build-<n>`) with `rp5-launcher.apk` attached. Install
+Every push to `main` publishes a GitHub release (`build-<n>`) with `everest.apk` attached. Install
 it once by hand; after that the launcher checks for a newer release every time it starts (and from
 **Settings › About › Check for updates**), downloads it and hands it to Android to install. The repo
 must be public for the launcher to see releases.
@@ -14,6 +14,13 @@ must be public for the launcher to see releases.
 Pushes to other branches still build and upload the APK as a workflow artifact.
 
 To build locally (needs JDK 17 and the Android SDK): `./gradlew assembleDebug`.
+
+### Moving from the old "rp5-launcher" app
+
+Everest now installs as its own app (`io.github.hipsterbwp.everest`), next to the old one. Install
+`everest.apk`, pick your ROMs folder again, then uninstall the old app and choose Everest as the Home app.
+To keep your settings, copy `launcher-config.json` from `Android/data/io.github.hipsterbwp.rp5launcher/files/`
+into `Android/data/io.github.hipsterbwp.everest/files/` before the first scan. Play stats start fresh.
 
 ## First run
 
@@ -125,7 +132,7 @@ and opens Android's setting to make Everest Frontend the home screen (the Home b
 
 Name one picture per system after its folder or ES-DE name: `snes.jpg`, `ps2.png`, `n64.webp`, `megadrive.jpg`…
 Then either import them (or a .zip of them) from Settings › Appearance › Your own pictures, or put them in a folder
-called `_art` inside your ROMs folder and rescan from Settings › Library. An `arcrow-art` folder or `arcrow-art.zip`
+called `_art` inside your ROMs folder and rescan from Settings › Library. An `everest-art` folder or `everest-art.zip`
 in the ROMs folder works too. The console screen shows them full screen. Wide 1920×1080 pictures look best; keep the main subject in the
 right half, since the logo rail and info panel cover the left. Settings › Appearance switches between your
 pictures, the best-selling game's cover and the console on its own, and sets the blur and colour tint.
@@ -140,7 +147,7 @@ Android intents.
 Per-system choices are saved to an editable JSON file:
 
 ```
-Android/data/io.github.hipsterbwp.rp5launcher/files/launcher-config.json
+Android/data/io.github.hipsterbwp.everest/files/launcher-config.json
 ```
 
 ```json

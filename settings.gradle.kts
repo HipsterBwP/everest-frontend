@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "rp5-launcher"
+rootProject.name = "everest-frontend"
 include(":app")

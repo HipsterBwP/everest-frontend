@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rp5-launcher-debug-${{ github.sha }}
+          name: everest-debug-${{ github.sha }}
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
@@ -35,9 +35,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk rp5-launcher.apk
+          cp app/build/outputs/apk/debug/app-debug.apk everest.apk
           git log -1 --pretty=%s > notes.txt
-          gh release create "build-${{ github.run_number }}" rp5-launcher.apk \
+          gh release create "build-${{ github.run_number }}" everest.apk \
             --title "Build ${{ github.run_number }}" \
             --notes-file notes.txt \
             --target "${{ github.sha }}" \

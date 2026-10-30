@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "io.github.hipsterbwp.rp5launcher"
+    namespace = "io.github.hipsterbwp.everest"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.github.hipsterbwp.rp5launcher"
+        applicationId = "io.github.hipsterbwp.everest"
         minSdk = 29
         targetSdk = 35
         // CI numbers builds by run so every release is newer than the last; local builds are 1.

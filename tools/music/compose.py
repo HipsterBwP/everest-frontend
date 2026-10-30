@@ -1,4 +1,4 @@
-"""Original background music for ARCROW, synthesized from scratch (no samples, no third-party rights).
+"""Original background music for Everest, synthesized from scratch (no samples, no third-party rights).
 
 Renders three seamless loops to WAV; ffmpeg encodes them to OGG Vorbis afterwards.
 """
